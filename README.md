@@ -37,6 +37,10 @@ PIC, IRQ0-IRQ15 aralığını `0x20-0x2F` vektörlerine taşır. Sadece IRQ1 etk
 
 `memory/paging.c`, PMM'den bir page directory ve bir page table alır. İlk 4 MiB fiziksel belleği kimlik eşler, CR3'ü yükler ve CR0.PG bitini açar. Böylece kernel kodu, stack, VGA belleği ve mevcut IDT fiziksel adresleri aynı sanal adreslerde erişilebilir kalır.
 
+## Adım 9: Basit process scheduler
+
+`process/scheduler.c`, en fazla sekiz cooperative görevi kaydeder ve bir scheduling turunda sırayla çağırır. `kernel/kernel.c`, iki test görevi ekleyerek scheduler'ın kontrolü görevlere devrettiğini VGA üzerinden gösterir.
+
 Build betiği kernel boyutunu hesaplar, ikinci disk sektöründen başlayacak biçimde 1-17 sektör arasına doldurur ve bootloader'ı doğru sektör sayısıyla yeniden derler.
 
 ## Klasör yapısı
@@ -80,5 +84,7 @@ BeerOS: protected mode ve VGA driver hazir.
 BeerOS: IDT ve kesme handler calisiyor.
 BeerOS: fiziksel bellek yoneticisi calisiyor.
 BeerOS: paging aktif.
+BeerOS: scheduler gorev 1 calisti.
+BeerOS: scheduler gorev 2 calisti.
 BeerOS: klavye hazir, tuslara bas.
 ```

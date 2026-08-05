@@ -1,13 +1,7 @@
 [bits 16]
 
 global kernel_entry
-extern vga_clear
-extern vga_write
-extern idt_init
-extern keyboard_init
-extern pmm_init
-extern pmm_self_test
-extern paging_init
+extern kernel_main
 
 CODE_SEGMENT equ 0x08
 DATA_SEGMENT equ 0x10
@@ -36,61 +30,11 @@ protected_mode_entry:
     mov gs, ax
     mov ss, ax
     mov esp, 0x90000
-    mov [boot_drive], dl
-    call vga_clear
-    push dword kernel_message
-    call vga_write
-    add esp, 4
-    call idt_init
-    int 0x30
-    call pmm_init
-    call pmm_self_test
-    test eax, eax
-    jz .pmm_failed
-    push dword pmm_message
-    call vga_write
-    add esp, 4
-    call paging_init
-    test eax, eax
-    jz .paging_failed
-    push dword paging_message
-    call vga_write
-    add esp, 4
-    call keyboard_init
-    sti
+    call kernel_main
 
 .halt:
     hlt
     jmp .halt
-
-.pmm_failed:
-    push dword pmm_error_message
-    call vga_write
-    add esp, 4
-    jmp .halt
-
-.paging_failed:
-    push dword paging_error_message
-    call vga_write
-    add esp, 4
-    jmp .halt
-
-section .rodata
-
-kernel_message:
-    db 'BeerOS: protected mode ve VGA driver hazir.', 10, 0
-
-pmm_message:
-    db 'BeerOS: fiziksel bellek yoneticisi calisiyor.', 10, 0
-
-pmm_error_message:
-    db 'BeerOS: fiziksel bellek yoneticisi hatasi.', 10, 0
-
-paging_message:
-    db 'BeerOS: paging aktif.', 10, 0
-
-paging_error_message:
-    db 'BeerOS: paging hatasi.', 10, 0
 
 section .data
 
@@ -104,8 +48,3 @@ gdt_end:
 gdt_descriptor:
     dw gdt_end - gdt_start - 1
     dd gdt_start
-
-section .bss
-
-boot_drive:
-    resb 1
