@@ -1,5 +1,6 @@
 #include "io.h"
 #include "keyboard.h"
+#include "shell.h"
 #include "vga.h"
 
 static const char keymap[128] = {
@@ -7,7 +8,7 @@ static const char keymap[128] = {
     [0x07] = '6', [0x08] = '7', [0x09] = '8', [0x0A] = '9', [0x0B] = '0',
     [0x10] = 'q', [0x11] = 'w', [0x12] = 'e', [0x13] = 'r', [0x14] = 't',
     [0x15] = 'y', [0x16] = 'u', [0x17] = 'i', [0x18] = 'o', [0x19] = 'p',
-    [0x1C] = '\n',
+    [0x0E] = '\b', [0x1C] = '\n',
     [0x1E] = 'a', [0x1F] = 's', [0x20] = 'd', [0x21] = 'f', [0x22] = 'g',
     [0x23] = 'h', [0x24] = 'j', [0x25] = 'k', [0x26] = 'l',
     [0x2C] = 'z', [0x2D] = 'x', [0x2E] = 'c', [0x2F] = 'v', [0x30] = 'b',
@@ -23,7 +24,6 @@ static void acknowledge_master_pic(void)
 
 void keyboard_init(void)
 {
-    vga_write("BeerOS: klavye hazir, tuslara bas.\n");
 }
 
 void keyboard_irq_handler(void)
@@ -49,7 +49,7 @@ void keyboard_irq_handler(void)
     }
 
     if (character != '\0') {
-        vga_write_char(character);
+        shell_handle_char(character);
     }
 
     acknowledge_master_pic();

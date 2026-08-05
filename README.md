@@ -41,6 +41,10 @@ PIC, IRQ0-IRQ15 aralığını `0x20-0x2F` vektörlerine taşır. Sadece IRQ1 etk
 
 `process/scheduler.c`, en fazla sekiz cooperative görevi kaydeder ve bir scheduling turunda sırayla çağırır. `kernel/kernel.c`, iki test görevi ekleyerek scheduler'ın kontrolü görevlere devrettiğini VGA üzerinden gösterir.
 
+## Adım 10: Shell
+
+`shell/shell.c`, klavye kesmelerinden gelen karakterleri satır tamponunda toplar ve Enter ile komut çalıştırır. `help`, `clear`, `about` ve `mem` komutları ile Backspace desteklenir.
+
 Build betiği kernel boyutunu hesaplar, ikinci disk sektöründen başlayacak biçimde 1-17 sektör arasına doldurur ve bootloader'ı doğru sektör sayısıyla yeniden derler.
 
 ## Klasör yapısı
@@ -86,5 +90,6 @@ BeerOS: fiziksel bellek yoneticisi calisiyor.
 BeerOS: paging aktif.
 BeerOS: scheduler gorev 1 calisti.
 BeerOS: scheduler gorev 2 calisti.
-BeerOS: klavye hazir, tuslara bas.
+BeerOS shell hazir. help yazabilirsin.
+beeros> 
 ```

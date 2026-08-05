@@ -3,6 +3,7 @@
 #include "paging.h"
 #include "pmm.h"
 #include "scheduler.h"
+#include "shell.h"
 #include "vga.h"
 
 static void scheduler_task_one(void)
@@ -42,5 +43,6 @@ void kernel_main(void)
     scheduler_run();
 
     keyboard_init();
+    shell_init();
     __asm__ volatile ("sti");
 }

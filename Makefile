@@ -18,6 +18,7 @@ INTERRUPTS_OBJ := $(BUILD_DIR)/interrupts.o
 PMM_OBJ := $(BUILD_DIR)/pmm.o
 PAGING_OBJ := $(BUILD_DIR)/paging.o
 SCHEDULER_OBJ := $(BUILD_DIR)/scheduler.o
+SHELL_OBJ := $(BUILD_DIR)/shell.o
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 KERNEL_BIN := $(BUILD_DIR)/kernel.bin
 IMAGE := $(BUILD_DIR)/beeros.img
@@ -32,14 +33,14 @@ $(BUILD_DIR):
 $(ENTRY_OBJ): kernel/kernel_entry.asm | $(BUILD_DIR)
 	$(NASM) -f elf32 $< -o $@
 
-$(KERNEL_MAIN_OBJ): kernel/kernel.c cpu/idt.h include/keyboard.h memory/paging.h memory/pmm.h process/scheduler.h include/vga.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Imemory -Iprocess -c $< -o $@
+$(KERNEL_MAIN_OBJ): kernel/kernel.c cpu/idt.h include/keyboard.h memory/paging.h memory/pmm.h process/scheduler.h shell/shell.h include/vga.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Imemory -Iprocess -Ishell -c $< -o $@
 
 $(VGA_OBJ): drivers/vga.c include/vga.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -c $< -o $@
 
-$(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h include/vga.h cpu/io.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -c $< -o $@
+$(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h shell/shell.h include/vga.h cpu/io.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Ishell -c $< -o $@
 
 $(IDT_OBJ): cpu/idt.c cpu/idt.h include/vga.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -c $< -o $@
@@ -56,8 +57,11 @@ $(PAGING_OBJ): memory/paging.c memory/paging.h memory/pmm.h | $(BUILD_DIR)
 $(SCHEDULER_OBJ): process/scheduler.c process/scheduler.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iprocess -c $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ)
+$(SHELL_OBJ): shell/shell.c shell/shell.h include/vga.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Ishell -c $< -o $@
+
+$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(SHELL_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(SHELL_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@

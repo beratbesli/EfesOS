@@ -16,6 +16,9 @@ void vga_write_char(char character)
 {
     if (character == '\n') {
         cursor += VGA_WIDTH - (cursor % VGA_WIDTH);
+        if (cursor >= VGA_SIZE) {
+            cursor = 0;
+        }
         return;
     }
 
@@ -25,6 +28,16 @@ void vga_write_char(char character)
     if (cursor == VGA_SIZE) {
         cursor = 0;
     }
+}
+
+void vga_backspace(void)
+{
+    if (cursor == 0) {
+        return;
+    }
+
+    cursor--;
+    vga_buffer[cursor] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | ' ';
 }
 
 void vga_clear(void)
