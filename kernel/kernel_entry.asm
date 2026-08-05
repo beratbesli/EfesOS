@@ -1,67 +1,65 @@
-; BeerOS kernel giriş noktası (real mode)
-; Bootloader bu ikiliyi 1000:0000 adresine yükler ve DL'de boot sürücüsünü verir.
-
 [bits 16]
-[org 0x0000]
 
-KERNEL_STACK_SEGMENT equ 0x9000
-KERNEL_STACK_OFFSET  equ 0xFFFE
+global kernel_entry
+extern vga_clear
+extern vga_write
+
+CODE_SEGMENT equ 0x08
+DATA_SEGMENT equ 0x10
+
+section .text
 
 kernel_entry:
     cli
     cld
-
-    ; Kernel, bootloader'ın segment kayıtlarına bağımlı kalmaz.
-    mov ax, cs
+    xor ax, ax
     mov ds, ax
     mov es, ax
+    a32 lgdt [gdt_descriptor]
+    mov eax, cr0
+    or eax, 1
+    mov cr0, eax
+    jmp dword CODE_SEGMENT:protected_mode_entry
 
-    ; Sonraki disk işlemleri için BIOS'un verdiği boot sürücüsünü koru.
-    mov [boot_drive], dl
+[bits 32]
 
-    ; Stack'i video belleğinin (0xA0000) hemen altındaki güvenli alana taşı.
-    mov ax, KERNEL_STACK_SEGMENT
+protected_mode_entry:
+    mov ax, DATA_SEGMENT
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
     mov ss, ax
-    mov sp, KERNEL_STACK_OFFSET
-    sti
-
-    call kernel_main
+    mov esp, 0x90000
+    mov [boot_drive], dl
+    call vga_clear
+    push dword kernel_message
+    call vga_write
+    add esp, 4
 
 .halt:
     hlt
     jmp .halt
 
-; İleride C tabanlı kernel_main bu katmanın yerini alacak.
-kernel_main:
-    mov si, entry_message
-    call print_string
-    ret
+section .rodata
 
-; DS:SI ile sonlanan bir metni BIOS teletype servisiyle ekrana yazar.
-print_string:
-.next_character:
-    lodsb
-    test al, al
-    jz .done
+kernel_message:
+    db 'BeerOS: protected mode ve VGA driver hazir.', 0
 
-    mov ah, 0x0E
-    mov bh, 0x00
-    mov bl, 0x0A
-    push ds
-    push si
-    int 0x10
-    pop si
-    pop ds
-    jmp .next_character
-.done:
-    ret
+section .data
 
-entry_message:
-    db 'BeerOS kernel: entry point reached.', 13, 10, 0
+align 8
+gdt_start:
+    dq 0x0000000000000000
+    dq 0x00CF9A000000FFFF
+    dq 0x00CF92000000FFFF
+gdt_end:
+
+gdt_descriptor:
+    dw gdt_end - gdt_start - 1
+    dd gdt_start
+
+section .bss
 
 boot_drive:
-    db 0
-
-; Stage-1 loader şu an bir sektör yükler; ikili bu nedenle tam 512 bayttır.
-times 512 - ($ - $$) db 0
-
+    resb 1

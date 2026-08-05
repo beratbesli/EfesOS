@@ -7,7 +7,9 @@
 KERNEL_LOAD_SEGMENT equ 0x1000
 KERNEL_LOAD_OFFSET  equ 0x0000
 KERNEL_START_SECTOR equ 2
-KERNEL_SECTORS      equ 1
+%ifndef KERNEL_SECTORS
+%define KERNEL_SECTORS 1
+%endif
 
     ; CS'yi kanonik 0000h değerine getir. Böylece tüm sabit adresler nettir.
     jmp 0x0000:boot_start
