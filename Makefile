@@ -14,6 +14,7 @@ VGA_OBJ := $(BUILD_DIR)/vga.o
 KEYBOARD_OBJ := $(BUILD_DIR)/keyboard.o
 IDT_OBJ := $(BUILD_DIR)/idt.o
 INTERRUPTS_OBJ := $(BUILD_DIR)/interrupts.o
+PMM_OBJ := $(BUILD_DIR)/pmm.o
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 KERNEL_BIN := $(BUILD_DIR)/kernel.bin
 IMAGE := $(BUILD_DIR)/beeros.img
@@ -40,8 +41,11 @@ $(IDT_OBJ): cpu/idt.c cpu/idt.h include/vga.h | $(BUILD_DIR)
 $(INTERRUPTS_OBJ): cpu/interrupts.asm | $(BUILD_DIR)
 	$(NASM) -f elf32 $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ)
+$(PMM_OBJ): memory/pmm.c memory/pmm.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Imemory -c $< -o $@
+
+$(KERNEL_ELF): $(ENTRY_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@

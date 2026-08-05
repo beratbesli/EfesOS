@@ -5,6 +5,8 @@ extern vga_clear
 extern vga_write
 extern idt_init
 extern keyboard_init
+extern pmm_init
+extern pmm_self_test
 
 CODE_SEGMENT equ 0x08
 DATA_SEGMENT equ 0x10
@@ -40,6 +42,13 @@ protected_mode_entry:
     add esp, 4
     call idt_init
     int 0x30
+    call pmm_init
+    call pmm_self_test
+    test eax, eax
+    jz .pmm_failed
+    push dword pmm_message
+    call vga_write
+    add esp, 4
     call keyboard_init
     sti
 
@@ -47,10 +56,22 @@ protected_mode_entry:
     hlt
     jmp .halt
 
+.pmm_failed:
+    push dword pmm_error_message
+    call vga_write
+    add esp, 4
+    jmp .halt
+
 section .rodata
 
 kernel_message:
     db 'BeerOS: protected mode ve VGA driver hazir.', 10, 0
+
+pmm_message:
+    db 'BeerOS: fiziksel bellek yoneticisi calisiyor.', 10, 0
+
+pmm_error_message:
+    db 'BeerOS: fiziksel bellek yoneticisi hatasi.', 10, 0
 
 section .data
 

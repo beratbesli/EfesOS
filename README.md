@@ -29,6 +29,10 @@ Bootloader, BIOS'un `DL` kaydında verdiği önyükleme sürücüsünü saklar. 
 
 PIC, IRQ0-IRQ15 aralığını `0x20-0x2F` vektörlerine taşır. Sadece IRQ1 etkin kalır. `drivers/keyboard.c`, `0x60` portundan Set 1 scan code okur, PIC'e EOI gönderir ve harf, sayı, boşluk, Enter ve Shift ile yazılan tuşları VGA'ya aktarır.
 
+## Adım 7: Fiziksel bellek yöneticisi
+
+`memory/pmm.c`, 4 KiB bloklardan oluşan 16 MiB fiziksel adres alanını bitmap ile yönetir. İlk 1 MiB BIOS, bootloader ve kernel için ayrılmış tutulur. Açılış self-test'i iki bloğu ayırıp geri bırakır.
+
 Build betiği kernel boyutunu hesaplar, ikinci disk sektöründen başlayacak biçimde 1-17 sektör arasına doldurur ve bootloader'ı doğru sektör sayısıyla yeniden derler.
 
 ## Klasör yapısı
@@ -70,5 +74,6 @@ Beklenen QEMU çıktısı:
 ```text
 BeerOS: protected mode ve VGA driver hazir.
 BeerOS: IDT ve kesme handler calisiyor.
+BeerOS: fiziksel bellek yoneticisi calisiyor.
 BeerOS: klavye hazir, tuslara bas.
 ```
