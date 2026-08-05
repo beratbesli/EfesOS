@@ -140,5 +140,5 @@ Write-Host "Olusturuldu: $imagePath ($kernelSectors kernel sektoru)"
 
 if ($Run) {
     $qemu = Get-RequiredCommand 'qemu-system-i386'
-    & $qemu -drive "file=$imagePath,format=raw,if=floppy" -boot a -no-reboot -no-shutdown
+    & $qemu -vga std -drive "file=$imagePath,format=raw,if=floppy" -boot a -no-reboot -no-shutdown
 }

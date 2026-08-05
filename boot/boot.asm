@@ -27,6 +27,17 @@ boot_start:
     ; BIOS'un verdiği sürücü numarasını, BIOS çağrılarından önce sakla.
     mov [boot_drive], dl
 
+    mov word [0x04F0], 0
+    mov ax, 0x1130
+    mov bh, 0x06
+    int 0x10
+    mov [0x04F2], es
+    mov [0x04F4], bp
+    mov word [0x04F0], 0xB33F
+
+    xor ax, ax
+    mov ds, ax
+
     mov si, loading_message
     call print_string
 

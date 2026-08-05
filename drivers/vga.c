@@ -1,54 +1,195 @@
 #include "vga.h"
 
+typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
 
 enum {
-    VGA_WIDTH = 80,
-    VGA_HEIGHT = 25,
-    VGA_SIZE = VGA_WIDTH * VGA_HEIGHT,
+    TEXT_WIDTH = 80,
+    TEXT_HEIGHT = 25,
+    TEXT_SIZE = TEXT_WIDTH * TEXT_HEIGHT,
+    GRAPHICS_WIDTH = 1024,
+    GRAPHICS_HEIGHT = 768,
+    GRAPHICS_COLUMNS = GRAPHICS_WIDTH / 8,
+    GRAPHICS_ROWS = GRAPHICS_HEIGHT / 16,
+    VBE_MODE_FLAG_ADDRESS = 0x04F0,
+    VBE_FONT_SEGMENT_ADDRESS = 0x04F2,
+    VBE_FONT_OFFSET_ADDRESS = 0x04F4,
+    VBE_FRAMEBUFFER_VIRTUAL = 0xE0000000,
+    BGA_INDEX_PORT = 0x01CE,
+    BGA_DATA_PORT = 0x01CF,
+    BGA_ID = 0,
+    BGA_ID4 = 0xB0C4,
+    BGA_XRES = 1,
+    BGA_YRES = 2,
+    BGA_BPP = 3,
+    BGA_ENABLE = 4,
+    BGA_ENABLED_WITH_LFB = 0x41,
+    PCI_CONFIG_ADDRESS_PORT = 0x0CF8,
+    PCI_CONFIG_DATA_PORT = 0x0CFC,
+    VGA_PCI_CONFIG_COMMAND = 0x80001004U,
+    VGA_PCI_CONFIG_BAR0 = 0x80001010U,
+    VGA_PCI_COMMAND_IO_AND_MEMORY = 0x0003,
     VGA_COLOR_LIGHT_GREEN = 0x0A
 };
 
-static volatile uint16_t *const vga_buffer = (uint16_t *)0xB8000;
-static unsigned short cursor;
+static volatile uint16_t *const text_buffer = (uint16_t *)0xB8000;
+static volatile uint32_t *const graphics_buffer = (uint32_t *)VBE_FRAMEBUFFER_VIRTUAL;
+static volatile uint8_t *font_data;
+static unsigned short text_cursor;
+static unsigned short graphics_cursor;
+static int graphics_active;
 
-void vga_write_char(char character)
+static void outw(uint16_t port, uint16_t value)
 {
+    __asm__ volatile ("outw %0, %1" : : "a"(value), "Nd"(port));
+}
+
+static void outl(uint16_t port, uint32_t value)
+{
+    __asm__ volatile ("outl %0, %1" : : "a"(value), "Nd"(port));
+}
+
+static void bga_write(uint16_t index, uint16_t value)
+{
+    outw(BGA_INDEX_PORT, index);
+    outw(BGA_DATA_PORT, value);
+}
+
+static void clear_graphics_cell(unsigned short cell)
+{
+    unsigned short row = cell / GRAPHICS_COLUMNS;
+    unsigned short column = cell % GRAPHICS_COLUMNS;
+    unsigned short y;
+
+    for (y = 0; y < 16; y++) {
+        unsigned short x;
+
+        for (x = 0; x < 8; x++) {
+            graphics_buffer[((row * 16U + y) * GRAPHICS_WIDTH) + (column * 8U + x)] = 0;
+        }
+    }
+}
+
+static void draw_graphics_char(char character)
+{
+    unsigned short row;
+    unsigned short column;
+    unsigned short y;
+    volatile uint8_t *glyph;
+
     if (character == '\n') {
-        cursor += VGA_WIDTH - (cursor % VGA_WIDTH);
-        if (cursor >= VGA_SIZE) {
-            cursor = 0;
+        graphics_cursor += GRAPHICS_COLUMNS - (graphics_cursor % GRAPHICS_COLUMNS);
+        if (graphics_cursor >= GRAPHICS_COLUMNS * GRAPHICS_ROWS) {
+            graphics_cursor = 0;
         }
         return;
     }
 
-    vga_buffer[cursor] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | (unsigned char)character;
-    cursor++;
+    row = graphics_cursor / GRAPHICS_COLUMNS;
+    column = graphics_cursor % GRAPHICS_COLUMNS;
+    glyph = font_data + ((unsigned char)character * 16U);
 
-    if (cursor == VGA_SIZE) {
-        cursor = 0;
+    for (y = 0; y < 16; y++) {
+        unsigned short x;
+        uint8_t pixels = glyph[y];
+
+        for (x = 0; x < 8; x++) {
+            uint32_t color = (pixels & (0x80U >> x)) ? 0x0000FF00U : 0;
+            graphics_buffer[((row * 16U + y) * GRAPHICS_WIDTH) + (column * 8U + x)] = color;
+        }
+    }
+
+    graphics_cursor++;
+    if (graphics_cursor == GRAPHICS_COLUMNS * GRAPHICS_ROWS) {
+        graphics_cursor = 0;
+    }
+}
+
+void vga_init(void)
+{
+    uint16_t segment;
+    uint16_t offset;
+
+    if (*(volatile uint16_t *)VBE_MODE_FLAG_ADDRESS != 0xB33FU) {
+        return;
+    }
+
+    segment = *(volatile uint16_t *)VBE_FONT_SEGMENT_ADDRESS;
+    offset = *(volatile uint16_t *)VBE_FONT_OFFSET_ADDRESS;
+    font_data = (volatile uint8_t *)(((uint32_t)segment << 4) + offset);
+    outl(PCI_CONFIG_ADDRESS_PORT, VGA_PCI_CONFIG_BAR0);
+    outl(PCI_CONFIG_DATA_PORT, VBE_FRAMEBUFFER_VIRTUAL);
+    outl(PCI_CONFIG_ADDRESS_PORT, VGA_PCI_CONFIG_COMMAND);
+    outw(PCI_CONFIG_DATA_PORT, VGA_PCI_COMMAND_IO_AND_MEMORY);
+    bga_write(BGA_ID, BGA_ID4);
+    bga_write(BGA_ENABLE, 0);
+    bga_write(BGA_XRES, GRAPHICS_WIDTH);
+    bga_write(BGA_YRES, GRAPHICS_HEIGHT);
+    bga_write(BGA_BPP, 32);
+    bga_write(BGA_ENABLE, BGA_ENABLED_WITH_LFB);
+    graphics_active = 1;
+}
+
+void vga_write_char(char character)
+{
+    if (graphics_active) {
+        draw_graphics_char(character);
+        return;
+    }
+
+    if (character == '\n') {
+        text_cursor += TEXT_WIDTH - (text_cursor % TEXT_WIDTH);
+        if (text_cursor >= TEXT_SIZE) {
+            text_cursor = 0;
+        }
+        return;
+    }
+
+    text_buffer[text_cursor] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | (unsigned char)character;
+    text_cursor++;
+
+    if (text_cursor == TEXT_SIZE) {
+        text_cursor = 0;
     }
 }
 
 void vga_backspace(void)
 {
-    if (cursor == 0) {
+    if (graphics_active) {
+        if (graphics_cursor == 0) {
+            return;
+        }
+        graphics_cursor--;
+        clear_graphics_cell(graphics_cursor);
         return;
     }
 
-    cursor--;
-    vga_buffer[cursor] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | ' ';
+    if (text_cursor == 0) {
+        return;
+    }
+
+    text_cursor--;
+    text_buffer[text_cursor] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | ' ';
 }
 
 void vga_clear(void)
 {
-    unsigned short index;
+    unsigned int index;
 
-    for (index = 0; index < VGA_SIZE; index++) {
-        vga_buffer[index] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | ' ';
+    if (graphics_active) {
+        for (index = 0; index < GRAPHICS_WIDTH * GRAPHICS_HEIGHT; index++) {
+            graphics_buffer[index] = 0;
+        }
+        graphics_cursor = 0;
+        return;
     }
 
-    cursor = 0;
+    for (index = 0; index < TEXT_SIZE; index++) {
+        text_buffer[index] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | ' ';
+    }
+
+    text_cursor = 0;
 }
 
 void vga_write(const char *text)

@@ -6,6 +6,9 @@
 #define PAGE_PRESENT 0x001U
 #define PAGE_WRITABLE 0x002U
 #define PAGE_ENABLE 0x80000000U
+#define VBE_MODE_FLAG_ADDRESS 0x04F0U
+#define VBE_FRAMEBUFFER_VIRTUAL 0xE0000000U
+#define VBE_FRAMEBUFFER_PAGES 768U
 
 static void load_page_directory(uint32_t address)
 {
@@ -25,6 +28,7 @@ int paging_init(void)
 {
     uint32_t directory_address = pmm_alloc_block();
     uint32_t table_address = pmm_alloc_block();
+    uint32_t framebuffer_table_address = 0;
     uint32_t *directory;
     uint32_t *table;
     uint32_t index;
@@ -48,6 +52,31 @@ int paging_init(void)
     }
 
     directory[0] = table_address | PAGE_PRESENT | PAGE_WRITABLE;
+
+    if (*(volatile unsigned short *)VBE_MODE_FLAG_ADDRESS == 0xB33FU) {
+        uint32_t framebuffer_address = VBE_FRAMEBUFFER_VIRTUAL;
+        uint32_t *framebuffer_table;
+
+        framebuffer_table_address = pmm_alloc_block();
+        if (framebuffer_table_address == 0) {
+            if (framebuffer_table_address != 0) {
+                pmm_free_block(framebuffer_table_address);
+            }
+            pmm_free_block(table_address);
+            pmm_free_block(directory_address);
+            return 0;
+        }
+
+        framebuffer_table = (uint32_t *)framebuffer_table_address;
+        for (index = 0; index < PAGE_TABLE_ENTRIES; index++) {
+            framebuffer_table[index] = 0;
+        }
+        for (index = 0; index < VBE_FRAMEBUFFER_PAGES; index++) {
+            framebuffer_table[index] = (framebuffer_address + (index * PAGE_SIZE)) | PAGE_PRESENT | PAGE_WRITABLE;
+        }
+        directory[VBE_FRAMEBUFFER_VIRTUAL >> 22] = framebuffer_table_address | PAGE_PRESENT | PAGE_WRITABLE;
+    }
+
     load_page_directory(directory_address);
     enable_paging();
     return 1;

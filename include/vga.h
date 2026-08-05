@@ -1,6 +1,7 @@
 #ifndef BEEROS_VGA_H
 #define BEEROS_VGA_H
 
+void vga_init(void);
 void vga_clear(void);
 void vga_write_char(char character);
 void vga_backspace(void);
