@@ -12,7 +12,7 @@ enum {
 static volatile uint16_t *const vga_buffer = (uint16_t *)0xB8000;
 static unsigned short cursor;
 
-static void vga_put(char character)
+void vga_write_char(char character)
 {
     if (character == '\n') {
         cursor += VGA_WIDTH - (cursor % VGA_WIDTH);
@@ -41,7 +41,7 @@ void vga_clear(void)
 void vga_write(const char *text)
 {
     while (*text != '\0') {
-        vga_put(*text);
+        vga_write_char(*text);
         text++;
     }
 }

@@ -25,6 +25,10 @@ Bootloader, BIOS'un `DL` kaydında verdiği önyükleme sürücüsünü saklar. 
 
 `cpu/idt.c`, 256 girişli IDT'yi kurar ve `0x30` vektörüne bir interrupt gate yerleştirir. `cpu/interrupts.asm`, register'ları koruyup C handler'a geçen stub'ı içerir. Kernelin çalıştırdığı `int 0x30` testi, handler'ın VGA üzerinden ikinci mesajı yazmasıyla doğrulanır. Donanım IRQ'ları sonraki sürücü adımlarında PIC yapılandırmasıyla açılacaktır.
 
+## Adım 6: Klavye driver
+
+PIC, IRQ0-IRQ15 aralığını `0x20-0x2F` vektörlerine taşır. Sadece IRQ1 etkin kalır. `drivers/keyboard.c`, `0x60` portundan Set 1 scan code okur, PIC'e EOI gönderir ve harf, sayı, boşluk, Enter ve Shift ile yazılan tuşları VGA'ya aktarır.
+
 Build betiği kernel boyutunu hesaplar, ikinci disk sektöründen başlayacak biçimde 1-17 sektör arasına doldurur ve bootloader'ı doğru sektör sayısıyla yeniden derler.
 
 ## Klasör yapısı
@@ -33,7 +37,7 @@ Build betiği kernel boyutunu hesaplar, ikinci disk sektöründen başlayacak bi
 boot/       BIOS boot sector
 kernel/     Kernel giriş noktası, GDT ve linker betiği
 drivers/    VGA ve cihaz sürücüleri
-cpu/        IDT ve kesme altyapısı
+cpu/        IDT, PIC ve kesme altyapısı
 memory/     Fiziksel/sanal bellek yönetimi
 process/    Process ve scheduler kodu
 shell/      Kabuk
@@ -66,4 +70,5 @@ Beklenen QEMU çıktısı:
 ```text
 BeerOS: protected mode ve VGA driver hazir.
 BeerOS: IDT ve kesme handler calisiyor.
+BeerOS: klavye hazir, tuslara bas.
 ```

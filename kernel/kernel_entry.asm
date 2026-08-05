@@ -4,6 +4,7 @@ global kernel_entry
 extern vga_clear
 extern vga_write
 extern idt_init
+extern keyboard_init
 
 CODE_SEGMENT equ 0x08
 DATA_SEGMENT equ 0x10
@@ -39,6 +40,8 @@ protected_mode_entry:
     add esp, 4
     call idt_init
     int 0x30
+    call keyboard_init
+    sti
 
 .halt:
     hlt

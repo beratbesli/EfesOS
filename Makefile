@@ -11,6 +11,7 @@ KERNEL_BYTES := $(shell expr $(KERNEL_SECTORS) \* 512)
 BOOT_BIN := $(BUILD_DIR)/boot.bin
 ENTRY_OBJ := $(BUILD_DIR)/kernel_entry.o
 VGA_OBJ := $(BUILD_DIR)/vga.o
+KEYBOARD_OBJ := $(BUILD_DIR)/keyboard.o
 IDT_OBJ := $(BUILD_DIR)/idt.o
 INTERRUPTS_OBJ := $(BUILD_DIR)/interrupts.o
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
@@ -30,14 +31,17 @@ $(ENTRY_OBJ): kernel/kernel_entry.asm | $(BUILD_DIR)
 $(VGA_OBJ): drivers/vga.c include/vga.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -c $< -o $@
 
+$(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h include/vga.h cpu/io.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -c $< -o $@
+
 $(IDT_OBJ): cpu/idt.c cpu/idt.h include/vga.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -c $< -o $@
 
 $(INTERRUPTS_OBJ): cpu/interrupts.asm | $(BUILD_DIR)
 	$(NASM) -f elf32 $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(VGA_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(VGA_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ)
+$(KERNEL_ELF): $(ENTRY_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@
