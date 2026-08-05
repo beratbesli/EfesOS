@@ -33,6 +33,10 @@ PIC, IRQ0-IRQ15 aralığını `0x20-0x2F` vektörlerine taşır. Sadece IRQ1 etk
 
 `memory/pmm.c`, 4 KiB bloklardan oluşan 16 MiB fiziksel adres alanını bitmap ile yönetir. İlk 1 MiB BIOS, bootloader ve kernel için ayrılmış tutulur. Açılış self-test'i iki bloğu ayırıp geri bırakır.
 
+## Adım 8: Paging
+
+`memory/paging.c`, PMM'den bir page directory ve bir page table alır. İlk 4 MiB fiziksel belleği kimlik eşler, CR3'ü yükler ve CR0.PG bitini açar. Böylece kernel kodu, stack, VGA belleği ve mevcut IDT fiziksel adresleri aynı sanal adreslerde erişilebilir kalır.
+
 Build betiği kernel boyutunu hesaplar, ikinci disk sektöründen başlayacak biçimde 1-17 sektör arasına doldurur ve bootloader'ı doğru sektör sayısıyla yeniden derler.
 
 ## Klasör yapısı
@@ -75,5 +79,6 @@ Beklenen QEMU çıktısı:
 BeerOS: protected mode ve VGA driver hazir.
 BeerOS: IDT ve kesme handler calisiyor.
 BeerOS: fiziksel bellek yoneticisi calisiyor.
+BeerOS: paging aktif.
 BeerOS: klavye hazir, tuslara bas.
 ```

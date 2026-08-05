@@ -7,6 +7,7 @@ extern idt_init
 extern keyboard_init
 extern pmm_init
 extern pmm_self_test
+extern paging_init
 
 CODE_SEGMENT equ 0x08
 DATA_SEGMENT equ 0x10
@@ -49,6 +50,12 @@ protected_mode_entry:
     push dword pmm_message
     call vga_write
     add esp, 4
+    call paging_init
+    test eax, eax
+    jz .paging_failed
+    push dword paging_message
+    call vga_write
+    add esp, 4
     call keyboard_init
     sti
 
@@ -58,6 +65,12 @@ protected_mode_entry:
 
 .pmm_failed:
     push dword pmm_error_message
+    call vga_write
+    add esp, 4
+    jmp .halt
+
+.paging_failed:
+    push dword paging_error_message
     call vga_write
     add esp, 4
     jmp .halt
@@ -72,6 +85,12 @@ pmm_message:
 
 pmm_error_message:
     db 'BeerOS: fiziksel bellek yoneticisi hatasi.', 10, 0
+
+paging_message:
+    db 'BeerOS: paging aktif.', 10, 0
+
+paging_error_message:
+    db 'BeerOS: paging hatasi.', 10, 0
 
 section .data
 
