@@ -21,6 +21,10 @@ Bootloader, BIOS'un `DL` kaydında verdiği önyükleme sürücüsünü saklar. 
 
 `drivers/vga.c`, C ile doğrudan `0xB8000` VGA metin belleğine yazar. Kernel, protected mode'a geçtikten sonra ekranı temizler ve bu sürücü üzerinden ilk mesajını görüntüler.
 
+## Adım 5: IDT ve kesme işleme
+
+`cpu/idt.c`, 256 girişli IDT'yi kurar ve `0x30` vektörüne bir interrupt gate yerleştirir. `cpu/interrupts.asm`, register'ları koruyup C handler'a geçen stub'ı içerir. Kernelin çalıştırdığı `int 0x30` testi, handler'ın VGA üzerinden ikinci mesajı yazmasıyla doğrulanır. Donanım IRQ'ları sonraki sürücü adımlarında PIC yapılandırmasıyla açılacaktır.
+
 Build betiği kernel boyutunu hesaplar, ikinci disk sektöründen başlayacak biçimde 1-17 sektör arasına doldurur ve bootloader'ı doğru sektör sayısıyla yeniden derler.
 
 ## Klasör yapısı
@@ -29,7 +33,7 @@ Build betiği kernel boyutunu hesaplar, ikinci disk sektöründen başlayacak bi
 boot/       BIOS boot sector
 kernel/     Kernel giriş noktası, GDT ve linker betiği
 drivers/    VGA ve cihaz sürücüleri
-cpu/        GDT, IDT ve kesme altyapısı
+cpu/        IDT ve kesme altyapısı
 memory/     Fiziksel/sanal bellek yönetimi
 process/    Process ve scheduler kodu
 shell/      Kabuk
@@ -61,4 +65,5 @@ Beklenen QEMU çıktısı:
 
 ```text
 BeerOS: protected mode ve VGA driver hazir.
+BeerOS: IDT ve kesme handler calisiyor.
 ```

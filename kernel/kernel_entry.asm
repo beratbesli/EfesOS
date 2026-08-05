@@ -3,6 +3,7 @@
 global kernel_entry
 extern vga_clear
 extern vga_write
+extern idt_init
 
 CODE_SEGMENT equ 0x08
 DATA_SEGMENT equ 0x10
@@ -36,6 +37,8 @@ protected_mode_entry:
     push dword kernel_message
     call vga_write
     add esp, 4
+    call idt_init
+    int 0x30
 
 .halt:
     hlt
@@ -44,7 +47,7 @@ protected_mode_entry:
 section .rodata
 
 kernel_message:
-    db 'BeerOS: protected mode ve VGA driver hazir.', 0
+    db 'BeerOS: protected mode ve VGA driver hazir.', 10, 0
 
 section .data
 
