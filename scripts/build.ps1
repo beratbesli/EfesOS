@@ -116,8 +116,8 @@ Invoke-Tool -Path $objcopy -Arguments @('-O', 'binary', $kernelElf, $kernelBinar
 
 [byte[]]$kernelRawBytes = [System.IO.File]::ReadAllBytes($kernelBinary)
 $kernelSectors = [int][Math]::Ceiling($kernelRawBytes.Length / 512.0)
-if ($kernelSectors -lt 1 -or $kernelSectors -gt 17) {
-    throw "Kernel $kernelSectors sektor gerektiriyor; stage-1 loader en fazla 17 sektor okuyabilir."
+if ($kernelSectors -lt 1 -or $kernelSectors -gt 34) {
+    throw "Kernel $kernelSectors sektor gerektiriyor; stage-1 loader en fazla 34 sektor okuyabilir."
 }
 
 [byte[]]$kernelBytes = New-Object byte[] ($kernelSectors * 512)

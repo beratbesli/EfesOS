@@ -1,3 +1,4 @@
+#include "keyboard.h"
 #include "shell.h"
 #include "vga.h"
 
@@ -27,13 +28,19 @@ static void print_prompt(void)
 static void execute_command(void)
 {
     if (string_equals(input, "help")) {
-        vga_write("Komutlar: help clear about mem\n");
+        vga_write("Komutlar: help clear about mem keymap en keymap tr\n");
     } else if (string_equals(input, "clear")) {
         vga_clear();
     } else if (string_equals(input, "about")) {
         vga_write("BeerOS x86 hobby isletim sistemi.\n");
     } else if (string_equals(input, "mem")) {
         vga_write("16 MiB fiziksel alan, ilk 4 MiB paging ile eslendi.\n");
+    } else if (string_equals(input, "keymap en")) {
+        keyboard_set_layout(KEYBOARD_LAYOUT_ENGLISH);
+        vga_write("Klavye duzeni: English (US).\n");
+    } else if (string_equals(input, "keymap tr")) {
+        keyboard_set_layout(KEYBOARD_LAYOUT_TURKISH);
+        vga_write("Klavye duzeni: Turkce Q.\n");
     } else if (input_length != 0) {
         vga_write("Bilinmeyen komut. help yazabilirsin.\n");
     }
@@ -47,7 +54,7 @@ void shell_init(void)
     print_prompt();
 }
 
-void shell_handle_char(char character)
+void shell_handle_char(unsigned char character)
 {
     if (character == '\n') {
         vga_write_char('\n');

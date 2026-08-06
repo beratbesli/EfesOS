@@ -6,7 +6,7 @@ LD := $(CROSS)-ld
 OBJCOPY := $(CROSS)-objcopy
 
 BUILD_DIR := build
-KERNEL_SECTORS ?= 4
+KERNEL_SECTORS ?= 34
 KERNEL_BYTES := $(shell expr $(KERNEL_SECTORS) \* 512)
 BOOT_BIN := $(BUILD_DIR)/boot.bin
 ENTRY_OBJ := $(BUILD_DIR)/kernel_entry.o
@@ -81,7 +81,7 @@ verify: $(BOOT_BIN) $(KERNEL_BIN) $(IMAGE)
 	test $$(wc -c < $(IMAGE)) -eq $$(expr 512 + $(KERNEL_BYTES))
 
 run: $(IMAGE)
-	$(QEMU) -drive file=$(IMAGE),format=raw,if=floppy -boot a -no-reboot -no-shutdown
+	$(QEMU) -vga std -drive file=$(IMAGE),format=raw,if=floppy -boot a -no-reboot -no-shutdown
 
 clean:
 	rm -rf $(BUILD_DIR)

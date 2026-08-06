@@ -40,6 +40,67 @@ static unsigned short text_cursor;
 static unsigned short graphics_cursor;
 static int graphics_active;
 
+static uint8_t glyph_index(uint8_t character)
+{
+    switch (character) {
+    case 0xC7:
+        return 0x80;
+    case 0xFC:
+        return 0x81;
+    case 0xD6:
+        return 0x99;
+    case 0xDC:
+        return 0x9A;
+    case 0xF6:
+        return 0x94;
+    case 0xE7:
+        return 0x87;
+    case 0xF0:
+        return 'g';
+    case 0xD0:
+        return 'G';
+    case 0xFD:
+        return 'i';
+    case 0xDD:
+        return 'I';
+    case 0xFE:
+        return 's';
+    case 0xDE:
+        return 'S';
+    default:
+        return character;
+    }
+}
+
+static uint8_t glyph_row(uint8_t character, uint8_t row)
+{
+    uint8_t pixels = font_data[(glyph_index(character) * 16U) + row];
+
+    if ((character == 0xF0 || character == 0xD0) && row == 1) {
+        return 0x18;
+    }
+    if ((character == 0xF0 || character == 0xD0) && row == 2) {
+        return 0x24;
+    }
+    if ((character == 0xF0 || character == 0xD0) && row == 3) {
+        return 0x18;
+    }
+    if (character == 0xFD && row < 5) {
+        return 0;
+    }
+    if (character == 0xDD && row == 1) {
+        return 0x18;
+    }
+    if ((character == 0xFE || character == 0xDE) && row == 14) {
+        return 0x18;
+    }
+    if ((character == 0xFE || character == 0xDE) && row == 15) {
+        return 0x10;
+    }
+
+    return pixels;
+}
+
 static void outw(uint16_t port, uint16_t value)
 {
     __asm__ volatile ("outw %0, %1" : : "a"(value), "Nd"(port));
@@ -76,7 +137,6 @@ static void draw_graphics_char(char character)
     unsigned short row;
     unsigned short column;
     unsigned short y;
-    volatile uint8_t *glyph;
 
     if (character == '\n') {
         graphics_cursor += GRAPHICS_COLUMNS - (graphics_cursor % GRAPHICS_COLUMNS);
@@ -88,11 +148,9 @@ static void draw_graphics_char(char character)
 
     row = graphics_cursor / GRAPHICS_COLUMNS;
     column = graphics_cursor % GRAPHICS_COLUMNS;
-    glyph = font_data + ((unsigned char)character * 16U);
-
     for (y = 0; y < 16; y++) {
         unsigned short x;
-        uint8_t pixels = glyph[y];
+        uint8_t pixels = glyph_row((unsigned char)character, y);
 
         for (x = 0; x < 8; x++) {
             uint32_t color = (pixels & (0x80U >> x)) ? 0x0000FF00U : 0;
@@ -146,7 +204,7 @@ void vga_write_char(char character)
         return;
     }
 
-    text_buffer[text_cursor] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | (unsigned char)character;
+    text_buffer[text_cursor] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | glyph_index((unsigned char)character);
     text_cursor++;
 
     if (text_cursor == TEXT_SIZE) {

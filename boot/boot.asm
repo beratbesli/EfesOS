@@ -11,6 +11,12 @@ KERNEL_START_SECTOR equ 2
 %define KERNEL_SECTORS 1
 %endif
 
+%if KERNEL_SECTORS > 17
+%define FIRST_LOAD_SECTORS 17
+%else
+%define FIRST_LOAD_SECTORS KERNEL_SECTORS
+%endif
+
     ; CS'yi kanonik 0000h değerine getir. Böylece tüm sabit adresler nettir.
     jmp 0x0000:boot_start
 
@@ -50,13 +56,27 @@ boot_start:
     mov es, ax
     mov bx, KERNEL_LOAD_OFFSET
     mov ah, 0x02                ; INT 13h, fonksiyon 02h: sektör oku
-    mov al, KERNEL_SECTORS
+    mov al, FIRST_LOAD_SECTORS
     mov ch, 0                   ; silindir 0
     mov cl, KERNEL_START_SECTOR ; BIOS sektörleri 1'den başlar
     mov dh, 0                   ; kafa 0
     mov dl, [boot_drive]
     int 0x13
     jc disk_error
+
+%if KERNEL_SECTORS > 17
+    mov ax, KERNEL_LOAD_SEGMENT + (17 * 32)
+    mov es, ax
+    mov bx, KERNEL_LOAD_OFFSET
+    mov ah, 0x02
+    mov al, KERNEL_SECTORS - 17
+    mov ch, 0
+    mov cl, 1
+    mov dh, 1
+    mov dl, [boot_drive]
+    int 0x13
+    jc disk_error
+%endif
 
     ; BIOS çağrısının segment kayıtlarını veya DF'yi koruduğunu varsayma.
     xor ax, ax
