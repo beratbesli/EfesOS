@@ -8,6 +8,7 @@ OBJCOPY := $(CROSS)-objcopy
 BUILD_DIR := build
 KERNEL_SECTORS ?= 34
 KERNEL_BYTES := $(shell expr $(KERNEL_SECTORS) \* 512)
+FLOPPY_BYTES := 1474560
 BOOT_BIN := $(BUILD_DIR)/boot.bin
 ENTRY_OBJ := $(BUILD_DIR)/kernel_entry.o
 KERNEL_MAIN_OBJ := $(BUILD_DIR)/kernel.o
@@ -72,13 +73,15 @@ $(BOOT_BIN): boot/boot.asm $(KERNEL_BIN) | $(BUILD_DIR)
 	$(NASM) -D KERNEL_SECTORS=$(KERNEL_SECTORS) -f bin $< -o $@
 
 $(IMAGE): $(BOOT_BIN) $(KERNEL_BIN)
-	cat $(BOOT_BIN) $(KERNEL_BIN) > $(IMAGE)
+	truncate -s $(FLOPPY_BYTES) $(IMAGE)
+	dd if=$(BOOT_BIN) of=$(IMAGE) conv=notrunc status=none
+	dd if=$(KERNEL_BIN) of=$(IMAGE) bs=512 seek=1 conv=notrunc status=none
 	$(MAKE) verify
 
 verify: $(BOOT_BIN) $(KERNEL_BIN) $(IMAGE)
 	test $$(wc -c < $(BOOT_BIN)) -eq 512
 	test $$(wc -c < $(KERNEL_BIN)) -eq $(KERNEL_BYTES)
-	test $$(wc -c < $(IMAGE)) -eq $$(expr 512 + $(KERNEL_BYTES))
+	test $$(wc -c < $(IMAGE)) -eq $(FLOPPY_BYTES)
 
 run: $(IMAGE)
 	$(QEMU) -vga std -drive file=$(IMAGE),format=raw,if=floppy -boot a -no-reboot -no-shutdown

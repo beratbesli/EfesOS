@@ -35,6 +35,7 @@ $shellObject = Join-Path $buildDirectory 'shell.o'
 $kernelElf = Join-Path $buildDirectory 'kernel.elf'
 $kernelBinary = Join-Path $buildDirectory 'kernel.bin'
 $imagePath = Join-Path $buildDirectory 'beeros.img'
+$floppySize = 1440 * 1024
 
 function Get-RequiredCommand {
     param([Parameter(Mandatory = $true)][string]$Name)
@@ -130,12 +131,12 @@ Assert-FileSize -Path $bootBinary -ExpectedBytes 512
 Assert-FileSize -Path $kernelBinary -ExpectedBytes ($kernelSectors * 512)
 
 [byte[]]$bootBytes = [System.IO.File]::ReadAllBytes($bootBinary)
-[byte[]]$imageBytes = New-Object byte[] ($bootBytes.Length + $kernelBytes.Length)
+[byte[]]$imageBytes = New-Object byte[] $floppySize
 [System.Array]::Copy($bootBytes, 0, $imageBytes, 0, $bootBytes.Length)
 [System.Array]::Copy($kernelBytes, 0, $imageBytes, $bootBytes.Length, $kernelBytes.Length)
 [System.IO.File]::WriteAllBytes($imagePath, $imageBytes)
 
-Assert-FileSize -Path $imagePath -ExpectedBytes (512 + ($kernelSectors * 512))
+Assert-FileSize -Path $imagePath -ExpectedBytes $floppySize
 Write-Host "Olusturuldu: $imagePath ($kernelSectors kernel sektoru)"
 
 if ($Run) {
