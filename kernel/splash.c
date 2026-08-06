@@ -50,11 +50,11 @@ void splash_show(void)
         unsigned int column;
 
         vga_write(splash_left[row]);
-        if (row < 10) {
+        if (row >= 2 && row < 12) {
             for (column = text_length(splash_left[row]); column < 42; column++) {
                 vga_write_char(' ');
             }
-            vga_write(splash_right[row]);
+            vga_write(splash_right[row - 2]);
         }
         vga_write_char('\n');
     }
