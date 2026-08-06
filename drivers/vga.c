@@ -135,6 +135,52 @@ static void clear_graphics_cell(unsigned short cell)
     }
 }
 
+static void scroll_graphics(void)
+{
+    unsigned int index;
+    unsigned int visible_pixels = GRAPHICS_WIDTH * (GRAPHICS_HEIGHT - 16);
+    unsigned int row_pixels = GRAPHICS_WIDTH * 16;
+
+    for (index = 0; index < visible_pixels; index++) {
+        graphics_buffer[index] = graphics_buffer[index + row_pixels];
+    }
+
+    for (; index < GRAPHICS_WIDTH * GRAPHICS_HEIGHT; index++) {
+        graphics_buffer[index] = 0;
+    }
+}
+
+static void scroll_text(void)
+{
+    unsigned int index;
+
+    for (index = 0; index < TEXT_SIZE - TEXT_WIDTH; index++) {
+        text_buffer[index] = text_buffer[index + TEXT_WIDTH];
+    }
+
+    for (; index < TEXT_SIZE; index++) {
+        text_buffer[index] = ((uint16_t)text_color << 8) | ' ';
+    }
+}
+
+static void graphics_newline(void)
+{
+    graphics_cursor += GRAPHICS_COLUMNS - (graphics_cursor % GRAPHICS_COLUMNS);
+    if (graphics_cursor >= GRAPHICS_COLUMNS * GRAPHICS_ROWS) {
+        scroll_graphics();
+        graphics_cursor = (GRAPHICS_ROWS - 1) * GRAPHICS_COLUMNS;
+    }
+}
+
+static void text_newline(void)
+{
+    text_cursor += TEXT_WIDTH - (text_cursor % TEXT_WIDTH);
+    if (text_cursor >= TEXT_SIZE) {
+        scroll_text();
+        text_cursor = (TEXT_HEIGHT - 1) * TEXT_WIDTH;
+    }
+}
+
 static void draw_graphics_char(char character)
 {
     unsigned short row;
@@ -142,11 +188,13 @@ static void draw_graphics_char(char character)
     unsigned short y;
 
     if (character == '\n') {
-        graphics_cursor += GRAPHICS_COLUMNS - (graphics_cursor % GRAPHICS_COLUMNS);
-        if (graphics_cursor >= GRAPHICS_COLUMNS * GRAPHICS_ROWS) {
-            graphics_cursor = 0;
-        }
+        graphics_newline();
         return;
+    }
+
+    if (graphics_cursor == GRAPHICS_COLUMNS * GRAPHICS_ROWS) {
+        scroll_graphics();
+        graphics_cursor = (GRAPHICS_ROWS - 1) * GRAPHICS_COLUMNS;
     }
 
     row = graphics_cursor / GRAPHICS_COLUMNS;
@@ -200,19 +248,18 @@ void vga_write_char(char character)
     }
 
     if (character == '\n') {
-        text_cursor += TEXT_WIDTH - (text_cursor % TEXT_WIDTH);
-        if (text_cursor >= TEXT_SIZE) {
-            text_cursor = 0;
-        }
+        text_newline();
         return;
+    }
+
+    if (text_cursor == TEXT_SIZE) {
+        scroll_text();
+        text_cursor = (TEXT_HEIGHT - 1) * TEXT_WIDTH;
     }
 
     text_buffer[text_cursor] = ((uint16_t)text_color << 8) | glyph_index((unsigned char)character);
     text_cursor++;
 
-    if (text_cursor == TEXT_SIZE) {
-        text_cursor = 0;
-    }
 }
 
 void vga_backspace(void)
