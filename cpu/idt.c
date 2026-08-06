@@ -22,6 +22,7 @@ struct idt_descriptor {
 extern void interrupt_test_stub(void);
 extern void keyboard_irq_stub(void);
 extern void timer_irq_stub(void);
+extern void exception_stub(void);
 
 static struct idt_entry idt_entries[256];
 static struct idt_descriptor idt_descriptor;
@@ -51,6 +52,11 @@ static void idt_set_gate(uint8_t vector, uint32_t address)
 
 void idt_init(void)
 {
+    uint8_t vector;
+
+    for (vector = 0; vector < 32; vector++) {
+        idt_set_gate(vector, (uint32_t)exception_stub);
+    }
     idt_set_gate(0x30, (uint32_t)interrupt_test_stub);
     idt_set_gate(0x20, (uint32_t)timer_irq_stub);
     idt_set_gate(0x21, (uint32_t)keyboard_irq_stub);
@@ -63,4 +69,10 @@ void idt_init(void)
 void interrupt_handler(void)
 {
     vga_write("BeerOS: IDT and interrupt handler running.\n");
+}
+
+void exception_handler(void)
+{
+    __asm__ volatile ("cli" : : : "memory");
+    vga_write("BeerOS: fatal CPU exception. System halted.\n");
 }
