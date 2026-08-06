@@ -2,6 +2,8 @@
 
 BeerOS is an experimental 32-bit x86 operating system written in C and NASM assembly. It boots from a BIOS floppy image and runs in QEMU.
 
+[Türkçe README](README.tr.md)
+
 ## Status
 
 BeerOS is a learning project, not a production operating system. It has no user-mode isolation, executable permission enforcement, disk filesystem, authentication, secure boot, or persistent storage. Do not use it with sensitive data or as a security boundary.
