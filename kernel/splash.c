@@ -51,11 +51,13 @@ void splash_show(void)
 
         vga_write(splash_left[row]);
         if (row < 10) {
-            for (column = text_length(splash_left[row]); column < 48; column++) {
+            for (column = text_length(splash_left[row]); column < 42; column++) {
                 vga_write_char(' ');
             }
             vga_write(splash_right[row]);
         }
         vga_write_char('\n');
     }
+
+    vga_write_char('\n');
 }
