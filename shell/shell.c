@@ -1,4 +1,5 @@
 #include "keyboard.h"
+#include "language.h"
 #include "shell.h"
 #include "vga.h"
 
@@ -28,21 +29,39 @@ static void print_prompt(void)
 static void execute_command(void)
 {
     if (string_equals(input, "help")) {
-        vga_write("Komutlar: help clear about mem keymap en keymap tr\n");
+        if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
+            vga_write("Komutlar: help clear about mem tr en\n");
+        } else {
+            vga_write("Commands: help clear about mem tr en\n");
+        }
     } else if (string_equals(input, "clear")) {
         vga_clear();
     } else if (string_equals(input, "about")) {
-        vga_write("BeerOS x86 hobby isletim sistemi.\n");
+        if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
+            vga_write("BeerOS x86 isletim sistemi.\n");
+        } else {
+            vga_write("BeerOS x86 operating system.\n");
+        }
     } else if (string_equals(input, "mem")) {
-        vga_write("16 MiB fiziksel alan, ilk 4 MiB paging ile eslendi.\n");
-    } else if (string_equals(input, "keymap en")) {
+        if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
+            vga_write("16 MiB fiziksel alan, ilk 4 MiB paging ile eslendi.\n");
+        } else {
+            vga_write("16 MiB physical memory, first 4 MiB mapped with paging.\n");
+        }
+    } else if (string_equals(input, "en")) {
+        language_set(SYSTEM_LANGUAGE_ENGLISH);
         keyboard_set_layout(KEYBOARD_LAYOUT_ENGLISH);
-        vga_write("Klavye duzeni: English (US).\n");
-    } else if (string_equals(input, "keymap tr")) {
+        vga_write("Language and keyboard: English (US).\n");
+    } else if (string_equals(input, "tr")) {
+        language_set(SYSTEM_LANGUAGE_TURKISH);
         keyboard_set_layout(KEYBOARD_LAYOUT_TURKISH);
-        vga_write("Klavye duzeni: Turkce Q.\n");
+        vga_write("Dil ve klavye: Turkce Q.\n");
     } else if (input_length != 0) {
-        vga_write("Bilinmeyen komut. help yazabilirsin.\n");
+        if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
+            vga_write("Bilinmeyen komut. help yazabilirsin.\n");
+        } else {
+            vga_write("Unknown command. Type help.\n");
+        }
     }
 }
 
@@ -50,7 +69,7 @@ void shell_init(void)
 {
     input_length = 0;
     input[0] = '\0';
-    vga_write("BeerOS shell hazir. help yazabilirsin.\n");
+    vga_write("BeerOS shell ready. Type help.\n");
     print_prompt();
 }
 

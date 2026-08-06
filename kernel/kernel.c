@@ -26,12 +26,12 @@ static const char boot_banner[] =
 
 static void scheduler_task_one(void)
 {
-    vga_write("BeerOS: scheduler gorev 1 calisti.\n");
+    vga_write("BeerOS: scheduler task 1 ran.\n");
 }
 
 static void scheduler_task_two(void)
 {
-    vga_write("BeerOS: scheduler gorev 2 calisti.\n");
+    vga_write("BeerOS: scheduler task 2 ran.\n");
 }
 
 void kernel_main(void)
@@ -48,9 +48,9 @@ void kernel_main(void)
     vga_init();
     vga_clear();
     vga_write(boot_banner);
-    vga_write("BeerOS: protected mode ve VGA driver hazir.\n");
-    vga_write("BeerOS: fiziksel bellek yoneticisi calisiyor.\n");
-    vga_write("BeerOS: paging aktif.\n");
+    vga_write("BeerOS: protected mode and VGA driver ready.\n");
+    vga_write("BeerOS: physical memory manager running.\n");
+    vga_write("BeerOS: paging enabled.\n");
 
     idt_init();
     __asm__ volatile ("int $0x30");

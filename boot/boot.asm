@@ -119,10 +119,10 @@ print_string:
     ret
 
 loading_message:
-    db 'BeerOS: kernel yukleniyor...', 13, 10, 0
+    db 'BeerOS: loading kernel...', 13, 10, 0
 
 disk_error_message:
-    db 'BeerOS: disk okuma hatasi.', 13, 10, 0
+    db 'BeerOS: disk read error.', 13, 10, 0
 
 boot_drive:
     db 0
