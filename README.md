@@ -1,6 +1,6 @@
 # BeerOS
 
-BeerOS is an experimental 32-bit x86 hobby operating system written in C and NASM assembly. It boots from a BIOS floppy image and runs in QEMU.
+BeerOS is an experimental 32-bit x86 operating system written in C and NASM assembly. It boots from a BIOS floppy image and runs in QEMU.
 
 ## Status
 
@@ -67,7 +67,7 @@ shell/      Command shell
 
 - CPU exceptions are caught and halt the guest instead of escalating to an unhandled triple fault.
 - Shell input and command history use fixed, bounded buffers.
-- The project intentionally runs all code in ring 0 and maps kernel memory as writable. This is appropriate only for a hobby OS and is not a security model.
+- The project intentionally runs all code in ring 0 and maps kernel memory as writable. It is not a security model.
 - See [SECURITY.md](SECURITY.md) for reporting guidance.
 
 ## License
