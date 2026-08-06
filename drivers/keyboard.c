@@ -1,7 +1,6 @@
 #include "io.h"
 #include "keyboard.h"
 #include "shell.h"
-#include "splash.h"
 
 static const unsigned char english_keymap[128] = {
     [0x02] = '1', [0x03] = '2', [0x04] = '3', [0x05] = '4', [0x06] = '5',
@@ -118,9 +117,7 @@ void keyboard_irq_handler(void)
     }
 
     if (character != '\0') {
-        if (!splash_handle_key()) {
-            shell_handle_char(character);
-        }
+        shell_handle_char(character);
     }
 
     acknowledge_master_pic();

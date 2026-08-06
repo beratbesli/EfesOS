@@ -23,6 +23,10 @@ void kernel_main(void)
 
     vga_init();
     vga_clear();
+    splash_show();
+    vga_write("BeerOS: protected mode and VGA driver ready.\n");
+    vga_write("BeerOS: physical memory manager running.\n");
+    vga_write("BeerOS: paging enabled.\n");
 
     idt_init();
     __asm__ volatile ("int $0x30");
@@ -35,7 +39,8 @@ void kernel_main(void)
     scheduler_start();
 
     keyboard_init();
-    splash_show();
+    vga_write("BeerOS: scheduler and game loop running.\n");
+    shell_init();
     pit_init();
     __asm__ volatile ("sti");
 }

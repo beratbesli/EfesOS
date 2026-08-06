@@ -62,5 +62,5 @@ void idt_init(void)
 
 void interrupt_handler(void)
 {
-    vga_write("BeerOS: IDT and interrupt handler running.");
+    vga_write("BeerOS: IDT and interrupt handler running.\n");
 }
