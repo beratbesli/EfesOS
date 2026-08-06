@@ -16,10 +16,14 @@ LANGUAGE_OBJ := $(BUILD_DIR)/language.o
 VGA_OBJ := $(BUILD_DIR)/vga.o
 KEYBOARD_OBJ := $(BUILD_DIR)/keyboard.o
 IDT_OBJ := $(BUILD_DIR)/idt.o
+PIT_OBJ := $(BUILD_DIR)/pit.o
+SYSTEM_OBJ := $(BUILD_DIR)/system.o
 INTERRUPTS_OBJ := $(BUILD_DIR)/interrupts.o
 PMM_OBJ := $(BUILD_DIR)/pmm.o
 PAGING_OBJ := $(BUILD_DIR)/paging.o
 SCHEDULER_OBJ := $(BUILD_DIR)/scheduler.o
+PROGRAMS_OBJ := $(BUILD_DIR)/programs.o
+RAMFS_OBJ := $(BUILD_DIR)/ramfs.o
 SHELL_OBJ := $(BUILD_DIR)/shell.o
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 KERNEL_BIN := $(BUILD_DIR)/kernel.bin
@@ -50,6 +54,12 @@ $(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h shell/shell.h include/vga
 $(IDT_OBJ): cpu/idt.c cpu/idt.h include/vga.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -c $< -o $@
 
+$(PIT_OBJ): cpu/pit.c cpu/pit.h cpu/io.h process/scheduler.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Icpu -Iprocess -c $< -o $@
+
+$(SYSTEM_OBJ): cpu/system.c cpu/system.h cpu/io.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Icpu -c $< -o $@
+
 $(INTERRUPTS_OBJ): cpu/interrupts.asm | $(BUILD_DIR)
 	$(NASM) -f elf32 $< -o $@
 
@@ -62,11 +72,17 @@ $(PAGING_OBJ): memory/paging.c memory/paging.h memory/pmm.h | $(BUILD_DIR)
 $(SCHEDULER_OBJ): process/scheduler.c process/scheduler.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iprocess -c $< -o $@
 
-$(SHELL_OBJ): shell/shell.c shell/shell.h include/keyboard.h include/language.h include/vga.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Ishell -c $< -o $@
+$(PROGRAMS_OBJ): process/programs.c process/programs.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iprocess -c $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(SHELL_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(SHELL_OBJ)
+$(RAMFS_OBJ): fs/ramfs.c fs/ramfs.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Ifs -c $< -o $@
+
+$(SHELL_OBJ): shell/shell.c shell/shell.h include/keyboard.h include/language.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h process/programs.h process/scheduler.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Ifs -Iprocess -Ishell -c $< -o $@
+
+$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(SHELL_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(SHELL_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@

@@ -1,7 +1,9 @@
 #include "idt.h"
 #include "keyboard.h"
 #include "paging.h"
+#include "pit.h"
 #include "pmm.h"
+#include "programs.h"
 #include "scheduler.h"
 #include "shell.h"
 #include "vga.h"
@@ -23,16 +25,6 @@ static const char boot_banner[] =
     "B:::::::::::::::::B  e::::::::eeeeeeee   e::::::::eeeeeeee   r:::::r             OO:::::::::::::OO S::::::SSSSSS:::::S\n"
     "B::::::::::::::::B    ee:::::::::::::e    ee:::::::::::::e   r:::::r               OO:::::::::OO   S:::::::::::::::SS \n"
     "BBBBBBBBBBBBBBBBB       eeeeeeeeeeeeee      eeeeeeeeeeeeee   rrrrrrr                 OOOOOOOOO      SSSSSSSSSSSSSSS  \n";
-
-static void scheduler_task_one(void)
-{
-    vga_write("BeerOS: scheduler task 1 ran.\n");
-}
-
-static void scheduler_task_two(void)
-{
-    vga_write("BeerOS: scheduler task 2 ran.\n");
-}
 
 void kernel_main(void)
 {
@@ -56,11 +48,13 @@ void kernel_main(void)
     __asm__ volatile ("int $0x30");
 
     scheduler_init();
-    scheduler_add_task(scheduler_task_one);
-    scheduler_add_task(scheduler_task_two);
-    scheduler_run();
+    programs_init();
+    scheduler_add_task("counter", counter_program);
+    scheduler_add_task("snake", snake_program);
+    scheduler_start();
 
     keyboard_init();
     shell_init();
+    pit_init();
     __asm__ volatile ("sti");
 }

@@ -39,6 +39,9 @@ static volatile uint8_t *font_data;
 static unsigned short text_cursor;
 static unsigned short graphics_cursor;
 static int graphics_active;
+static uint8_t text_color = VGA_COLOR_LIGHT_GREEN;
+static uint32_t graphics_color = 0x0000FF00U;
+static enum vga_color active_color = VGA_COLOR_GREEN;
 
 static uint8_t glyph_index(uint8_t character)
 {
@@ -153,7 +156,7 @@ static void draw_graphics_char(char character)
         uint8_t pixels = glyph_row((unsigned char)character, y);
 
         for (x = 0; x < 8; x++) {
-            uint32_t color = (pixels & (0x80U >> x)) ? 0x0000FF00U : 0;
+            uint32_t color = (pixels & (0x80U >> x)) ? graphics_color : 0;
             graphics_buffer[((row * 16U + y) * GRAPHICS_WIDTH) + (column * 8U + x)] = color;
         }
     }
@@ -204,7 +207,7 @@ void vga_write_char(char character)
         return;
     }
 
-    text_buffer[text_cursor] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | glyph_index((unsigned char)character);
+    text_buffer[text_cursor] = ((uint16_t)text_color << 8) | glyph_index((unsigned char)character);
     text_cursor++;
 
     if (text_cursor == TEXT_SIZE) {
@@ -228,7 +231,7 @@ void vga_backspace(void)
     }
 
     text_cursor--;
-    text_buffer[text_cursor] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | ' ';
+    text_buffer[text_cursor] = ((uint16_t)text_color << 8) | ' ';
 }
 
 void vga_clear(void)
@@ -244,7 +247,7 @@ void vga_clear(void)
     }
 
     for (index = 0; index < TEXT_SIZE; index++) {
-        text_buffer[index] = ((uint16_t)VGA_COLOR_LIGHT_GREEN << 8) | ' ';
+        text_buffer[index] = ((uint16_t)text_color << 8) | ' ';
     }
 
     text_cursor = 0;
@@ -256,4 +259,54 @@ void vga_write(const char *text)
         vga_write_char(*text);
         text++;
     }
+}
+
+void vga_write_unsigned(unsigned int value)
+{
+    char digits[10];
+    unsigned int count = 0;
+
+    if (value == 0) {
+        vga_write_char('0');
+        return;
+    }
+
+    while (value != 0) {
+        digits[count] = '0' + (value % 10U);
+        count++;
+        value /= 10U;
+    }
+
+    while (count != 0) {
+        count--;
+        vga_write_char(digits[count]);
+    }
+}
+
+void vga_set_color(enum vga_color color)
+{
+    active_color = color;
+
+    if (color == VGA_COLOR_WHITE) {
+        text_color = 0x0F;
+        graphics_color = 0x00FFFFFFU;
+    } else if (color == VGA_COLOR_RED) {
+        text_color = 0x0C;
+        graphics_color = 0x00FF0000U;
+    } else if (color == VGA_COLOR_BLUE) {
+        text_color = 0x09;
+        graphics_color = 0x000000FFU;
+    } else if (color == VGA_COLOR_YELLOW) {
+        text_color = 0x0E;
+        graphics_color = 0x00FFFF00U;
+    } else {
+        text_color = VGA_COLOR_LIGHT_GREEN;
+        graphics_color = 0x0000FF00U;
+        active_color = VGA_COLOR_GREEN;
+    }
+}
+
+enum vga_color vga_get_color(void)
+{
+    return active_color;
 }

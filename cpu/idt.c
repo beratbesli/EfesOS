@@ -21,6 +21,7 @@ struct idt_descriptor {
 
 extern void interrupt_test_stub(void);
 extern void keyboard_irq_stub(void);
+extern void timer_irq_stub(void);
 
 static struct idt_entry idt_entries[256];
 static struct idt_descriptor idt_descriptor;
@@ -35,7 +36,7 @@ static void pic_remap(void)
     outb(0xA1, 0x02);
     outb(0x21, 0x01);
     outb(0xA1, 0x01);
-    outb(0x21, 0xFD);
+    outb(0x21, 0xFC);
     outb(0xA1, 0xFF);
 }
 
@@ -51,6 +52,7 @@ static void idt_set_gate(uint8_t vector, uint32_t address)
 void idt_init(void)
 {
     idt_set_gate(0x30, (uint32_t)interrupt_test_stub);
+    idt_set_gate(0x20, (uint32_t)timer_irq_stub);
     idt_set_gate(0x21, (uint32_t)keyboard_irq_stub);
     idt_descriptor.limit = sizeof(idt_entries) - 1;
     idt_descriptor.base = (uint32_t)idt_entries;
