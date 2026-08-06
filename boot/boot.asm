@@ -65,14 +65,33 @@ boot_start:
     jc disk_error
 
 %if KERNEL_SECTORS > 17
+%if KERNEL_SECTORS > 35
+%define SECOND_LOAD_SECTORS 18
+%else
+%define SECOND_LOAD_SECTORS KERNEL_SECTORS - 17
+%endif
     mov ax, KERNEL_LOAD_SEGMENT + (17 * 32)
     mov es, ax
     mov bx, KERNEL_LOAD_OFFSET
     mov ah, 0x02
-    mov al, KERNEL_SECTORS - 17
+    mov al, SECOND_LOAD_SECTORS
     mov ch, 0
     mov cl, 1
     mov dh, 1
+    mov dl, [boot_drive]
+    int 0x13
+    jc disk_error
+%endif
+
+%if KERNEL_SECTORS > 35
+    mov ax, KERNEL_LOAD_SEGMENT + (35 * 32)
+    mov es, ax
+    mov bx, KERNEL_LOAD_OFFSET
+    mov ah, 0x02
+    mov al, KERNEL_SECTORS - 35
+    mov ch, 1
+    mov cl, 1
+    mov dh, 0
     mov dl, [boot_drive]
     int 0x13
     jc disk_error

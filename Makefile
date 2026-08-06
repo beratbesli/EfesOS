@@ -6,13 +6,14 @@ LD := $(CROSS)-ld
 OBJCOPY := $(CROSS)-objcopy
 
 BUILD_DIR := build
-KERNEL_SECTORS ?= 34
+KERNEL_SECTORS ?= 52
 KERNEL_BYTES := $(shell expr $(KERNEL_SECTORS) \* 512)
 FLOPPY_BYTES := 1474560
 BOOT_BIN := $(BUILD_DIR)/boot.bin
 ENTRY_OBJ := $(BUILD_DIR)/kernel_entry.o
 KERNEL_MAIN_OBJ := $(BUILD_DIR)/kernel.o
 LANGUAGE_OBJ := $(BUILD_DIR)/language.o
+SPLASH_OBJ := $(BUILD_DIR)/splash.o
 VGA_OBJ := $(BUILD_DIR)/vga.o
 KEYBOARD_OBJ := $(BUILD_DIR)/keyboard.o
 IDT_OBJ := $(BUILD_DIR)/idt.o
@@ -40,17 +41,20 @@ $(BUILD_DIR):
 $(ENTRY_OBJ): kernel/kernel_entry.asm | $(BUILD_DIR)
 	$(NASM) -f elf32 $< -o $@
 
-$(KERNEL_MAIN_OBJ): kernel/kernel.c cpu/idt.h games/games.h include/keyboard.h memory/paging.h memory/pmm.h process/scheduler.h shell/shell.h include/vga.h | $(BUILD_DIR)
+$(KERNEL_MAIN_OBJ): kernel/kernel.c cpu/idt.h games/games.h include/keyboard.h kernel/splash.h memory/paging.h memory/pmm.h process/scheduler.h shell/shell.h include/vga.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Igames -Imemory -Iprocess -Ishell -c $< -o $@
 
 $(LANGUAGE_OBJ): kernel/language.c include/language.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -c $< -o $@
 
+$(SPLASH_OBJ): kernel/splash.c kernel/splash.h shell/shell.h include/vga.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Ikernel -Ishell -c $< -o $@
+
 $(VGA_OBJ): drivers/vga.c include/vga.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -c $< -o $@
 
-$(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h shell/shell.h include/vga.h cpu/io.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Ishell -c $< -o $@
+$(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h kernel/splash.h shell/shell.h include/vga.h cpu/io.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Ikernel -Ishell -c $< -o $@
 
 $(IDT_OBJ): cpu/idt.c cpu/idt.h include/vga.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -c $< -o $@
@@ -85,8 +89,8 @@ $(GAMES_OBJ): games/games.c games/games.h cpu/pit.h include/vga.h | $(BUILD_DIR)
 $(SHELL_OBJ): shell/shell.c shell/shell.h include/keyboard.h include/language.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h games/games.h process/programs.h process/scheduler.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Ifs -Igames -Iprocess -Ishell -c $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
+$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@

@@ -12,6 +12,7 @@ $bootSource = Join-Path $projectRoot 'boot\boot.asm'
 $kernelEntrySource = Join-Path $projectRoot 'kernel\kernel_entry.asm'
 $kernelMainSource = Join-Path $projectRoot 'kernel\kernel.c'
 $languageSource = Join-Path $projectRoot 'kernel\language.c'
+$splashSource = Join-Path $projectRoot 'kernel\splash.c'
 $vgaSource = Join-Path $projectRoot 'drivers\vga.c'
 $keyboardSource = Join-Path $projectRoot 'drivers\keyboard.c'
 $idtSource = Join-Path $projectRoot 'cpu\idt.c'
@@ -31,6 +32,7 @@ $bootBinary = Join-Path $buildDirectory 'boot.bin'
 $kernelEntryObject = Join-Path $buildDirectory 'kernel_entry.o'
 $kernelMainObject = Join-Path $buildDirectory 'kernel.o'
 $languageObject = Join-Path $buildDirectory 'language.o'
+$splashObject = Join-Path $buildDirectory 'splash.o'
 $vgaObject = Join-Path $buildDirectory 'vga.o'
 $keyboardObject = Join-Path $buildDirectory 'keyboard.o'
 $idtObject = Join-Path $buildDirectory 'idt.o'
@@ -117,8 +119,9 @@ New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null
 Invoke-Tool -Path $nasm -Arguments @('-f', 'elf32', $kernelEntrySource, '-o', $kernelEntryObject) -FailureMessage 'Kernel entry derlenemedi.'
 Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', $includeDirectory, '-I', (Join-Path $projectRoot 'cpu'), '-I', (Join-Path $projectRoot 'games'), '-I', (Join-Path $projectRoot 'memory'), '-I', (Join-Path $projectRoot 'process'), '-I', (Join-Path $projectRoot 'shell'), '-c', $kernelMainSource, '-o', $kernelMainObject) -FailureMessage 'Kernel ana kodu derlenemedi.'
 Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', $includeDirectory, '-c', $languageSource, '-o', $languageObject) -FailureMessage 'Dil yoneticisi derlenemedi.'
+Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', $includeDirectory, '-I', (Join-Path $projectRoot 'kernel'), '-I', (Join-Path $projectRoot 'shell'), '-c', $splashSource, '-o', $splashObject) -FailureMessage 'Acilis gorseli derlenemedi.'
 Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', $includeDirectory, '-c', $vgaSource, '-o', $vgaObject) -FailureMessage 'VGA surucusu derlenemedi.'
-Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', $includeDirectory, '-I', (Join-Path $projectRoot 'cpu'), '-I', (Join-Path $projectRoot 'shell'), '-c', $keyboardSource, '-o', $keyboardObject) -FailureMessage 'Klavye surucusu derlenemedi.'
+Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', $includeDirectory, '-I', (Join-Path $projectRoot 'cpu'), '-I', (Join-Path $projectRoot 'kernel'), '-I', (Join-Path $projectRoot 'shell'), '-c', $keyboardSource, '-o', $keyboardObject) -FailureMessage 'Klavye surucusu derlenemedi.'
 Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', $includeDirectory, '-I', (Join-Path $projectRoot 'cpu'), '-c', $idtSource, '-o', $idtObject) -FailureMessage 'IDT derlenemedi.'
 Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', $includeDirectory, '-I', (Join-Path $projectRoot 'cpu'), '-I', (Join-Path $projectRoot 'process'), '-c', $pitSource, '-o', $pitObject) -FailureMessage 'PIT surucusu derlenemedi.'
 Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', (Join-Path $projectRoot 'cpu'), '-c', $systemSource, '-o', $systemObject) -FailureMessage 'Sistem denetimi derlenemedi.'
@@ -130,13 +133,13 @@ Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-
 Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', (Join-Path $projectRoot 'fs'), '-c', $ramfsSource, '-o', $ramfsObject) -FailureMessage 'RAM dosya sistemi derlenemedi.'
 Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', $includeDirectory, '-I', (Join-Path $projectRoot 'cpu'), '-I', (Join-Path $projectRoot 'games'), '-c', $gamesSource, '-o', $gamesObject) -FailureMessage 'Oyunlar derlenemedi.'
 Invoke-Tool -Path $gcc -Arguments @('-m32', '-std=c11', '-ffreestanding', '-fno-pic', '-fno-pie', '-fno-stack-protector', '-nostdlib', '-nostartfiles', '-nodefaultlibs', '-Wall', '-Wextra', '-I', $includeDirectory, '-I', (Join-Path $projectRoot 'cpu'), '-I', (Join-Path $projectRoot 'fs'), '-I', (Join-Path $projectRoot 'games'), '-I', (Join-Path $projectRoot 'process'), '-I', (Join-Path $projectRoot 'shell'), '-c', $shellSource, '-o', $shellObject) -FailureMessage 'Shell derlenemedi.'
-Invoke-Tool -Path $ld -Arguments @('-m', 'elf_i386', '-T', $linkerScript, '-o', $kernelElf, $kernelEntryObject, $kernelMainObject, $languageObject, $vgaObject, $keyboardObject, $idtObject, $pitObject, $systemObject, $interruptObject, $pmmObject, $pagingObject, $schedulerObject, $programsObject, $ramfsObject, $gamesObject, $shellObject) -FailureMessage 'Kernel baglanamadi.'
+Invoke-Tool -Path $ld -Arguments @('-m', 'elf_i386', '-T', $linkerScript, '-o', $kernelElf, $kernelEntryObject, $kernelMainObject, $languageObject, $splashObject, $vgaObject, $keyboardObject, $idtObject, $pitObject, $systemObject, $interruptObject, $pmmObject, $pagingObject, $schedulerObject, $programsObject, $ramfsObject, $gamesObject, $shellObject) -FailureMessage 'Kernel baglanamadi.'
 Invoke-Tool -Path $objcopy -Arguments @('-O', 'binary', $kernelElf, $kernelBinary) -FailureMessage 'Kernel ikilisi olusturulamadi.'
 
 [byte[]]$kernelRawBytes = [System.IO.File]::ReadAllBytes($kernelBinary)
 $kernelSectors = [int][Math]::Ceiling($kernelRawBytes.Length / 512.0)
-if ($kernelSectors -lt 1 -or $kernelSectors -gt 34) {
-    throw "Kernel $kernelSectors sektor gerektiriyor; stage-1 loader en fazla 34 sektor okuyabilir."
+if ($kernelSectors -lt 1 -or $kernelSectors -gt 52) {
+    throw "Kernel $kernelSectors sektor gerektiriyor; stage-1 loader en fazla 52 sektor okuyabilir."
 }
 
 [byte[]]$kernelBytes = New-Object byte[] ($kernelSectors * 512)
