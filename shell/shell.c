@@ -1,5 +1,6 @@
 #include "keyboard.h"
 #include "language.h"
+#include "games.h"
 #include "pit.h"
 #include "programs.h"
 #include "ramfs.h"
@@ -60,10 +61,10 @@ static void print_prompt(void)
 static void print_help(void)
 {
     if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
-        vga_write("Komutlar: help clear about mem uptime ps demo counter snake\n");
+        vga_write("Komutlar: help clear about mem uptime ps demo counter snake slot\n");
         vga_write("echo history color ls cat reboot shutdown tr en\n");
     } else {
-        vga_write("Commands: help clear about mem uptime ps demo counter snake\n");
+        vga_write("Commands: help clear about mem uptime ps demo counter snake slot\n");
         vga_write("echo history color ls cat reboot shutdown tr en\n");
     }
 }
@@ -215,9 +216,9 @@ static void execute_command(void)
         vga_write_unsigned(counter_program_runs());
         vga_write_char('\n');
     } else if (string_equals(input, "snake")) {
-        vga_write("snake steps=");
-        vga_write_unsigned(snake_program_steps());
-        vga_write_char('\n');
+        games_start_snake();
+    } else if (string_equals(input, "slot")) {
+        games_start_slot();
     } else if (string_equals(input, "history")) {
         print_history();
     } else if (string_equals(input, "ls")) {
@@ -263,13 +264,26 @@ void shell_init(void)
 
 void shell_handle_char(unsigned char character)
 {
+    if (games_is_active()) {
+        if (games_handle_char(character)) {
+            vga_clear();
+            vga_write("Game finished. Score: ");
+            vga_write_unsigned(games_last_score());
+            vga_write_char('\n');
+            print_prompt();
+        }
+        return;
+    }
+
     if (character == '\n') {
         vga_write_char('\n');
         append_history();
         execute_command();
         input_length = 0;
         input[0] = '\0';
-        print_prompt();
+        if (!games_is_active()) {
+            print_prompt();
+        }
         return;
     }
 

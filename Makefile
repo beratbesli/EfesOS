@@ -24,6 +24,7 @@ PAGING_OBJ := $(BUILD_DIR)/paging.o
 SCHEDULER_OBJ := $(BUILD_DIR)/scheduler.o
 PROGRAMS_OBJ := $(BUILD_DIR)/programs.o
 RAMFS_OBJ := $(BUILD_DIR)/ramfs.o
+GAMES_OBJ := $(BUILD_DIR)/games.o
 SHELL_OBJ := $(BUILD_DIR)/shell.o
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 KERNEL_BIN := $(BUILD_DIR)/kernel.bin
@@ -39,8 +40,8 @@ $(BUILD_DIR):
 $(ENTRY_OBJ): kernel/kernel_entry.asm | $(BUILD_DIR)
 	$(NASM) -f elf32 $< -o $@
 
-$(KERNEL_MAIN_OBJ): kernel/kernel.c cpu/idt.h include/keyboard.h memory/paging.h memory/pmm.h process/scheduler.h shell/shell.h include/vga.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Imemory -Iprocess -Ishell -c $< -o $@
+$(KERNEL_MAIN_OBJ): kernel/kernel.c cpu/idt.h games/games.h include/keyboard.h memory/paging.h memory/pmm.h process/scheduler.h shell/shell.h include/vga.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Igames -Imemory -Iprocess -Ishell -c $< -o $@
 
 $(LANGUAGE_OBJ): kernel/language.c include/language.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -c $< -o $@
@@ -78,11 +79,14 @@ $(PROGRAMS_OBJ): process/programs.c process/programs.h | $(BUILD_DIR)
 $(RAMFS_OBJ): fs/ramfs.c fs/ramfs.h | $(BUILD_DIR)
 	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Ifs -c $< -o $@
 
-$(SHELL_OBJ): shell/shell.c shell/shell.h include/keyboard.h include/language.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h process/programs.h process/scheduler.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Ifs -Iprocess -Ishell -c $< -o $@
+$(GAMES_OBJ): games/games.c games/games.h cpu/pit.h include/vga.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Igames -c $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(SHELL_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(SHELL_OBJ)
+$(SHELL_OBJ): shell/shell.c shell/shell.h include/keyboard.h include/language.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h games/games.h process/programs.h process/scheduler.h | $(BUILD_DIR)
+	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Ifs -Igames -Iprocess -Ishell -c $< -o $@
+
+$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@

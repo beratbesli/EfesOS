@@ -1,4 +1,5 @@
 #include "idt.h"
+#include "games.h"
 #include "keyboard.h"
 #include "paging.h"
 #include "pit.h"
@@ -51,6 +52,7 @@ void kernel_main(void)
     programs_init();
     scheduler_add_task("counter", counter_program);
     scheduler_add_task("snake", snake_program);
+    scheduler_add_task("games", games_tick);
     scheduler_start();
 
     keyboard_init();
