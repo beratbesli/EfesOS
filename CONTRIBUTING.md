@@ -1,4 +1,4 @@
-# Contributing to BeerOS
+# Contributing to AyranOS
 
 ## Before opening a pull request
 
@@ -10,4 +10,4 @@
 
 ## Scope
 
-BeerOS is a small learning kernel. Prefer focused changes that preserve the modular directory layout and avoid adding third-party binary dependencies.
+AyranOS is a small learning kernel. Prefer focused changes that preserve the modular directory layout and avoid adding third-party binary dependencies.

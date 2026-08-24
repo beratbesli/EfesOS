@@ -1,5 +1,5 @@
-#ifndef BEEROS_IO_H
-#define BEEROS_IO_H
+#ifndef AYRANOS_IO_H
+#define AYRANOS_IO_H
 
 typedef unsigned char uint8_t;
 

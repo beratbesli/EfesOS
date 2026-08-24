@@ -1,5 +1,5 @@
-#ifndef BEEROS_LANGUAGE_H
-#define BEEROS_LANGUAGE_H
+#ifndef AYRANOS_LANGUAGE_H
+#define AYRANOS_LANGUAGE_H
 
 enum system_language {
     SYSTEM_LANGUAGE_ENGLISH,

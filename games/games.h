@@ -1,5 +1,5 @@
-#ifndef BEEROS_GAMES_H
-#define BEEROS_GAMES_H
+#ifndef AYRANOS_GAMES_H
+#define AYRANOS_GAMES_H
 
 int games_is_active(void);
 void games_start_snake(void);

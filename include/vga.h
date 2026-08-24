@@ -1,5 +1,5 @@
-#ifndef BEEROS_VGA_H
-#define BEEROS_VGA_H
+#ifndef AYRANOS_VGA_H
+#define AYRANOS_VGA_H
 
 enum vga_color {
     VGA_COLOR_GREEN,

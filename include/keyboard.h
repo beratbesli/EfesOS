@@ -1,5 +1,5 @@
-#ifndef BEEROS_KEYBOARD_H
-#define BEEROS_KEYBOARD_H
+#ifndef AYRANOS_KEYBOARD_H
+#define AYRANOS_KEYBOARD_H
 
 enum keyboard_layout {
     KEYBOARD_LAYOUT_ENGLISH,

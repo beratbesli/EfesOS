@@ -1,12 +1,12 @@
-# BeerOS
+# AyranOS
 
-BeerOS; C ve NASM Assembly ile yazılmış, deneysel bir 32-bit x86 işletim sistemidir. BIOS floppy imajından açılır ve QEMU üzerinde çalışır.
+AyranOS; C ve NASM Assembly ile yazılmış, deneysel bir 32-bit x86 işletim sistemidir. BIOS floppy imajından açılır ve QEMU üzerinde çalışır.
 
 [English README](README.md)
 
 ## Durum
 
-BeerOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Kullanıcı modu izolasyonu, çalıştırma izni denetimi, disk dosya sistemi, kimlik doğrulama, secure boot veya kalıcı depolama içermez. Hassas verilerle ya da bir güvenlik sınırı olarak kullanılmamalıdır.
+AyranOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Kullanıcı modu izolasyonu, çalıştırma izni denetimi, disk dosya sistemi, kimlik doğrulama, secure boot veya kalıcı depolama içermez. Hassas verilerle ya da bir güvenlik sınırı olarak kullanılmamalıdır.
 
 ## Özellikler
 
@@ -23,7 +23,7 @@ BeerOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Kul
 - `i686-elf-gcc`, `i686-elf-ld`, `i686-elf-objcopy`
 - QEMU (`qemu-system-i386`)
 
-Araç zincirini güvenilir bir kaynaktan edin ve kurmadan önce checksum doğrulaması yap. BeerOS derleyici ikililerini indirmez veya depoda barındırmaz.
+Araç zincirini güvenilir bir kaynaktan edin ve kurmadan önce checksum doğrulaması yap. AyranOS derleyici ikililerini indirmez veya depoda barındırmaz.
 
 ## Windows'ta derleme ve çalıştırma
 
@@ -33,7 +33,7 @@ Depo kök klasöründe PowerShell açıp şu komutu çalıştır:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Run
 ```
 
-Bu betik `build\beeros.img` imajını üretir, boyutunu doğrular ve QEMU'yu başlatır. Yalnızca derlemek için `-Run` parametresini kaldır.
+Bu betik `build\ayranos.img` imajını üretir, boyutunu doğrular ve QEMU'yu başlatır. Yalnızca derlemek için `-Run` parametresini kaldır.
 
 ## Shell komutları
 
@@ -42,7 +42,7 @@ Bu betik `build\beeros.img` imajını üretir, boyutunu doğrular ve QEMU'yu ba�
 | `help`, `clear`, `about`, `mem` | Temel shell bilgileri |
 | `uptime`, `ps`, `demo`, `counter` | Kernel ve scheduler durumu |
 | `echo`, `history`, `color` | Shell araçları |
-| `ls`, `cat README`, `cat MOTD`, `cat BEER` | RAM dosya sistemi |
+| `ls`, `cat README`, `cat MOTD`, `cat AYRAN` | RAM dosya sistemi |
 | `snake`, `slot` | Mini oyunlar |
 | `en`, `tr` | Dil ve klavye düzenini değiştirir |
 | `reboot`, `shutdown` | QEMU misafirini denetler |
@@ -74,4 +74,4 @@ shell/      Komut satırı shell'i
 
 ## Lisans
 
-BeerOS [MIT Lisansı](LICENSE) ile dağıtılır.
+AyranOS [MIT Lisansı](LICENSE) ile dağıtılır.

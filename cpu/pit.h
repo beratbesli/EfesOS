@@ -1,5 +1,5 @@
-#ifndef BEEROS_PIT_H
-#define BEEROS_PIT_H
+#ifndef AYRANOS_PIT_H
+#define AYRANOS_PIT_H
 
 typedef unsigned int pit_tick_t;
 

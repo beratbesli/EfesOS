@@ -1,5 +1,5 @@
-#ifndef BEEROS_SPLASH_H
-#define BEEROS_SPLASH_H
+#ifndef AYRANOS_SPLASH_H
+#define AYRANOS_SPLASH_H
 
 void splash_show(void);
 

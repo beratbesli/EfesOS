@@ -72,7 +72,7 @@ static void snake_draw(void)
     unsigned int index;
 
     vga_clear();
-    vga_write("BEEROS SNAKE  score=");
+    vga_write("AYRANOS SNAKE  score=");
     vga_write_unsigned(snake_score);
     vga_write("  WASD: move  Q: exit\n");
     vga_write("+");
@@ -151,7 +151,7 @@ static const char *slot_symbol(unsigned int reel)
 static void slot_draw(const char *message)
 {
     vga_clear();
-    vga_write("=== BEEROS SLOTS ===\n");
+    vga_write("=== AYRANOS SLOTS ===\n");
     vga_write("+---+---+---+\n");
     vga_write("| ");
     vga_write(slot_symbol(slot_reels[0]));

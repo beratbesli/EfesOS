@@ -1,5 +1,5 @@
-#ifndef BEEROS_PROGRAMS_H
-#define BEEROS_PROGRAMS_H
+#ifndef AYRANOS_PROGRAMS_H
+#define AYRANOS_PROGRAMS_H
 
 typedef unsigned int program_counter_t;
 

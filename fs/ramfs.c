@@ -6,9 +6,9 @@ struct ramfs_file {
 };
 
 static const struct ramfs_file files[] = {
-    { "README", "BeerOS RAM filesystem\n" },
+    { "README", "AyranOS RAM filesystem\n" },
     { "MOTD", "Build, learn, and drink responsibly.\n" },
-    { "BEER", "Cold beer, warm kernel.\n" }
+    { "AYRAN", "Cold ayran, warm kernel.\n" }
 };
 
 static int string_equals(const char *left, const char *right)

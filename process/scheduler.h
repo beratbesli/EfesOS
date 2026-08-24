@@ -1,5 +1,5 @@
-#ifndef BEEROS_SCHEDULER_H
-#define BEEROS_SCHEDULER_H
+#ifndef AYRANOS_SCHEDULER_H
+#define AYRANOS_SCHEDULER_H
 
 typedef void (*scheduler_task_t)(void);
 typedef unsigned int scheduler_counter_t;

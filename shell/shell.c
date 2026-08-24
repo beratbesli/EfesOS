@@ -55,7 +55,7 @@ static void copy_string(char *destination, const char *source)
 
 static void print_prompt(void)
 {
-    vga_write("beeros> ");
+    vga_write("ayranos> ");
 }
 
 static void print_help(void)
@@ -195,9 +195,9 @@ static void execute_command(void)
         vga_clear();
     } else if (string_equals(input, "about")) {
         if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
-            vga_write("BeerOS x86 isletim sistemi.\n");
+            vga_write("AyranOS x86 isletim sistemi.\n");
         } else {
-            vga_write("BeerOS x86 operating system.\n");
+            vga_write("AyranOS x86 operating system.\n");
         }
     } else if (string_equals(input, "mem")) {
         if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
@@ -258,7 +258,7 @@ void shell_init(void)
     input_length = 0;
     history_count = 0;
     input[0] = '\0';
-    vga_write("BeerOS shell ready. Type help.\n");
+    vga_write("AyranOS shell ready. Type help.\n");
     print_prompt();
 }
 

@@ -1,5 +1,5 @@
-#ifndef BEEROS_PMM_H
-#define BEEROS_PMM_H
+#ifndef AYRANOS_PMM_H
+#define AYRANOS_PMM_H
 
 typedef unsigned int uint32_t;
 
