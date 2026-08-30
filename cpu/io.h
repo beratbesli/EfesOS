@@ -1,5 +1,5 @@
-#ifndef AYRANOS_IO_H
-#define AYRANOS_IO_H
+#ifndef EFESOS_IO_H
+#define EFESOS_IO_H
 
 typedef unsigned char uint8_t;
 

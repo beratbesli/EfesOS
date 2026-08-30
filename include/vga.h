@@ -1,5 +1,5 @@
-#ifndef AYRANOS_VGA_H
-#define AYRANOS_VGA_H
+#ifndef EFESOS_VGA_H
+#define EFESOS_VGA_H
 
 enum vga_color {
     VGA_COLOR_GREEN,

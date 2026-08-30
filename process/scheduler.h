@@ -1,5 +1,5 @@
-#ifndef AYRANOS_SCHEDULER_H
-#define AYRANOS_SCHEDULER_H
+#ifndef EFESOS_SCHEDULER_H
+#define EFESOS_SCHEDULER_H
 
 typedef void (*scheduler_task_t)(void);
 typedef unsigned int scheduler_counter_t;

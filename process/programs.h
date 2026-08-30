@@ -1,5 +1,5 @@
-#ifndef AYRANOS_PROGRAMS_H
-#define AYRANOS_PROGRAMS_H
+#ifndef EFESOS_PROGRAMS_H
+#define EFESOS_PROGRAMS_H
 
 typedef unsigned int program_counter_t;
 

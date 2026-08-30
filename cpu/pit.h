@@ -1,5 +1,5 @@
-#ifndef AYRANOS_PIT_H
-#define AYRANOS_PIT_H
+#ifndef EFESOS_PIT_H
+#define EFESOS_PIT_H
 
 typedef unsigned int pit_tick_t;
 

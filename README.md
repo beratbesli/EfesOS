@@ -1,12 +1,12 @@
-# AyranOS
+# EfesOS
 
-AyranOS is an experimental 32-bit x86 operating system written in C and NASM assembly. It boots from a BIOS floppy image and runs in QEMU.
+EfesOS is an experimental 32-bit x86 operating system written in C and NASM assembly. It boots from a BIOS floppy image and runs in QEMU.
 
 [Türkçe README](README.tr.md)
 
 ## Status
 
-AyranOS is a learning project, not a production operating system. It has no user-mode isolation, executable permission enforcement, disk filesystem, authentication, secure boot, or persistent storage. Do not use it with sensitive data or as a security boundary.
+EfesOS is a learning project, not a production operating system. It has no user-mode isolation, executable permission enforcement, disk filesystem, authentication, secure boot, or persistent storage. Do not use it with sensitive data or as a security boundary.
 
 ## Features
 
@@ -23,7 +23,7 @@ AyranOS is a learning project, not a production operating system. It has no user
 - `i686-elf-gcc`, `i686-elf-ld`, `i686-elf-objcopy`
 - QEMU (`qemu-system-i386`)
 
-Use a toolchain obtained from a trusted source and verify its checksum before installing it. AyranOS does not download or vendor compiler binaries.
+Use a toolchain obtained from a trusted source and verify its checksum before installing it. EfesOS does not download or vendor compiler binaries.
 
 ## Build and run on Windows
 
@@ -33,7 +33,7 @@ From PowerShell in the repository root:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Run
 ```
 
-The script builds `build\ayranos.img`, validates its size and starts QEMU. Without `-Run`, it only builds the image.
+The script builds `build\efesos.img`, validates its size and starts QEMU. Without `-Run`, it only builds the image.
 
 ## Shell commands
 
@@ -42,7 +42,7 @@ The script builds `build\ayranos.img`, validates its size and starts QEMU. Witho
 | `help`, `clear`, `about`, `mem` | Basic shell information |
 | `uptime`, `ps`, `demo`, `counter` | Kernel and scheduler status |
 | `echo`, `history`, `color` | Shell utilities |
-| `ls`, `cat README`, `cat MOTD`, `cat AYRAN` | RAM filesystem |
+| `ls`, `cat README`, `cat MOTD`, `cat EFES` | RAM filesystem |
 | `snake`, `slot` | Mini games |
 | `en`, `tr` | Switch language and keyboard layout |
 | `reboot`, `shutdown` | Control the QEMU guest |
@@ -74,4 +74,4 @@ shell/      Command shell
 
 ## License
 
-AyranOS is released under the [MIT License](LICENSE).
+EfesOS is released under the [MIT License](LICENSE).

@@ -68,11 +68,11 @@ void idt_init(void)
 
 void interrupt_handler(void)
 {
-    vga_write("AyranOS: IDT and interrupt handler running.\n");
+    vga_write("EfesOS: IDT and interrupt handler running.\n");
 }
 
 void exception_handler(void)
 {
     __asm__ volatile ("cli" : : : "memory");
-    vga_write("AyranOS: fatal CPU exception. System halted.\n");
+    vga_write("EfesOS: fatal CPU exception. System halted.\n");
 }

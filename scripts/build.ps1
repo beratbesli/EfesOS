@@ -48,7 +48,7 @@ $gamesObject = Join-Path $buildDirectory 'games.o'
 $shellObject = Join-Path $buildDirectory 'shell.o'
 $kernelElf = Join-Path $buildDirectory 'kernel.elf'
 $kernelBinary = Join-Path $buildDirectory 'kernel.bin'
-$imagePath = Join-Path $buildDirectory 'ayranos.img'
+$imagePath = Join-Path $buildDirectory 'efesos.img'
 $floppySize = 1440 * 1024
 
 function Get-RequiredCommand {

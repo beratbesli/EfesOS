@@ -1,4 +1,4 @@
-# Contributing to AyranOS
+# Contributing to EfesOS
 
 ## Before opening a pull request
 
@@ -10,4 +10,4 @@
 
 ## Scope
 
-AyranOS is a small learning kernel. Prefer focused changes that preserve the modular directory layout and avoid adding third-party binary dependencies.
+EfesOS is a small learning kernel. Prefer focused changes that preserve the modular directory layout and avoid adding third-party binary dependencies.

@@ -1,4 +1,4 @@
-; AyranOS stage-1 bootloader
+; EfesOS stage-1 bootloader
 ; BIOS bu sektörü fiziksel 0x7C00 adresine yükler ve DL'de önyükleme diskini verir.
 
 [bits 16]
@@ -138,10 +138,10 @@ print_string:
     ret
 
 loading_message:
-    db 'AyranOS: loading kernel...', 13, 10, 0
+    db 'EfesOS: loading kernel...', 13, 10, 0
 
 disk_error_message:
-    db 'AyranOS: disk read error.', 13, 10, 0
+    db 'EfesOS: disk read error.', 13, 10, 0
 
 boot_drive:
     db 0

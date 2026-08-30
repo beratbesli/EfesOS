@@ -29,7 +29,7 @@ GAMES_OBJ := $(BUILD_DIR)/games.o
 SHELL_OBJ := $(BUILD_DIR)/shell.o
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 KERNEL_BIN := $(BUILD_DIR)/kernel.bin
-IMAGE := $(BUILD_DIR)/ayranos.img
+IMAGE := $(BUILD_DIR)/efesos.img
 
 .PHONY: all run clean verify
 
