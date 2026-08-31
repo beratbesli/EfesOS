@@ -255,6 +255,24 @@ int paging_copy_from_user(void *destination, paging_u32_t source, paging_u32_t l
     return 1;
 }
 
+int paging_copy_to_user(paging_u32_t destination, const void *source, paging_u32_t length)
+{
+    const unsigned char *input = (const unsigned char *)source;
+    unsigned char *output = (unsigned char *)destination;
+    paging_u32_t index;
+
+    if (length != 0U && input == 0) {
+        return 0;
+    }
+    if (!paging_validate_user_range(destination, length, 1)) {
+        return 0;
+    }
+    for (index = 0; index < length; index++) {
+        output[index] = input[index];
+    }
+    return 1;
+}
+
 paging_u32_t paging_kernel_directory(void)
 {
     return kernel_page_directory_physical;

@@ -27,5 +27,6 @@ jobs:
           grep -F "EfesOS: user pointer validation runtime test passed." build/ci-serial.log
           grep -F "EfesOS: user process resource cleanup passed." build/ci-serial.log
           grep -F "EfesOS: user address-space switch runtime test passed." build/ci-serial.log
+          grep -F "EfesOS: user IPC syscall runtime test passed." build/ci-serial.log
           grep -F "EfesOS: user exception isolated." build/ci-serial.log
           grep -F "EfesOS: preemptive scheduler runtime test passed." build/ci-serial.log

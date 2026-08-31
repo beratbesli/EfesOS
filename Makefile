@@ -70,8 +70,8 @@ $(KERNEL_MAIN_OBJ): kernel/kernel.c include/ata.h include/boot_info.h cpu/idt.h 
 $(PANIC_OBJ): kernel/panic.c kernel/panic.h include/serial.h include/vga.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Ikernel -c $< -o $@
 
-$(SYSCALL_OBJ): kernel/syscall.c include/syscall.h cpu/idt.h cpu/pit.h process/scheduler.h memory/paging.h include/serial.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Icpu -Imemory -Iprocess -c $< -o $@
+$(SYSCALL_OBJ): kernel/syscall.c include/syscall.h cpu/idt.h cpu/pit.h process/scheduler.h memory/paging.h kernel/ipc.h include/serial.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Imemory -Iprocess -c $< -o $@
 
 $(IPC_OBJ): kernel/ipc.c kernel/ipc.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Ikernel -c $< -o $@
