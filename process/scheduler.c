@@ -37,8 +37,30 @@ static struct scheduler_task tasks[SCHEDULER_MAX_TASKS];
 static unsigned int task_count;
 static unsigned int current_task;
 static unsigned char scheduler_started;
+static unsigned int pending_reap;
+static unsigned int stack_reap_count;
 
 static void scheduler_task_trampoline(void);
+
+static void reap_task_stack(struct scheduler_task *task)
+{
+    unsigned int index;
+
+    if (task == 0 || task->stack_base == 0U) {
+        return;
+    }
+    for (index = 0; index < SCHEDULER_STACK_PAGES; index++) {
+        unsigned int physical = paging_unmap_page(task->stack_base + PAGE_SIZE +
+            (index * PAGE_SIZE));
+        if (physical != 0U) {
+            pmm_free_block(physical);
+        }
+        task->stack_frames[index] = 0U;
+    }
+    task->stack_base = 0U;
+    task->frame = 0;
+    stack_reap_count++;
+}
 
 static void clear_task(struct scheduler_task *task)
 {
@@ -152,6 +174,10 @@ static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame
     if (!scheduler_started || task_count == 0U || frame == 0) {
         return frame;
     }
+    if (pending_reap < task_count && pending_reap != current_task) {
+        reap_task_stack(&tasks[pending_reap]);
+        pending_reap = SCHEDULER_MAX_TASKS;
+    }
     if (tasks[current_task].mode == TASK_USER) {
         save_user_frame(&tasks[current_task], frame);
     } else {
@@ -186,6 +212,8 @@ void scheduler_init(void)
     task_count = 1;
     current_task = 0;
     scheduler_started = 0;
+    pending_reap = SCHEDULER_MAX_TASKS;
+    stack_reap_count = 0U;
     tasks[0].name = "kernel";
     tasks[0].state = TASK_RUNNABLE;
     tasks[0].address_space = paging_kernel_directory();
@@ -278,6 +306,7 @@ struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame)
         return frame;
     }
     tasks[current_task].state = TASK_TERMINATED;
+    pending_reap = current_task;
     user_process_reap();
     return schedule_from_frame(frame, 1);
 }
@@ -290,6 +319,7 @@ static void scheduler_task_trampoline(void)
         entry();
     }
     tasks[current_task].state = TASK_TERMINATED;
+    pending_reap = current_task;
     __asm__ volatile ("int $0x31" : : : "memory");
     for (;;) {
         __asm__ volatile ("hlt");
@@ -315,4 +345,9 @@ scheduler_counter_t scheduler_task_runs(unsigned int index)
         return 0;
     }
     return tasks[index].switches;
+}
+
+unsigned int scheduler_stack_reap_count(void)
+{
+    return stack_reap_count;
 }
