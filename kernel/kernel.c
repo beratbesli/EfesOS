@@ -168,6 +168,10 @@ void kernel_main(const struct boot_info *boot_info)
         kernel_panic("Virtual memory manager self-test failed.");
     }
     serial_write("EfesOS: VMM self-test passed.\n");
+    if (!elf_loader_runtime_self_test()) {
+        kernel_panic("ELF loader runtime self-test failed.");
+    }
+    serial_write("EfesOS: ELF loader runtime self-test passed.\n");
     if (!heap_init() || !heap_self_test()) {
         kernel_panic("Kernel heap self-test failed.");
     }

@@ -120,8 +120,8 @@ $(SCHEDULER_OBJ): process/scheduler.c process/scheduler.h cpu/idt.h memory/heap.
 $(USER_PROCESS_OBJ): process/user_process.c process/user_process.h process/scheduler.h memory/paging.h memory/pmm.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Imemory -Iprocess -c $< -o $@
 
-$(ELF_LOADER_OBJ): process/elf_loader.c process/elf_loader.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iprocess -c $< -o $@
+$(ELF_LOADER_OBJ): process/elf_loader.c process/elf_loader.h memory/paging.h memory/pmm.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Iprocess -Imemory -c $< -o $@
 
 $(USER_DEMO_OBJ): process/user_demo.asm | $(BUILD_DIR)
 	$(NASM) -w+error -f elf32 $< -o $@
