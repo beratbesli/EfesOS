@@ -24,6 +24,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Faulted demo processes release their user ELF pages and stack frames before scheduling continues
 - Two bounded user processes get private page directories; the scheduler switches address spaces with CR3 and reuses slots after faults
 - IPC syscalls (`IPC_SEND`, `IPC_RECEIVE`) with 16-message/64-byte bounds and validated user copies
+- Generation-based `GET_PID` syscall so reused task slots do not retain stale identities
 - E820-backed physical-memory allocation across the 32-bit address space
 - Null-page protection, read-only kernel code/data, dynamic page mapping and a guarded kernel heap
 - VGA text/graphics output with scrolling
