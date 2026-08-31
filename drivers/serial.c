@@ -7,6 +7,18 @@
 
 static int ready;
 
+static unsigned int serial_irq_save(void)
+{
+    unsigned int flags;
+    __asm__ volatile ("pushfl; popl %0; cli" : "=r"(flags) : : "memory");
+    return flags;
+}
+
+static void serial_irq_restore(unsigned int flags)
+{
+    __asm__ volatile ("pushl %0; popfl" : : "r"(flags) : "memory", "cc");
+}
+
 static int wait_for_transmit(void)
 {
     unsigned int remaining = SERIAL_WAIT_LIMIT;
@@ -49,18 +61,23 @@ int serial_is_ready(void)
 
 void serial_write_char(char character)
 {
+    unsigned int flags = serial_irq_save();
+
     if (ready == 0) {
+        serial_irq_restore(flags);
         return;
     }
     if (!wait_for_transmit()) {
         ready = 0;
+        serial_irq_restore(flags);
         return;
     }
 
     outb(COM1_PORT, (unsigned char)character);
+    serial_irq_restore(flags);
 }
 
-void serial_write(const char *text)
+static void serial_write_unlocked(const char *text)
 {
     if (text == 0) {
         return;
@@ -68,32 +85,60 @@ void serial_write(const char *text)
 
     while (*text != '\0') {
         if (*text == '\n') {
-            serial_write_char('\r');
+            if (ready != 0 && wait_for_transmit()) {
+                outb(COM1_PORT, '\r');
+            }
         }
-        serial_write_char(*text);
+        if (ready != 0 && wait_for_transmit()) {
+            outb(COM1_PORT, (unsigned char)*text);
+        } else {
+            ready = 0;
+        }
         text++;
     }
+}
+
+void serial_write(const char *text)
+{
+    unsigned int flags = serial_irq_save();
+    serial_write_unlocked(text);
+    serial_irq_restore(flags);
 }
 
 void serial_write_n(const char *text, unsigned int length)
 {
     unsigned int index;
+    unsigned int flags = serial_irq_save();
 
     if (text == 0) {
+        serial_irq_restore(flags);
         return;
     }
     for (index = 0; index < length; index++) {
-        serial_write_char(text[index]);
+        if (ready != 0 && wait_for_transmit()) {
+            outb(COM1_PORT, (unsigned char)text[index]);
+        } else {
+            ready = 0;
+            break;
+        }
     }
+    serial_irq_restore(flags);
 }
 
 void serial_write_hex(unsigned int value)
 {
     static const char digits[] = "0123456789ABCDEF";
     int shift;
+    unsigned int flags = serial_irq_save();
 
-    serial_write("0x");
+    serial_write_unlocked("0x");
     for (shift = 28; shift >= 0; shift -= 4) {
-        serial_write_char(digits[(value >> (unsigned int)shift) & 0x0FU]);
+        if (ready != 0 && wait_for_transmit()) {
+            outb(COM1_PORT, (unsigned char)digits[(value >> (unsigned int)shift) & 0x0FU]);
+        } else {
+            ready = 0;
+            break;
+        }
     }
+    serial_irq_restore(flags);
 }

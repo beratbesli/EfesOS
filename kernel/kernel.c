@@ -27,6 +27,7 @@ static int scheduler_runtime_verified;
 static int user_runtime_verified;
 static int user_pointer_runtime_verified;
 static int user_reap_runtime_verified;
+static int user_address_space_runtime_verified;
 static pit_tick_t last_game_tick;
 
 static void verify_mounted_disk_read(void)
@@ -101,6 +102,10 @@ static void kernel_process_events(void)
     if (!user_reap_runtime_verified && user_process_reap_count() != 0U) {
         user_reap_runtime_verified = 1;
         serial_write("EfesOS: user process resource cleanup passed.\n");
+    }
+    if (!user_address_space_runtime_verified && syscall_user_address_space_call_count() != 0U) {
+        user_address_space_runtime_verified = 1;
+        serial_write("EfesOS: user address-space switch runtime test passed.\n");
     }
     if (pit_ticks() != last_game_tick) {
         last_game_tick = pit_ticks();
@@ -203,6 +208,7 @@ void kernel_main(const struct boot_info *boot_info)
     user_runtime_verified = 0;
     user_pointer_runtime_verified = 0;
     user_reap_runtime_verified = 0;
+    user_address_space_runtime_verified = 0;
     programs_init();
     ramfs_init();
     if (!ramfs_self_test()) {

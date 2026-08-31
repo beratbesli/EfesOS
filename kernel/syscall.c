@@ -7,11 +7,13 @@
 
 static volatile unsigned int user_call_count;
 static volatile unsigned int user_pointer_reject_count;
+static volatile unsigned int user_address_space_call_count;
 
 void syscall_init(void)
 {
     user_call_count = 0;
     user_pointer_reject_count = 0;
+    user_address_space_call_count = 0;
 }
 
 struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
@@ -22,6 +24,9 @@ struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
 
     if ((frame->cs & 3U) == 3U) {
         user_call_count++;
+        if (paging_current_directory() != paging_kernel_directory()) {
+            user_address_space_call_count++;
+        }
     }
 
     if (frame->eax == SYSCALL_GET_TICKS) {
@@ -56,4 +61,9 @@ unsigned int syscall_user_call_count(void)
 unsigned int syscall_user_pointer_reject_count(void)
 {
     return user_pointer_reject_count;
+}
+
+unsigned int syscall_user_address_space_call_count(void)
+{
+    return user_address_space_call_count;
 }
