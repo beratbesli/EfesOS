@@ -199,19 +199,25 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
         total_sectors = read_u32(boot, 32);
     }
     if (bytes_per_sector != FAT_SECTOR_SIZE || sectors_per_cluster == 0U ||
+        sectors_per_cluster > 128U ||
         (sectors_per_cluster & (sectors_per_cluster - 1U)) != 0U || reserved == 0U ||
         fats == 0U || root_entries == 0U || sectors_per_fat == 0U || total_sectors == 0U) {
+        last_error = 4;
         return 0;
     }
     root_sectors = ((fat_u32_t)root_entries * 32U + FAT_SECTOR_SIZE - 1U) / FAT_SECTOR_SIZE;
     if (total_sectors <= (fat_u32_t)reserved + ((fat_u32_t)fats * sectors_per_fat) + root_sectors) {
-        last_error = 4;
+        last_error = 5;
         return 0;
     }
     data_sectors = total_sectors - reserved - ((fat_u32_t)fats * sectors_per_fat) - root_sectors;
     if (data_sectors == 0U || data_sectors / sectors_per_cluster < 4085U ||
         data_sectors / sectors_per_cluster >= 65525U) {
-        last_error = 5;
+        last_error = 6;
+        return 0;
+    }
+    if (start_lba > 0xFFFFFFFFU - total_sectors) {
+        last_error = 7;
         return 0;
     }
     volume->total_sectors = total_sectors;
