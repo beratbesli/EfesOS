@@ -162,7 +162,7 @@ int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer)
     unsigned int sector;
     unsigned int flags;
 
-    if (writes_protected || !valid_request(lba, count, buffer)) {
+    if (!valid_request(lba, count, buffer)) {
         return 0;
     }
     flags = irq_save();
@@ -206,7 +206,7 @@ int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
     unsigned int sector;
     unsigned int flags;
 
-    if (!valid_request(lba, count, buffer)) {
+    if (writes_protected || !valid_request(lba, count, buffer)) {
         return 0;
     }
     flags = irq_save();

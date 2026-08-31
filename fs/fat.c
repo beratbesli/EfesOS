@@ -162,6 +162,7 @@ static int find_entry(const struct fat_volume *volume, const fat_u8_t *short_nam
 int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
 {
     fat_u8_t boot[FAT_SECTOR_SIZE];
+    fat_u8_t fat_header[FAT_SECTOR_SIZE];
     fat_u32_t total_sectors;
     fat_u32_t root_sectors;
     fat_u32_t data_sectors;
@@ -169,6 +170,7 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
     fat_u8_t sectors_per_cluster;
     fat_u16_t reserved;
     fat_u8_t fats;
+    fat_u8_t media_descriptor;
     fat_u16_t root_entries;
     fat_u16_t sectors_per_fat;
     fat_u32_t cluster_count;
@@ -196,11 +198,13 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
     fats = boot[16];
     root_entries = read_u16(boot, 17);
     sectors_per_fat = read_u16(boot, 22);
+    media_descriptor = boot[21];
     total_sectors = read_u16(boot, 19);
     if (total_sectors == 0U) {
         total_sectors = read_u32(boot, 32);
     }
-    if (bytes_per_sector != FAT_SECTOR_SIZE || sectors_per_cluster == 0U ||
+    if (bytes_per_sector != FAT_SECTOR_SIZE || media_descriptor < 0xF0U ||
+        sectors_per_cluster == 0U ||
         sectors_per_cluster > 128U ||
         (sectors_per_cluster & (sectors_per_cluster - 1U)) != 0U || reserved == 0U ||
         fats == 0U || root_entries == 0U || sectors_per_fat == 0U || total_sectors == 0U) {
@@ -222,6 +226,12 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
     }
     if (start_lba > 0xFFFFFFFFU - total_sectors) {
         last_error = 7;
+        return 0;
+    }
+    if (!read(start_lba + reserved, 1, fat_header) ||
+        fat_header[0] != media_descriptor ||
+        fat_header[1] != 0xFFU || fat_header[2] != 0xFFU) {
+        last_error = 8;
         return 0;
     }
     volume->total_sectors = total_sectors;
