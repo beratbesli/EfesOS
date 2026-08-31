@@ -94,6 +94,7 @@ int paging_map_page(paging_u32_t virtual_address, paging_u32_t physical_address,
     if (page_directory == 0 || virtual_address < PAGE_SIZE ||
         (virtual_address & (PAGE_SIZE - 1U)) != 0U ||
         (physical_address & (PAGE_SIZE - 1U)) != 0U ||
+        (flags & ~PAGE_ALLOWED_FLAGS) != 0U ||
         ((flags & PAGE_FLAG_USER) != 0U &&
          (virtual_address < USER_MAPPING_MIN || virtual_address >= USER_ADDRESS_LIMIT))) {
         return 0;
@@ -444,7 +445,8 @@ int paging_self_test(void)
 
     user_frame = pmm_alloc_block();
     if (user_frame == 0U || paging_map_page(PAGE_SIZE, user_frame,
-        PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
+        PAGE_FLAG_USER | PAGE_FLAG_WRITABLE) ||
+        paging_map_page(PAGE_SIZE, user_frame, 0x008U)) {
         if (user_frame != 0U) {
             if (paging_is_mapped(PAGE_SIZE)) {
                 paging_unmap_page(PAGE_SIZE);
@@ -456,7 +458,8 @@ int paging_self_test(void)
     pmm_free_block(user_frame);
 
     frame = pmm_alloc_block();
-    if (frame == 0U || !paging_map_page(test_virtual, frame, PAGE_FLAG_WRITABLE)) {
+    if (frame == 0U || paging_map_page(test_virtual, frame, 0x008U) ||
+        !paging_map_page(test_virtual, frame, PAGE_FLAG_WRITABLE)) {
         if (frame != 0U) {
             pmm_free_block(frame);
         }

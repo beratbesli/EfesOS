@@ -17,6 +17,7 @@
 - İki bounded ring-3 süreç aynı anda ayrı adres alanlarında başlatılıyor; fault temizliği task kimliğiyle eşleşiyor ve QEMU isolation marker’ı ile doğrulanıyor.
 - Seri tanılama çıktısı kritik bölümlerde atomikleştirildi; preemption sırasında log satırlarının bölünmesi engellendi.
 - Paging API’si kullanıcı bayrağını korunan taban adresin altında reddediyor; bu kural VMM self-test’iyle doğrulanıyor.
+- Paging map API’si artık tanımsız izin flag’lerini sessizce kırpmıyor; bilinmeyen bitler reddediliyor ve VMM negatif self-test’iyle korunuyor.
 - Adres alanı geçişi/yıkımı başarısız olursa cleanup sessizce devam etmiyor; kernel fail-closed panic ile duruyor.
 - Kullanıcı ELF veya stack unmap cleanup’ı başarısız olursa artık fiziksel kaynak kaybını gizlemeden fail-closed panic uygulanıyor.
 - Scheduler, kernel page directory’sini ring-3 task’a vermeyi reddediyor; sahiplik kaydı bulunmayan bir user fault da sessizce devam etmek yerine fail-closed panic ile duruyor.
