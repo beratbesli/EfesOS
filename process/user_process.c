@@ -180,15 +180,21 @@ void user_process_reap_task(unsigned int task_index)
         }
     }
     if (process->loaded_base != 0U && process->loaded_end > process->loaded_base) {
-        elf_unload_image(process->loaded_base, process->loaded_end);
+        if (!elf_unload_image(process->loaded_base, process->loaded_end)) {
+            kernel_panic("Failed to unload user ELF image.");
+        }
         process->loaded_base = 0U;
         process->loaded_end = 0U;
     }
-    if (process->stack_frame != 0U && paging_is_mapped(USER_STACK_ADDRESS)) {
-        physical = paging_unmap_page(USER_STACK_ADDRESS);
-        if (physical != 0U) {
-            pmm_free_block(physical);
+    if (process->stack_frame != 0U) {
+        if (!paging_is_mapped(USER_STACK_ADDRESS)) {
+            kernel_panic("User stack mapping disappeared before cleanup.");
         }
+        physical = paging_unmap_page(USER_STACK_ADDRESS);
+        if (physical == 0U) {
+            kernel_panic("Failed to unmap user stack.");
+        }
+        pmm_free_block(physical);
     }
     process->stack_frame = 0U;
     if (process->address_space != 0U) {
