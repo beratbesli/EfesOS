@@ -21,6 +21,7 @@
 #define ATA_STATUS_RDY 0x40U
 #define ATA_STATUS_BSY 0x80U
 #define ATA_TIMEOUT 1000U
+#define ATA_LBA28_LIMIT 0x10000000U
 
 static int device_present;
 static uint32_t sectors;
@@ -127,7 +128,13 @@ void ata_init(void)
         return;
     }
     sectors = ((uint32_t)identify[61] << 16U) | identify[60];
-    device_present = sectors != 0U;
+    /* This driver emits only 28-bit PIO commands. Reject capacities that
+       would alias when select_lba masks the high nibble. */
+    if (sectors == 0U || sectors > ATA_LBA28_LIMIT) {
+        sectors = 0U;
+        return;
+    }
+    device_present = 1;
     if (device_present) {
         outb(ATA_CONTROL, 0x06U);
         ata_400ns_delay();
