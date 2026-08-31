@@ -99,7 +99,7 @@ static void print_processes(void)
         vga_write_unsigned(index);
         vga_write(" ");
         vga_write(scheduler_task_name(index));
-        vga_write(" runs=");
+        vga_write(" switches=");
         vga_write_unsigned(scheduler_task_runs(index));
         vga_write_char('\n');
     }
