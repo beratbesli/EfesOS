@@ -20,6 +20,7 @@
 - Adres alanı geçişi/yıkımı başarısız olursa cleanup sessizce devam etmiyor; kernel fail-closed panic ile duruyor.
 - Kullanıcı ELF veya stack unmap cleanup’ı başarısız olursa artık fiziksel kaynak kaybını gizlemeden fail-closed panic uygulanıyor.
 - Scheduler, kernel page directory’sini ring-3 task’a vermeyi reddediyor; sahiplik kaydı bulunmayan bir user fault da sessizce devam etmek yerine fail-closed panic ile duruyor.
+- Scheduler slotları generation tabanlı PID üretiyor; ring-3 `GET_PID` ABI’si doğrulanarak ileride stale task-index sahiplik saldırılarını önleyecek kimlik temeli oluşturuluyor.
 - Smoke test’i eski logları reddediyor ve seri çıktıyı gerçek süreç stdout’undan doğruluyor; boş loglar artık başarılı sayılmıyor.
 - Scheduler görevleri için 1–8 arası sınırlı öncelik zaman dilimleri ve zorunlu gönüllü `yield` geçişi eklendi.
 - FAT16 mount bozuk BPB/cluster geometrisini, aşırı cluster boyutunu ve LBA toplam taşmasını ayrı hata kodlarıyla fail-closed reddediyor.
@@ -37,9 +38,9 @@
 
 - `scripts/build.ps1` başarılı.
 - `scripts/fat-self-test.ps1` başarılı.
-- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 29 kritik boot/runtime işaretçisi doğrulanıyor.
+- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 30 kritik boot/runtime işaretçisi doğrulanıyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
-- Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT uçtan uca testi başarılı; mount, kök dizin ve dosya okuması dahil 30 işaretçi doğrulanıyor.
+- Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT uçtan uca testi başarılı; mount, kök dizin ve dosya okuması dahil 31 işaretçi doğrulanıyor.
 - Değişiklikler `codex/core-hardening` dalında checkpoint commit’leriyle kaydedildi.
 
 ## Bilinen sınırlar

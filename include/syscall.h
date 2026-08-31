@@ -8,6 +8,7 @@ struct interrupt_frame;
 #define SYSCALL_WRITE 2U
 #define SYSCALL_IPC_SEND 3U
 #define SYSCALL_IPC_RECEIVE 4U
+#define SYSCALL_GET_PID 5U
 #define SYSCALL_MAX_WRITE 128U
 #define SYSCALL_MAX_IPC 64U
 #define SYSCALL_EFAULT 0xFFFFFFF2U
@@ -21,5 +22,6 @@ unsigned int syscall_user_pointer_reject_count(void);
 unsigned int syscall_user_address_space_call_count(void);
 unsigned int syscall_user_ipc_call_count(void);
 unsigned int syscall_user_ipc_reject_count(void);
+unsigned int syscall_user_pid_call_count(void);
 
 #endif

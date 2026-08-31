@@ -26,5 +26,7 @@ scheduler_counter_t scheduler_task_runs(unsigned int index);
 unsigned int scheduler_stack_reap_count(void);
 unsigned int scheduler_current_task_index(void);
 unsigned int scheduler_last_added_task(void);
+unsigned int scheduler_current_task_id(void);
+unsigned int scheduler_task_id(unsigned int index);
 
 #endif

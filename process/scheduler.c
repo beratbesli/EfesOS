@@ -32,6 +32,7 @@ struct scheduler_task {
     unsigned int ticks_left;
     scheduler_counter_t switches;
     unsigned int state;
+    unsigned int task_id;
 };
 
 static struct scheduler_task tasks[SCHEDULER_MAX_TASKS];
@@ -41,6 +42,7 @@ static unsigned char scheduler_started;
 static unsigned int pending_reap;
 static unsigned int stack_reap_count;
 static unsigned int last_added_task;
+static unsigned int slot_generation[SCHEDULER_MAX_TASKS];
 
 static void scheduler_task_trampoline(void);
 
@@ -112,6 +114,7 @@ static void clear_task(struct scheduler_task *task)
     task->ticks_left = SCHEDULER_DEFAULT_PRIORITY;
     task->switches = 0;
     task->state = TASK_TERMINATED;
+    task->task_id = 0U;
 }
 
 static int allocate_task_stack(struct scheduler_task *task, unsigned int slot)
@@ -259,9 +262,13 @@ void scheduler_init(void)
     pending_reap = SCHEDULER_MAX_TASKS;
     stack_reap_count = 0U;
     last_added_task = SCHEDULER_MAX_TASKS;
+    for (index = 0U; index < SCHEDULER_MAX_TASKS; index++) {
+        slot_generation[index] = 0U;
+    }
     tasks[0].name = "kernel";
     tasks[0].state = TASK_RUNNABLE;
     tasks[0].address_space = paging_kernel_directory();
+    tasks[0].task_id = 0U;
 }
 
 int scheduler_add_task(const char *name, scheduler_task_t task)
@@ -285,6 +292,11 @@ int scheduler_add_task(const char *name, scheduler_task_t task)
     new_task->entry = task;
     new_task->address_space = paging_kernel_directory();
     new_task->state = TASK_RUNNABLE;
+    slot_generation[slot]++;
+    if (slot_generation[slot] == 0U) {
+        slot_generation[slot]++;
+    }
+    new_task->task_id = (slot_generation[slot] << 8U) | slot;
     if (!allocate_task_stack(new_task, slot)) {
         clear_task(new_task);
         scheduler_irq_restore(flags);
@@ -366,6 +378,11 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
     new_task->address_space = address_space;
     new_task->mode = TASK_USER;
     new_task->state = TASK_RUNNABLE;
+    slot_generation[slot]++;
+    if (slot_generation[slot] == 0U) {
+        slot_generation[slot]++;
+    }
+    new_task->task_id = (slot_generation[slot] << 8U) | slot;
     if (!allocate_task_stack(new_task, slot)) {
         clear_task(new_task);
         scheduler_irq_restore(flags);
@@ -465,6 +482,22 @@ unsigned int scheduler_current_task_index(void)
 unsigned int scheduler_last_added_task(void)
 {
     return last_added_task;
+}
+
+unsigned int scheduler_current_task_id(void)
+{
+    if (current_task >= task_count) {
+        return 0U;
+    }
+    return tasks[current_task].task_id;
+}
+
+unsigned int scheduler_task_id(unsigned int index)
+{
+    if (index >= task_count) {
+        return 0U;
+    }
+    return tasks[index].task_id;
 }
 
 unsigned int scheduler_blocked_count(void)

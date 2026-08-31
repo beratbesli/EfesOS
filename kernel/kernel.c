@@ -39,6 +39,7 @@ static unsigned int user_restart_wait_ticks;
 static int user_address_space_runtime_verified;
 static int user_ipc_runtime_verified;
 static int user_ipc_reject_runtime_verified;
+static int user_pid_runtime_verified;
 static int scheduler_stack_reap_runtime_verified;
 static int scheduler_block_runtime_verified;
 static pit_tick_t last_game_tick;
@@ -169,6 +170,10 @@ static void kernel_process_events(void)
         user_ipc_reject_runtime_verified = 1;
         serial_write("EfesOS: invalid user IPC pointer rejected.\n");
     }
+    if (!user_pid_runtime_verified && syscall_user_pid_call_count() >= 2U) {
+        user_pid_runtime_verified = 1;
+        serial_write("EfesOS: generation-based user PID runtime test passed.\n");
+    }
     if (!scheduler_stack_reap_runtime_verified && scheduler_stack_reap_count() != 0U) {
         scheduler_stack_reap_runtime_verified = 1;
         serial_write("EfesOS: scheduler stack resource cleanup passed.\n");
@@ -285,6 +290,7 @@ void kernel_main(const struct boot_info *boot_info)
     user_address_space_runtime_verified = 0;
     user_ipc_runtime_verified = 0;
     user_ipc_reject_runtime_verified = 0;
+    user_pid_runtime_verified = 0;
     scheduler_stack_reap_runtime_verified = 0;
     scheduler_block_runtime_verified = 0;
     programs_init();

@@ -11,6 +11,7 @@ static volatile unsigned int user_pointer_reject_count;
 static volatile unsigned int user_address_space_call_count;
 static volatile unsigned int user_ipc_call_count;
 static volatile unsigned int user_ipc_reject_count;
+static volatile unsigned int user_pid_call_count;
 
 void syscall_init(void)
 {
@@ -19,6 +20,7 @@ void syscall_init(void)
     user_address_space_call_count = 0;
     user_ipc_call_count = 0;
     user_ipc_reject_count = 0;
+    user_pid_call_count = 0;
 }
 
 struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
@@ -32,12 +34,17 @@ struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
         if (frame->eax == SYSCALL_IPC_SEND || frame->eax == SYSCALL_IPC_RECEIVE) {
             user_ipc_call_count++;
         }
+        if (frame->eax == SYSCALL_GET_PID) {
+            user_pid_call_count++;
+        }
         if (paging_current_directory() != paging_kernel_directory()) {
             user_address_space_call_count++;
         }
     }
 
-    if (frame->eax == SYSCALL_GET_TICKS) {
+    if (frame->eax == SYSCALL_GET_PID) {
+        frame->eax = scheduler_current_task_id();
+    } else if (frame->eax == SYSCALL_GET_TICKS) {
         frame->eax = pit_ticks();
     } else if (frame->eax == SYSCALL_YIELD) {
         frame = scheduler_on_yield(frame);
@@ -122,4 +129,9 @@ unsigned int syscall_user_ipc_call_count(void)
 unsigned int syscall_user_ipc_reject_count(void)
 {
     return user_ipc_reject_count;
+}
+
+unsigned int syscall_user_pid_call_count(void)
+{
+    return user_pid_call_count;
 }

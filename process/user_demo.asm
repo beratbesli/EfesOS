@@ -7,6 +7,9 @@ global user_demo_end
 ; an explicit yield without touching kernel addresses or assuming libc.
 user_demo_start:
 .loop:
+    ; Obtain the generation-based task identifier used for ownership checks.
+    mov eax, 5
+    int 0x80
     ; Bounded IPC ABI probe using the writable user stack.
     sub esp, 8
     mov dword [esp], 0
