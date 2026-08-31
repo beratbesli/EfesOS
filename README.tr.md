@@ -22,7 +22,8 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - BSS sıfırlama, W^X denetimi ve son sayfa izinleriyle sınırlı ELF32 segment yükleyicisi
 - Veri taşıyan seri syscall için taşma ve izin kontrolleri yapan sınırlı kullanıcı tamponu doğrulaması
 - Hata alan demo süreçlerinin ELF sayfaları ve yığın çerçeveleri scheduler devam etmeden geri kazanılır
-- Her kullanıcı süreci özel bir page directory alır; scheduler adres alanlarını CR3 ile değiştirir
+- İki bounded kullanıcı süreci özel page directory alır; scheduler adres alanlarını CR3 ile değiştirir ve fault sonrası slotları yeniden kullanır
+- 16 mesaj/64 bayt sınırları ve usercopy doğrulaması olan IPC syscall’leri (`IPC_SEND`, `IPC_RECEIVE`)
 - 32-bit adres alanını kapsayan E820 tabanlı fiziksel bellek yöneticisi
 - Null-page koruması, salt-okunur kernel kod/verisi, dinamik sayfa eşleme ve korumalı kernel heap'i
 - Kaydırma destekli VGA metin/grafik çıktısı
