@@ -12,6 +12,7 @@
 #include "shell.h"
 #include "system.h"
 #include "vga.h"
+#include "vfs.h"
 
 #define SHELL_INPUT_MAX 128
 #define SHELL_HISTORY_MAX 8
@@ -65,10 +66,10 @@ static void print_prompt(void)
 static void print_help(void)
 {
     if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
-        vga_write("Komutlar: help clear about mem heap input uptime ps demo pci disk counter snake slot\n");
+        vga_write("Komutlar: help clear about mem heap input uptime ps demo pci disk diskls diskcat counter snake slot\n");
         vga_write("echo history color ls cat write rm reboot shutdown tr en\n");
     } else {
-        vga_write("Commands: help clear about mem heap input uptime ps demo pci disk counter snake slot\n");
+        vga_write("Commands: help clear about mem heap input uptime ps demo pci disk diskls diskcat counter snake slot\n");
         vga_write("echo history color ls cat write rm reboot shutdown tr en\n");
     }
 }
@@ -150,6 +151,36 @@ static void print_disk(void)
         vga_write_unsigned(ata_sector_count());
         vga_write_char('\n');
     }
+}
+
+static void print_disk_files(void)
+{
+    unsigned int index;
+    char name[13];
+
+    if (!vfs_is_mounted()) {
+        vga_write("No FAT volume mounted.\n");
+        return;
+    }
+    for (index = 0; index < vfs_file_count(); index++) {
+        if (vfs_file_name(index, name, sizeof(name))) {
+            vga_write(name);
+            vga_write_char('\n');
+        }
+    }
+}
+
+static void print_disk_file(const char *name)
+{
+    char contents[513];
+    unsigned int size;
+
+    if (!vfs_read_file(name, contents, sizeof(contents) - 1U, &size)) {
+        vga_write("File not found, invalid, or too large.\n");
+        return;
+    }
+    contents[size] = '\0';
+    vga_write(contents);
 }
 
 static void print_history(void)
@@ -291,6 +322,10 @@ static void execute_command(void)
         print_pci();
     } else if (string_equals(input, "disk")) {
         print_disk();
+    } else if (string_equals(input, "diskls")) {
+        print_disk_files();
+    } else if (string_starts_with(input, "diskcat ")) {
+        print_disk_file(input + 8);
     } else if (string_equals(input, "counter")) {
         vga_write("counter=");
         vga_write_unsigned(counter_program_runs());

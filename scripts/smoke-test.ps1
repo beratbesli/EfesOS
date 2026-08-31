@@ -2,7 +2,8 @@
 param(
     [ValidateRange(1, 120)][int]$TimeoutSeconds = 15,
     [ValidateRange(16, 2048)][int]$MemoryMiB = 128,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [string]$DiskImage = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -16,6 +17,8 @@ $successMarkers = @(
     'EfesOS: kernel entry reached.',
     'EfesOS: BIOS E820 entries available.',
     'EfesOS: PCI devices discovered=',
+    'EfesOS: ATA primary-master present=',
+    'EfesOS: FAT volume mounted=',
     'EfesOS: syscall ABI self-test passed.',
     'EfesOS: interrupt self-tests passed.',
     'EfesOS: VMM self-test passed.',
@@ -54,6 +57,9 @@ if (!$SkipBuild) {
 if (!(Test-Path -LiteralPath $imagePath)) {
     throw "Disk imaji bulunamadi: $imagePath"
 }
+if ($DiskImage -ne '' -and !(Test-Path -LiteralPath $DiskImage)) {
+    throw "Disk imaji bulunamadi: $DiskImage"
+}
 
 New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null
 Remove-Item -LiteralPath $serialLog, $qemuErrorLog -Force -ErrorAction SilentlyContinue
@@ -69,6 +75,9 @@ $arguments = @(
     '-drive', "`"file=$imagePath,format=raw,if=floppy`"",
     '-boot', 'a'
 )
+if ($DiskImage -ne '') {
+    $arguments += @('-drive', "`"file=$DiskImage,format=raw,if=ide`"")
+}
 
 $process = Start-Process -FilePath $qemu -ArgumentList $arguments -RedirectStandardError $qemuErrorLog -WindowStyle Hidden -PassThru
 $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)

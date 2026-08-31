@@ -17,6 +17,7 @@ EfesOS is a learning project, not a production operating system. It has no user-
 - Deferred event loop; shell and games never run inside hardware IRQ handlers
 - PCI configuration-space enumeration with a bounded `pci` diagnostic command
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
+- Read-only FAT16 VFS mount with bounded 8.3 directory and file reads (`diskls`, `diskcat`)
 - E820-backed physical-memory allocation across the 32-bit address space
 - Null-page protection, read-only kernel code/data, dynamic page mapping and a guarded kernel heap
 - VGA text/graphics output with scrolling
@@ -54,7 +55,7 @@ The test boots the generated image in QEMU and requires the expected kernel mile
 | Command | Description |
 | --- | --- |
 | `help`, `clear`, `about`, `mem`, `heap`, `input` | Basic kernel and queue information |
-| `uptime`, `ps`, `demo`, `pci`, `disk`, `counter` | Kernel, PCI, disk and scheduler status |
+| `uptime`, `ps`, `demo`, `pci`, `disk`, `diskls`, `diskcat NAME`, `counter` | Kernel, PCI, disk and scheduler status |
 | `echo`, `history`, `color` | Shell utilities |
 | `ls`, `cat README`, `cat MOTD`, `cat EFES`, `write NAME CONTENT`, `rm NAME` | Bounded RAM filesystem |
 | `snake`, `slot` | Mini games |

@@ -16,6 +16,8 @@
 #include "syscall.h"
 #include "tss.h"
 #include "user_process.h"
+#include "vfs.h"
+#include "fat.h"
 #include "shell.h"
 #include "splash.h"
 #include "vga.h"
@@ -107,6 +109,16 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write_hex(ata_present());
     serial_write(" sectors=");
     serial_write_hex(ata_sector_count());
+    serial_write(" status=");
+    serial_write_hex(ata_last_status());
+    serial_write(" type=");
+    serial_write_hex(ata_identify_type());
+    serial_write("\n");
+    vfs_init();
+    serial_write("EfesOS: FAT volume mounted=");
+    serial_write_hex(vfs_is_mounted());
+    serial_write(" error=");
+    serial_write_hex(fat_last_error());
     serial_write("\n");
 
     idt_init();
