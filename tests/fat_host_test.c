@@ -79,6 +79,10 @@ static void build_fixture(void)
     disk[(65U * SECTOR_SIZE) + 11U] = 0x20;
     put16((65U * SECTOR_SIZE) + 26U, 2);
     put32((65U * SECTOR_SIZE) + 28U, 14);
+    for (index = 0; index < 11U; index++) {
+        disk[(65U * SECTOR_SIZE) + 32U + index] = (unsigned char)"VOLUME     "[index];
+    }
+    disk[(65U * SECTOR_SIZE) + 32U + 11U] = 0x08;
     disk[512] = 0xF8;
     disk[513] = 0xFF;
     disk[514] = 0xFF;

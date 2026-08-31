@@ -4,6 +4,7 @@
 #define FAT16_EOC 0xFFF8U
 #define FAT16_BAD 0xFFF7U
 #define FAT_ATTR_DIRECTORY 0x10U
+#define FAT_ATTR_VOLUME_ID 0x08U
 #define FAT_ATTR_LFN 0x0FU
 
 static unsigned int last_error;
@@ -141,7 +142,7 @@ static int find_entry(const struct fat_volume *volume, const fat_u8_t *short_nam
                 return 0;
             }
             if (candidate[0] == 0xE5U || candidate[11] == FAT_ATTR_LFN ||
-                (candidate[11] & FAT_ATTR_DIRECTORY) != 0U) {
+                (candidate[11] & (FAT_ATTR_DIRECTORY | FAT_ATTR_VOLUME_ID)) != 0U) {
                 continue;
             }
             if (name_matches(candidate, short_name)) {
@@ -271,7 +272,7 @@ unsigned int fat_file_count(const struct fat_volume *volume)
                 return count;
             }
             if (entry[0] != 0xE5U && entry[11] != FAT_ATTR_LFN &&
-                (entry[11] & FAT_ATTR_DIRECTORY) == 0U) {
+                (entry[11] & (FAT_ATTR_DIRECTORY | FAT_ATTR_VOLUME_ID)) == 0U) {
                 count++;
             }
         }
@@ -299,7 +300,7 @@ int fat_file_name(const struct fat_volume *volume, unsigned int index, char *nam
                 return 0;
             }
             if (entry[0] == 0xE5U || entry[11] == FAT_ATTR_LFN ||
-                (entry[11] & FAT_ATTR_DIRECTORY) != 0U) {
+                (entry[11] & (FAT_ATTR_DIRECTORY | FAT_ATTR_VOLUME_ID)) != 0U) {
                 continue;
             }
             if (count++ == index) {
