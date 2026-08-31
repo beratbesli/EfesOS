@@ -143,7 +143,6 @@ void user_process_reap(void)
 {
     unsigned int physical;
 
-
     if (process_address_space != 0U && paging_current_directory() != process_address_space) {
         if (!paging_switch_address_space(process_address_space)) {
             kernel_panic("Failed to enter user address space for cleanup.");
