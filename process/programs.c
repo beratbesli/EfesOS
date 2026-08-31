@@ -11,12 +11,18 @@ void programs_init(void)
 
 void counter_program(void)
 {
-    counter_runs++;
+    for (;;) {
+        counter_runs++;
+        __asm__ volatile ("hlt" : : : "memory");
+    }
 }
 
 void snake_program(void)
 {
-    snake_steps++;
+    for (;;) {
+        snake_steps++;
+        __asm__ volatile ("hlt" : : : "memory");
+    }
 }
 
 program_counter_t counter_program_runs(void)

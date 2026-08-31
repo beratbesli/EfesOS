@@ -1,50 +1,157 @@
 #include "scheduler.h"
+#include "heap.h"
+#include "idt.h"
+#include "paging.h"
+#include "panic.h"
+#include "pmm.h"
 
-#define SCHEDULER_MAX_TASKS 8
-#define SCHEDULER_MAX_PENDING_TICKS 100U
+#define SCHEDULER_MAX_TASKS 8U
+#define SCHEDULER_STACK_PAGES 4U
+#define SCHEDULER_STACK_STRIDE (PAGE_SIZE * (SCHEDULER_STACK_PAGES + 1U))
+#define SCHEDULER_STACK_BASE 0xC0000000U
+#define TASK_RUNNABLE 0U
+#define TASK_TERMINATED 1U
 
 struct scheduler_task {
     const char *name;
     scheduler_task_t entry;
-    scheduler_counter_t runs;
+    struct interrupt_frame *frame;
+    unsigned int stack_base;
+    unsigned int stack_frames[SCHEDULER_STACK_PAGES];
+    scheduler_counter_t switches;
+    unsigned int state;
 };
 
 static struct scheduler_task tasks[SCHEDULER_MAX_TASKS];
 static unsigned int task_count;
 static unsigned int current_task;
 static unsigned char scheduler_started;
-static volatile unsigned int pending_ticks;
 
-static unsigned int interrupt_save(void)
+static void scheduler_task_trampoline(void);
+
+static void clear_task(struct scheduler_task *task)
 {
-    unsigned int flags;
+    unsigned int index;
 
-    __asm__ volatile ("pushfl; popl %0; cli" : "=r"(flags) : : "memory");
-    return flags;
+    for (index = 0; index < SCHEDULER_STACK_PAGES; index++) {
+        task->stack_frames[index] = 0;
+    }
+    task->name = 0;
+    task->entry = 0;
+    task->frame = 0;
+    task->stack_base = 0;
+    task->switches = 0;
+    task->state = TASK_TERMINATED;
 }
 
-static void interrupt_restore(unsigned int flags)
+static int allocate_task_stack(struct scheduler_task *task, unsigned int slot)
 {
-    __asm__ volatile ("pushl %0; popfl" : : "r"(flags) : "memory", "cc");
+    unsigned int index;
+    unsigned int base = SCHEDULER_STACK_BASE + (slot * SCHEDULER_STACK_STRIDE);
+
+    task->stack_base = base;
+    for (index = 0; index < SCHEDULER_STACK_PAGES; index++) {
+        unsigned int physical = pmm_alloc_block();
+        unsigned int virtual_address = base + PAGE_SIZE + (index * PAGE_SIZE);
+
+        if (physical == 0U || !paging_map_page(virtual_address, physical, PAGE_FLAG_WRITABLE)) {
+            if (physical != 0U) {
+                pmm_free_block(physical);
+            }
+            while (index != 0U) {
+                index--;
+                physical = paging_unmap_page(base + PAGE_SIZE + (index * PAGE_SIZE));
+                if (physical != 0U) {
+                    pmm_free_block(physical);
+                }
+            }
+            task->stack_base = 0;
+            return 0;
+        }
+        task->stack_frames[index] = physical;
+    }
+
+    task->frame = (struct interrupt_frame *)(base + SCHEDULER_STACK_STRIDE - sizeof(struct interrupt_frame));
+    task->frame->gs = 0x10;
+    task->frame->fs = 0x10;
+    task->frame->es = 0x10;
+    task->frame->ds = 0x10;
+    task->frame->edi = 0;
+    task->frame->esi = 0;
+    task->frame->ebp = 0;
+    task->frame->esp_before_pushad = 0;
+    task->frame->ebx = 0;
+    task->frame->edx = 0;
+    task->frame->ecx = 0;
+    task->frame->eax = 0;
+    task->frame->vector = 0;
+    task->frame->error_code = 0;
+    task->frame->eip = (unsigned int)scheduler_task_trampoline;
+    task->frame->cs = 0x08;
+    task->frame->eflags = 0x202;
+    return 1;
+}
+
+static unsigned int find_next_runnable(void)
+{
+    unsigned int offset;
+
+    for (offset = 1; offset <= task_count; offset++) {
+        unsigned int index = (current_task + offset) % task_count;
+        if (tasks[index].state == TASK_RUNNABLE && tasks[index].frame != 0) {
+            return index;
+        }
+    }
+    return current_task;
+}
+
+static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame)
+{
+    unsigned int next;
+
+    if (!scheduler_started || task_count == 0U || frame == 0) {
+        return frame;
+    }
+    tasks[current_task].frame = frame;
+    next = find_next_runnable();
+    if (next == current_task) {
+        return frame;
+    }
+    current_task = next;
+    tasks[current_task].switches++;
+    return tasks[current_task].frame;
 }
 
 void scheduler_init(void)
 {
-    task_count = 0;
+    unsigned int index;
+
+    for (index = 0; index < SCHEDULER_MAX_TASKS; index++) {
+        clear_task(&tasks[index]);
+    }
+    task_count = 1;
     current_task = 0;
     scheduler_started = 0;
-    pending_ticks = 0;
+    tasks[0].name = "kernel";
+    tasks[0].state = TASK_RUNNABLE;
 }
 
 int scheduler_add_task(const char *name, scheduler_task_t task)
 {
-    if (name == 0 || task == 0 || task_count == SCHEDULER_MAX_TASKS) {
+    struct scheduler_task *new_task;
+
+    if (name == 0 || task == 0 || scheduler_started != 0 || task_count == SCHEDULER_MAX_TASKS) {
         return 0;
     }
-
-    tasks[task_count].name = name;
-    tasks[task_count].entry = task;
-    tasks[task_count].runs = 0;
+    new_task = &tasks[task_count];
+    clear_task(new_task);
+    new_task->name = name;
+    new_task->entry = task;
+    new_task->state = TASK_RUNNABLE;
+    if (!allocate_task_stack(new_task, task_count)) {
+        clear_task(new_task);
+        return 0;
+    }
     task_count++;
     return 1;
 }
@@ -54,39 +161,27 @@ void scheduler_start(void)
     scheduler_started = 1;
 }
 
-void scheduler_tick(void)
+struct interrupt_frame *scheduler_on_timer(struct interrupt_frame *frame)
 {
-    if (scheduler_started == 0 || task_count == 0) {
-        return;
-    }
-
-    if (pending_ticks < SCHEDULER_MAX_PENDING_TICKS) {
-        pending_ticks++;
-    }
+    return schedule_from_frame(frame);
 }
 
-int scheduler_has_pending(void)
+struct interrupt_frame *scheduler_on_yield(struct interrupt_frame *frame)
 {
-    return pending_ticks != 0U;
+    return schedule_from_frame(frame);
 }
 
-void scheduler_run_pending(void)
+static void scheduler_task_trampoline(void)
 {
-    unsigned int flags;
+    scheduler_task_t entry = tasks[current_task].entry;
 
-    flags = interrupt_save();
-    if (pending_ticks == 0U || scheduler_started == 0 || task_count == 0U) {
-        interrupt_restore(flags);
-        return;
+    if (entry != 0) {
+        entry();
     }
-    pending_ticks--;
-    interrupt_restore(flags);
-
-    tasks[current_task].entry();
-    tasks[current_task].runs++;
-    current_task++;
-    if (current_task == task_count) {
-        current_task = 0;
+    tasks[current_task].state = TASK_TERMINATED;
+    __asm__ volatile ("int $0x31" : : : "memory");
+    for (;;) {
+        __asm__ volatile ("hlt");
     }
 }
 
@@ -100,7 +195,6 @@ const char *scheduler_task_name(unsigned int index)
     if (index >= task_count) {
         return "";
     }
-
     return tasks[index].name;
 }
 
@@ -109,6 +203,5 @@ scheduler_counter_t scheduler_task_runs(unsigned int index)
     if (index >= task_count) {
         return 0;
     }
-
-    return tasks[index].runs;
+    return tasks[index].switches;
 }

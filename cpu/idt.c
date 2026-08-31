@@ -4,12 +4,13 @@
 #include "panic.h"
 #include "pit.h"
 #include "serial.h"
+#include "scheduler.h"
 #include "vga.h"
 
 typedef unsigned short idt_u16_t;
 
 #define IDT_ENTRY_COUNT 256U
-#define INSTALLED_VECTOR_COUNT 49U
+#define INSTALLED_VECTOR_COUNT 50U
 #define PIC_MASTER_COMMAND 0x20U
 #define PIC_MASTER_DATA 0x21U
 #define PIC_SLAVE_COMMAND 0xA0U
@@ -168,12 +169,12 @@ static void handle_exception(struct interrupt_frame *frame)
     kernel_panic(name);
 }
 
-static void handle_irq(struct interrupt_frame *frame)
+static struct interrupt_frame *handle_irq(struct interrupt_frame *frame)
 {
     interrupt_u32_t irq = frame->vector - IRQ_BASE;
 
     if (irq_is_spurious(irq)) {
-        return;
+        return frame;
     }
 
     if (irq == 0U) {
@@ -182,20 +183,29 @@ static void handle_irq(struct interrupt_frame *frame)
         keyboard_irq_handler();
     }
     pic_acknowledge(irq);
+    if (irq == 0U) {
+        return scheduler_on_timer(frame);
+    }
+    return frame;
 }
 
-void interrupt_dispatch(struct interrupt_frame *frame)
+struct interrupt_frame *interrupt_dispatch(struct interrupt_frame *frame)
 {
     if (frame == 0) {
         kernel_panic("Null interrupt frame.");
     }
     if (frame->vector < 32U) {
         handle_exception(frame);
+        return frame;
     } else if (frame->vector < IRQ_LIMIT) {
-        handle_irq(frame);
+        return handle_irq(frame);
     } else if (frame->vector == 48U) {
         serial_write("EfesOS: software interrupt handler running.\n");
+        return frame;
+    } else if (frame->vector == 49U) {
+        return scheduler_on_yield(frame);
     } else {
         kernel_panic("Unexpected interrupt vector.");
     }
+    return frame;
 }

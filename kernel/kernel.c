@@ -15,10 +15,11 @@
 #include "vga.h"
 
 static int scheduler_runtime_verified;
+static pit_tick_t last_game_tick;
 
 static int kernel_work_pending(void)
 {
-    return keyboard_has_pending() || scheduler_has_pending();
+    return keyboard_has_pending() || pit_ticks() != last_game_tick;
 }
 
 static void kernel_wait_for_work(void)
@@ -40,10 +41,15 @@ static void kernel_process_events(void)
         shell_handle_char(character);
         processed_input++;
     }
-    scheduler_run_pending();
-    if (!scheduler_runtime_verified && counter_program_runs() != 0U) {
+    if (!scheduler_runtime_verified && counter_program_runs() != 0U &&
+        snake_program_steps() != 0U && scheduler_task_runs(1U) != 0U &&
+        scheduler_task_runs(2U) != 0U) {
         scheduler_runtime_verified = 1;
-        serial_write("EfesOS: deferred scheduler runtime test passed.\n");
+        serial_write("EfesOS: preemptive scheduler runtime test passed.\n");
+    }
+    if (pit_ticks() != last_game_tick) {
+        last_game_tick = pit_ticks();
+        games_tick();
     }
 }
 
@@ -99,7 +105,7 @@ void kernel_main(const struct boot_info *boot_info)
     programs_init();
     scheduler_add_task("counter", counter_program);
     scheduler_add_task("snake", snake_program);
-    scheduler_add_task("games", games_tick);
+    last_game_tick = 0;
     scheduler_start();
 
     keyboard_init();

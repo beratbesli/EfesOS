@@ -68,7 +68,7 @@ $(SERIAL_OBJ): drivers/serial.c include/serial.h cpu/io.h | $(BUILD_DIR)
 $(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h kernel/splash.h shell/shell.h include/vga.h cpu/io.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Ishell -c $< -o $@
 
-$(IDT_OBJ): cpu/idt.c cpu/idt.h cpu/io.h cpu/pit.h include/keyboard.h include/serial.h include/vga.h kernel/panic.h | $(BUILD_DIR)
+$(IDT_OBJ): cpu/idt.c cpu/idt.h cpu/io.h cpu/pit.h include/keyboard.h include/serial.h include/vga.h kernel/panic.h process/scheduler.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -c $< -o $@
 
 $(PIT_OBJ): cpu/pit.c cpu/pit.h cpu/io.h process/scheduler.h | $(BUILD_DIR)
@@ -89,8 +89,8 @@ $(PAGING_OBJ): memory/paging.c memory/paging.h memory/pmm.h include/boot_info.h 
 $(HEAP_OBJ): memory/heap.c memory/heap.h memory/paging.h memory/pmm.h include/boot_info.h kernel/panic.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Ikernel -Imemory -c $< -o $@
 
-$(SCHEDULER_OBJ): process/scheduler.c process/scheduler.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iprocess -c $< -o $@
+$(SCHEDULER_OBJ): process/scheduler.c process/scheduler.h cpu/idt.h memory/heap.h memory/paging.h memory/pmm.h kernel/panic.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Imemory -Iprocess -c $< -o $@
 
 $(PROGRAMS_OBJ): process/programs.c process/programs.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iprocess -c $< -o $@

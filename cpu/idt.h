@@ -24,6 +24,6 @@ struct interrupt_frame {
 };
 
 void idt_init(void);
-void interrupt_dispatch(struct interrupt_frame *frame);
+struct interrupt_frame *interrupt_dispatch(struct interrupt_frame *frame);
 
 #endif

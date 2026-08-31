@@ -1,6 +1,5 @@
 #include "io.h"
 #include "pit.h"
-#include "scheduler.h"
 
 #define PIT_COMMAND_PORT 0x43
 #define PIT_CHANNEL_ZERO 0x40
@@ -19,7 +18,6 @@ void pit_init(void)
 void pit_irq_handler(void)
 {
     tick_count++;
-    scheduler_tick();
 }
 
 pit_tick_t pit_ticks(void)

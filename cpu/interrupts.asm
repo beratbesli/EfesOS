@@ -53,7 +53,7 @@ VECTOR_WITH_ERROR 30
 VECTOR_NO_ERROR 31
 
 %assign vector 32
-%rep 17
+%rep 18
 VECTOR_NO_ERROR vector
 %assign vector vector + 1
 %endrep
@@ -84,6 +84,11 @@ interrupt_common:
     push esp
     call interrupt_dispatch
     add esp, 4
+    test eax, eax
+    jnz .use_new_frame
+    mov eax, esp
+.use_new_frame:
+    mov esp, eax
 
     pop eax
     mov gs, ax
@@ -103,7 +108,7 @@ section .rodata
 global interrupt_stub_table
 interrupt_stub_table:
 %assign vector 0
-%rep 49
+%rep 50
     dd interrupt_stub_%+vector
 %assign vector vector + 1
 %endrep
