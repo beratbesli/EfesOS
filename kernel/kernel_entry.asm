@@ -56,6 +56,8 @@ gdt_start:
     dq 0x0000000000000000
     dq 0x00CF9A000000FFFF
     dq 0x00CF92000000FFFF
+    dq 0x00CFFA000000FFFF
+    dq 0x00CFF2000000FFFF
 gdt_end:
 
 gdt_descriptor:
