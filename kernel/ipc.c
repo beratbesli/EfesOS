@@ -113,13 +113,15 @@ int ipc_self_test(void)
 {
     static const unsigned char first[] = {'o', 'n', 'e'};
     static const unsigned char second[] = {'t', 'w', 'o'};
+    static const unsigned char oversized[IPC_MESSAGE_MAX + 1U] = {0};
     unsigned char output[IPC_MESSAGE_MAX];
     unsigned int type;
     unsigned int length;
     unsigned int i;
 
     ipc_init();
-    if (!ipc_send(1U, first, sizeof(first)) || !ipc_send(2U, second, sizeof(second)) ||
+    if (ipc_send(0U, oversized, sizeof(oversized)) || ipc_send(0U, 0, 1U) ||
+        !ipc_send(1U, first, sizeof(first)) || !ipc_send(2U, second, sizeof(second)) ||
         ipc_pending() != 2U) {
         return 0;
     }
