@@ -313,26 +313,37 @@ int scheduler_add_task(const char *name, scheduler_task_t task)
 
 int scheduler_set_priority(unsigned int index, unsigned int priority)
 {
+    unsigned int flags;
+    int result = 0;
+
+    flags = scheduler_irq_save();
     if (index == 0U || index >= task_count || priority == 0U ||
         priority > SCHEDULER_MAX_PRIORITY || scheduler_started != 0) {
+        scheduler_irq_restore(flags);
         return 0;
     }
     tasks[index].priority = priority;
     tasks[index].ticks_left = priority;
-    return 1;
+    result = 1;
+    scheduler_irq_restore(flags);
+    return result;
 }
 
 int scheduler_block_task(unsigned int index)
 {
+    unsigned int flags = scheduler_irq_save();
+
     if (index == 0U || index >= task_count || scheduler_started != 0 ||
         tasks[index].state != TASK_RUNNABLE || tasks[index].frame == 0) {
+        scheduler_irq_restore(flags);
         return 0;
     }
     tasks[index].state = TASK_BLOCKED;
+    scheduler_irq_restore(flags);
     return 1;
 }
 
-int scheduler_wake_task(unsigned int index)
+static int scheduler_wake_task_unlocked(unsigned int index)
 {
     if (index == 0U || index >= task_count || tasks[index].state != TASK_BLOCKED ||
         tasks[index].frame == 0) {
@@ -343,57 +354,82 @@ int scheduler_wake_task(unsigned int index)
     return 1;
 }
 
+int scheduler_wake_task(unsigned int index)
+{
+    unsigned int flags = scheduler_irq_save();
+    int result = scheduler_wake_task_unlocked(index);
+
+    scheduler_irq_restore(flags);
+    return result;
+}
+
 int scheduler_wake_task_id(unsigned int task_id)
 {
     unsigned int index;
+    unsigned int flags;
+    int result = 0;
 
     if (task_id == 0U) {
         return 0;
     }
+    flags = scheduler_irq_save();
     for (index = 1U; index < task_count; index++) {
         if (tasks[index].task_id == task_id) {
-            return scheduler_wake_task(index);
+            result = scheduler_wake_task_unlocked(index);
+            break;
         }
     }
-    return 0;
+    scheduler_irq_restore(flags);
+    return result;
 }
 
 unsigned int scheduler_wake_user_tasks(void)
 {
     unsigned int index;
     unsigned int woken = 0U;
+    unsigned int flags = scheduler_irq_save();
 
     for (index = 1U; index < task_count; index++) {
-        if (tasks[index].mode == TASK_USER && scheduler_wake_task(index)) {
+        if (tasks[index].mode == TASK_USER && scheduler_wake_task_unlocked(index)) {
             woken++;
         }
     }
+    scheduler_irq_restore(flags);
     return woken;
 }
 
 int scheduler_task_id_is_active_user(unsigned int task_id)
 {
     unsigned int index;
+    unsigned int flags;
+    int result = 0;
 
     if (task_id == 0U) {
         return 0;
     }
+    flags = scheduler_irq_save();
     for (index = 1U; index < task_count; index++) {
         if (tasks[index].task_id == task_id && tasks[index].mode == TASK_USER &&
             tasks[index].state != TASK_TERMINATED && tasks[index].frame != 0) {
-            return 1;
+            result = 1;
+            break;
         }
     }
-    return 0;
+    scheduler_irq_restore(flags);
+    return result;
 }
 
 int scheduler_block_current(void)
 {
+    unsigned int flags = scheduler_irq_save();
+
     if (!scheduler_started || current_task == 0U || current_task >= task_count ||
         tasks[current_task].state != TASK_RUNNABLE || !has_other_runnable()) {
+        scheduler_irq_restore(flags);
         return 0;
     }
     tasks[current_task].state = TASK_BLOCKED;
+    scheduler_irq_restore(flags);
     return 1;
 }
 
