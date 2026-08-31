@@ -14,6 +14,8 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
 int scheduler_set_priority(unsigned int index, unsigned int priority);
 int scheduler_block_task(unsigned int index);
 int scheduler_wake_task(unsigned int index);
+int scheduler_wake_task_id(unsigned int task_id);
+int scheduler_task_id_is_active_user(unsigned int task_id);
 int scheduler_block_current(void);
 unsigned int scheduler_blocked_count(void);
 void scheduler_start(void);

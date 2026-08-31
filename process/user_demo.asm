@@ -11,20 +11,33 @@ user_demo_start:
     mov eax, 5
     int 0x80
     ; Bounded IPC ABI probe using the writable user stack.
-    sub esp, 8
+    sub esp, 12
     mov dword [esp], 0
     mov dword [esp + 4], 0x21435049
+    mov [esp + 8], eax
     mov ebx, 7
     lea ecx, [esp + 4]
     mov edx, 4
     mov eax, 3
+    int 0x80
+    ; Targeted IPC to this task's generation PID must also be accepted.
+    mov ebx, [esp + 8]
+    lea ecx, [esp + 4]
+    mov edx, 4
+    mov esi, 9
+    mov eax, 6
     int 0x80
     lea ebx, [esp + 4]
     mov ecx, 4
     lea edx, [esp]
     mov eax, 4
     int 0x80
-    add esp, 8
+    lea ebx, [esp + 4]
+    mov ecx, 4
+    lea edx, [esp]
+    mov eax, 4
+    int 0x80
+    add esp, 12
     ; Invalid supervisor pointer: IPC must return EFAULT without dereferencing it.
     mov ebx, 8
     mov ecx, 0x00010000

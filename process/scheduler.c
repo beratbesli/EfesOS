@@ -342,6 +342,37 @@ int scheduler_wake_task(unsigned int index)
     return 1;
 }
 
+int scheduler_wake_task_id(unsigned int task_id)
+{
+    unsigned int index;
+
+    if (task_id == 0U) {
+        return 0;
+    }
+    for (index = 1U; index < task_count; index++) {
+        if (tasks[index].task_id == task_id) {
+            return scheduler_wake_task(index);
+        }
+    }
+    return 0;
+}
+
+int scheduler_task_id_is_active_user(unsigned int task_id)
+{
+    unsigned int index;
+
+    if (task_id == 0U) {
+        return 0;
+    }
+    for (index = 1U; index < task_count; index++) {
+        if (tasks[index].task_id == task_id && tasks[index].mode == TASK_USER &&
+            tasks[index].state != TASK_TERMINATED && tasks[index].frame != 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int scheduler_block_current(void)
 {
     if (!scheduler_started || current_task == 0U || current_task >= task_count ||

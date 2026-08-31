@@ -18,7 +18,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - The paging API rejects user permissions below the protected user mapping floor, preventing identity-mapped kernel pages from being exposed accidentally.
 - ELF32 validation and loading reject malformed ranges, integer-overflowable sizes, unsupported machines and writable/executable segments before mapping user pages; loaded pages are zero-initialized and finalized with segment permissions.
 - ATA access is bounded, timeout-controlled and rejects capacities beyond the driver’s 28-bit PIO addressing limit. FAT16 support is read-only; no shell command can write arbitrary disk sectors.
-- IPC uses a fixed 16-message, 64-byte-per-message queue with interrupt-safe FIFO operations; ring-3 send/receive calls validate all user buffers and return bounded `E2BIG`/`EFAULT`/`EAGAIN` errors.
+- IPC uses a fixed 16-message, 64-byte-per-message queue with interrupt-safe FIFO operations. `IPC_SEND_TO` binds delivery to an active user generation-PID (while legacy `IPC_SEND` remains broadcast); ring-3 calls validate all user buffers and return bounded `E2BIG`/`EFAULT`/`EAGAIN` errors.
 - Scheduler task IDs include a per-slot generation and are exposed through the bounded `GET_PID` syscall, so a reused slot does not silently retain its previous identity.
 - Diagnostic serial messages are emitted with interrupts disabled so preemptive task switches cannot splice security/test records.
 

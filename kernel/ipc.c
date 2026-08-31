@@ -1,6 +1,9 @@
 #include "ipc.h"
+#include "scheduler.h"
 
 struct ipc_message {
+    unsigned int sender_id;
+    unsigned int receiver_id;
     unsigned int type;
     unsigned int length;
     unsigned char data[IPC_MESSAGE_MAX];
@@ -33,7 +36,8 @@ void ipc_init(void)
     irq_restore(flags);
 }
 
-int ipc_send(unsigned int type, const void *data, unsigned int length)
+int ipc_send_from_to(unsigned int sender_id, unsigned int receiver_id,
+    unsigned int type, const void *data, unsigned int length)
 {
     unsigned int flags;
     unsigned int i;
@@ -48,6 +52,8 @@ int ipc_send(unsigned int type, const void *data, unsigned int length)
         return 0;
     }
     queue[head].type = type;
+    queue[head].sender_id = sender_id;
+    queue[head].receiver_id = receiver_id;
     queue[head].length = length;
     for (i = 0U; i < length; i++) {
         queue[head].data[i] = ((const unsigned char *)data)[i];
@@ -55,33 +61,77 @@ int ipc_send(unsigned int type, const void *data, unsigned int length)
     head = (head + 1U) % IPC_QUEUE_CAPACITY;
     count++;
     irq_restore(flags);
+    if (receiver_id != 0U) {
+        scheduler_wake_task_id(receiver_id);
+    }
     return 1;
 }
 
-int ipc_receive(unsigned int *type, void *data, unsigned int capacity, unsigned int *length)
+int ipc_send(unsigned int type, const void *data, unsigned int length)
+{
+    return ipc_send_from_to(0U, 0U, type, data, length);
+}
+
+static int message_matches(const struct ipc_message *message, unsigned int receiver_id)
+{
+    return receiver_id == 0U || message->receiver_id == 0U ||
+        message->receiver_id == receiver_id;
+}
+
+static void copy_message(struct ipc_message *destination, const struct ipc_message *source)
+{
+    unsigned int index;
+
+    destination->sender_id = source->sender_id;
+    destination->receiver_id = source->receiver_id;
+    destination->type = source->type;
+    destination->length = source->length;
+    for (index = 0U; index < IPC_MESSAGE_MAX; index++) {
+        destination->data[index] = source->data[index];
+    }
+}
+
+int ipc_receive_for(unsigned int receiver_id, unsigned int *type, void *data,
+    unsigned int capacity, unsigned int *length)
 {
     unsigned int flags;
     unsigned int i;
+    unsigned int offset;
+    unsigned int position;
     unsigned int message_length;
 
     flags = irq_save();
-    if (count == 0U) {
+    for (offset = 0U; offset < count; offset++) {
+        position = (tail + offset) % IPC_QUEUE_CAPACITY;
+        if (message_matches(&queue[position], receiver_id)) {
+            break;
+        }
+    }
+    if (offset == count) {
         irq_restore(flags);
         return 0;
     }
-    message_length = queue[tail].length;
+    position = (tail + offset) % IPC_QUEUE_CAPACITY;
+    message_length = queue[position].length;
     if (message_length > capacity || (message_length != 0U && data == 0)) {
         irq_restore(flags);
         return 0;
     }
     if (type != 0) {
-        *type = queue[tail].type;
+        *type = queue[position].type;
     }
     if (length != 0) {
         *length = message_length;
     }
     for (i = 0U; i < message_length; i++) {
-        ((unsigned char *)data)[i] = queue[tail].data[i];
+        ((unsigned char *)data)[i] = queue[position].data[i];
+    }
+    /* Remove an interior message while retaining FIFO order for all others. */
+    while (offset != 0U) {
+        unsigned int previous = (position + IPC_QUEUE_CAPACITY - 1U) % IPC_QUEUE_CAPACITY;
+        copy_message(&queue[position], &queue[previous]);
+        position = previous;
+        offset--;
     }
     tail = (tail + 1U) % IPC_QUEUE_CAPACITY;
     count--;
@@ -89,10 +139,31 @@ int ipc_receive(unsigned int *type, void *data, unsigned int capacity, unsigned 
     return 1;
 }
 
+int ipc_receive(unsigned int *type, void *data, unsigned int capacity, unsigned int *length)
+{
+    return ipc_receive_for(0U, type, data, capacity, length);
+}
+
 unsigned int ipc_pending(void)
 {
     unsigned int flags = irq_save();
     unsigned int pending = count;
+    irq_restore(flags);
+    return pending;
+}
+
+unsigned int ipc_pending_for(unsigned int receiver_id)
+{
+    unsigned int flags = irq_save();
+    unsigned int offset;
+    unsigned int pending = 0U;
+
+    for (offset = 0U; offset < count; offset++) {
+        unsigned int position = (tail + offset) % IPC_QUEUE_CAPACITY;
+        if (message_matches(&queue[position], receiver_id)) {
+            pending++;
+        }
+    }
     irq_restore(flags);
     return pending;
 }
@@ -146,5 +217,26 @@ int ipc_self_test(void)
             return 0;
         }
     }
-    return ipc_pending() == 0U;
+    if (ipc_pending() != 0U) {
+        return 0;
+    }
+    ipc_init();
+    if (!ipc_send_from_to(0x101U, 0x202U, 7U, first, sizeof(first)) ||
+        !ipc_send_from_to(0x303U, 0x404U, 8U, second, sizeof(second)) ||
+        !ipc_send(9U, 0, 0U) || ipc_pending_for(0x202U) != 2U ||
+        ipc_pending_for(0x404U) != 2U) {
+        return 0;
+    }
+    if (!ipc_receive_for(0x202U, &type, output, sizeof(output), &length) ||
+        type != 7U || length != sizeof(first) || !bytes_equal(output, first, length) ||
+        ipc_pending_for(0x202U) != 1U) {
+        return 0;
+    }
+    if (!ipc_receive_for(0x404U, &type, output, sizeof(output), &length) ||
+        type != 8U || length != sizeof(second) || !bytes_equal(output, second, length) ||
+        ipc_pending_for(0x404U) != 1U) {
+        return 0;
+    }
+    return ipc_receive_for(0x505U, &type, output, sizeof(output), &length) &&
+        type == 9U && length == 0U && ipc_pending() == 0U;
 }

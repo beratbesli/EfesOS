@@ -73,8 +73,8 @@ $(PANIC_OBJ): kernel/panic.c kernel/panic.h include/serial.h include/vga.h | $(B
 $(SYSCALL_OBJ): kernel/syscall.c include/syscall.h cpu/idt.h cpu/pit.h process/scheduler.h memory/paging.h kernel/ipc.h include/serial.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Imemory -Iprocess -c $< -o $@
 
-$(IPC_OBJ): kernel/ipc.c kernel/ipc.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Ikernel -c $< -o $@
+$(IPC_OBJ): kernel/ipc.c kernel/ipc.h process/scheduler.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Ikernel -Iprocess -c $< -o $@
 
 $(LANGUAGE_OBJ): kernel/language.c include/language.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@

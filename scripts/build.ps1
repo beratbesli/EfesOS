@@ -206,7 +206,7 @@ Invoke-Tool -Path $nasm -Arguments @('-w+error', '-f', 'elf32', $kernelEntrySour
 Invoke-CCompile -Source $kernelMainSource -Output $kernelMainObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'fs'), (Join-Path $projectRoot 'games'), (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'memory'), (Join-Path $projectRoot 'process'), (Join-Path $projectRoot 'shell')) -FailureMessage 'Kernel ana kodu derlenemedi.'
 Invoke-CCompile -Source $panicSource -Output $panicObject -Includes @($includeDirectory, (Join-Path $projectRoot 'kernel')) -FailureMessage 'Kernel panic altyapisi derlenemedi.'
 Invoke-CCompile -Source $syscallSource -Output $syscallObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'memory'), (Join-Path $projectRoot 'process')) -FailureMessage 'Syscall katmani derlenemedi.'
-Invoke-CCompile -Source $ipcSource -Output $ipcObject -Includes @((Join-Path $projectRoot 'kernel')) -FailureMessage 'IPC kuyrugu derlenemedi.'
+Invoke-CCompile -Source $ipcSource -Output $ipcObject -Includes @((Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'process')) -FailureMessage 'IPC kuyrugu derlenemedi.'
 Invoke-CCompile -Source $languageSource -Output $languageObject -Includes @($includeDirectory) -FailureMessage 'Dil yoneticisi derlenemedi.'
 Invoke-CCompile -Source $splashSource -Output $splashObject -Includes @($includeDirectory, (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'shell')) -FailureMessage 'Acilis gorseli derlenemedi.'
 Invoke-CCompile -Source $vgaSource -Output $vgaObject -Includes @($includeDirectory) -FailureMessage 'VGA surucusu derlenemedi.'

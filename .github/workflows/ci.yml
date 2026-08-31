@@ -33,6 +33,7 @@ jobs:
           grep -F "EfesOS: multiple user process isolation self-test passed." build/ci-serial.log
           grep -F "EfesOS: user IPC syscall runtime test passed." build/ci-serial.log
           grep -F "EfesOS: invalid user IPC pointer rejected." build/ci-serial.log
+          grep -F "EfesOS: targeted user IPC runtime test passed." build/ci-serial.log
           grep -F "EfesOS: generation-based user PID runtime test passed." build/ci-serial.log
           grep -F "EfesOS: scheduler block/wake lifecycle self-test passed." build/ci-serial.log
           grep -F "EfesOS: user exception isolated." build/ci-serial.log
