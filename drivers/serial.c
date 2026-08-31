@@ -75,6 +75,18 @@ void serial_write(const char *text)
     }
 }
 
+void serial_write_n(const char *text, unsigned int length)
+{
+    unsigned int index;
+
+    if (text == 0) {
+        return;
+    }
+    for (index = 0; index < length; index++) {
+        serial_write_char(text[index]);
+    }
+}
+
 void serial_write_hex(unsigned int value)
 {
     static const char digits[] = "0123456789ABCDEF";

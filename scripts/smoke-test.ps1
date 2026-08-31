@@ -27,6 +27,7 @@ $successMarkers = @(
     'EfesOS: kernel heap self-test passed.',
     'EfesOS: RAM filesystem self-test passed.',
     'EfesOS: ring3 syscall runtime test passed.',
+    'EfesOS: user pointer validation runtime test passed.',
     'EfesOS: user exception isolated.',
     'EfesOS: preemptive scheduler runtime test passed.'
 )
@@ -74,7 +75,7 @@ $qemu = Get-QemuPath
 $arguments = @(
     '-display', 'none',
     '-monitor', 'none',
-    '-serial', "`"file:$serialLog`"",
+    '-serial', 'stdio',
     '-no-reboot',
     '-no-shutdown',
     '-m', $MemoryMiB,
@@ -85,7 +86,7 @@ if ($DiskImage -ne '') {
     $arguments += @('-drive', "`"file=$DiskImage,format=raw,if=ide`"")
 }
 
-$process = Start-Process -FilePath $qemu -ArgumentList $arguments -RedirectStandardError $qemuErrorLog -WindowStyle Hidden -PassThru
+$process = Start-Process -FilePath $qemu -ArgumentList $arguments -RedirectStandardOutput $serialLog -RedirectStandardError $qemuErrorLog -WindowStyle Hidden -PassThru
 $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
 $passed = $false
 
@@ -95,7 +96,7 @@ try {
             $output = Get-Content -LiteralPath $serialLog -Raw -ErrorAction SilentlyContinue
             $allMarkersFound = $true
             foreach ($marker in $successMarkers) {
-                if ($output -notlike "*$marker*") {
+                if ([string]::IsNullOrEmpty($output) -or $output.IndexOf([string]$marker) -lt 0) {
                     $allMarkersFound = $false
                     break
                 }

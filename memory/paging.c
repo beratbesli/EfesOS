@@ -10,6 +10,7 @@
 #define LOW_IDENTITY_LIMIT 0x00400000U
 #define VBE_FRAMEBUFFER_VIRTUAL 0xE0000000U
 #define VBE_FRAMEBUFFER_PAGES 768U
+#define USER_ADDRESS_LIMIT 0xC0000000U
 
 extern unsigned char __text_start;
 extern unsigned char __rodata_end;
@@ -196,6 +197,55 @@ int paging_is_mapped(paging_u32_t virtual_address)
         return 0;
     }
     return (table[(virtual_address >> 12U) & 0x3FFU] & PAGE_PRESENT) != 0U;
+}
+
+int paging_validate_user_range(paging_u32_t virtual_address, paging_u32_t length, int writable)
+{
+    paging_u32_t end;
+    paging_u32_t page;
+
+    if (length == 0U) {
+        return 1;
+    }
+    if (virtual_address < PAGE_SIZE || virtual_address >= USER_ADDRESS_LIMIT ||
+        length > USER_ADDRESS_LIMIT - virtual_address) {
+        return 0;
+    }
+    end = virtual_address + length;
+    page = virtual_address & PAGE_ADDRESS_MASK;
+    while (page < end) {
+        paging_u32_t *table = get_page_table(page);
+        paging_u32_t entry;
+
+        if (table == 0) {
+            return 0;
+        }
+        entry = table[(page >> 12U) & 0x3FFU];
+        if ((entry & PAGE_PRESENT) == 0U || (entry & PAGE_FLAG_USER) == 0U ||
+            (writable != 0 && (entry & PAGE_FLAG_WRITABLE) == 0U)) {
+            return 0;
+        }
+        page += PAGE_SIZE;
+    }
+    return 1;
+}
+
+int paging_copy_from_user(void *destination, paging_u32_t source, paging_u32_t length)
+{
+    unsigned char *output = (unsigned char *)destination;
+    const unsigned char *input = (const unsigned char *)source;
+    paging_u32_t index;
+
+    if (length != 0U && output == 0) {
+        return 0;
+    }
+    if (!paging_validate_user_range(source, length, 0)) {
+        return 0;
+    }
+    for (index = 0; index < length; index++) {
+        output[index] = input[index];
+    }
+    return 1;
 }
 
 static void protect_kernel_read_only(void)
