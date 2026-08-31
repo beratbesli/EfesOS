@@ -7,6 +7,12 @@
 
 static unsigned char disk[SECTOR_SIZE * SECTOR_COUNT];
 
+static unsigned int next_random(unsigned int *state)
+{
+    *state = (*state * 1664525U) + 1013904223U;
+    return *state;
+}
+
 static void put16(unsigned int offset, unsigned int value)
 {
     disk[offset] = (unsigned char)value;
@@ -147,6 +153,34 @@ int main(void)
     build_fixture();
     if (fat_mount(&volume, read_fixed_boot, 0xFFFFFFF0U) || fat_last_error() != 7U) {
         return 1;
+    }
+    {
+        unsigned int state = 0xEF05A55AU;
+        unsigned int iteration;
+
+        for (iteration = 0U; iteration < 2048U; iteration++) {
+            unsigned int mutation;
+            unsigned int mutation_count = 1U + (next_random(&state) % 16U);
+
+            build_fixture();
+            for (mutation = 0U; mutation < mutation_count; mutation++) {
+                unsigned int offset = next_random(&state) % (SECTOR_SIZE * 70U);
+                disk[offset] ^= (unsigned char)(next_random(&state) >> 24U);
+            }
+            if (fat_mount(&volume, read_fixture, 0U)) {
+                unsigned int fuzz_size = 0U;
+                char fuzz_name[13];
+                char fuzz_contents[32];
+
+                (void)fat_file_name(&volume, 0U, fuzz_name, sizeof(fuzz_name));
+                if (fat_file_count(&volume) > volume.root_entries ||
+                    (fat_read_file(&volume, "hello.txt", fuzz_contents,
+                        sizeof(fuzz_contents), &fuzz_size) &&
+                     fuzz_size > sizeof(fuzz_contents))) {
+                    return 1;
+                }
+            }
+        }
     }
     puts("FAT host self-test passed.");
     return 0;
