@@ -20,6 +20,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Sınırlı 8.3 dizin/dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat`)
 - BSS sıfırlama, W^X denetimi ve son sayfa izinleriyle sınırlı ELF32 segment yükleyicisi
 - Veri taşıyan seri syscall için taşma ve izin kontrolleri yapan sınırlı kullanıcı tamponu doğrulaması
+- Hata alan demo süreçlerinin ELF sayfaları ve yığın çerçeveleri scheduler devam etmeden geri kazanılır
 - 32-bit adres alanını kapsayan E820 tabanlı fiziksel bellek yöneticisi
 - Null-page koruması, salt-okunur kernel kod/verisi, dinamik sayfa eşleme ve korumalı kernel heap'i
 - Kaydırma destekli VGA metin/grafik çıktısı
