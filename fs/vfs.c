@@ -10,12 +10,23 @@ static int read_with_retry(fat_u32_t lba, fat_u8_t count, void *buffer)
 {
     unsigned int attempt;
 
+    if (count == 0U || lba >= ata_sector_count() ||
+        (fat_u32_t)count > ata_sector_count() - lba) {
+        return 0;
+    }
     for (attempt = 0; attempt < ATA_READ_RETRIES; attempt++) {
         if (ata_read_sectors(lba, count, buffer)) {
             return 1;
         }
     }
     return 0;
+}
+
+static int mounted_volume_fits_device(void)
+{
+    return volume.mounted && volume.start_lba < ata_sector_count() &&
+        volume.total_sectors != 0U && volume.total_sectors <=
+        ata_sector_count() - volume.start_lba;
 }
 
 static fat_u32_t read_u32(const fat_u8_t *data, unsigned int offset)
@@ -28,9 +39,10 @@ void vfs_init(void)
 {
     volume.mounted = 0;
     if (ata_present()) {
-        if (fat_mount(&volume, read_with_retry, 0)) {
+        if (fat_mount(&volume, read_with_retry, 0) && mounted_volume_fits_device()) {
             return;
         }
+        volume.mounted = 0;
         {
             fat_u8_t mbr[512];
             unsigned int index;
@@ -46,9 +58,10 @@ void vfs_init(void)
 
                 if ((type == 0x04U || type == 0x06U || type == 0x0EU) && length != 0U &&
                     start < ata_sector_count() && length <= ata_sector_count() - start &&
-                    fat_mount(&volume, read_with_retry, start)) {
+                    fat_mount(&volume, read_with_retry, start) && mounted_volume_fits_device()) {
                     return;
                 }
+                volume.mounted = 0;
             }
         }
     }

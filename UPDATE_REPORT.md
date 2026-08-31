@@ -28,6 +28,7 @@
 - Terminated task’ların kernel stack’leri aktif interrupt stack’i korunarak sonraki scheduler geçişinde geri kazanılıyor.
 - Scheduler için güvenli bloklama/uyandırma primitive’leri eklendi; mevcut görev bloklanırken başka runnable görev yoksa bloklama reddediliyor ve yaşam döngüsü self-test’i boot sırasında çalışıyor.
 - ATA kapasitesi 28-bit PIO adresleme sınırına bağlandı; daha büyük veya taşmış IDENTIFY kapasitesi aygıtı sessiz LBA sarmalaması yerine güvenli biçimde reddediyor.
+- VFS, FAT BPB volume geometrisini gerçek ATA sektör kapasitesiyle mount sırasında karşılaştırıyor; fiziksel aygıtı aşan volume artık sonradan hata vermek yerine fail-closed reddediliyor.
 - Sabit boyutlu, kesme güvenli ve taşma kontrollü kernel IPC mesaj kuyruğu eklendi; FIFO, kapasite ve aşırı uzun mesaj reddi boot self-test’iyle doğrulanıyor. `IPC_SEND`/`IPC_RECEIVE` syscall’leri yalnızca 64 baytlık bounded mesajlar ve doğrulanmış kullanıcı aralıklarıyla sunuluyor.
 - Ring-3 IPC negatif testi, supervisor adresine gönderimi `EFAULT` ile reddediyor; bu reddetme ayrı QEMU smoke marker’ı ve CI kontrolüyle izleniyor.
 - GitHub Actions; build, imaj doğrulama, FAT host testi ve QEMU ring-3 smoke testini çalıştırıyor.
