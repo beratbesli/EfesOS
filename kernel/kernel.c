@@ -25,13 +25,15 @@
 #include "vga.h"
 
 #define USER_PROCESS_ALLOCATION_BLOCKS 9U
+#define USER_PROCESS_RESTART_TARGET 4U
 
 static int scheduler_runtime_verified;
 static int user_runtime_verified;
 static int user_pointer_runtime_verified;
 static int user_reap_runtime_verified;
-static int user_restart_runtime_verified;
+static unsigned int user_restart_count;
 static int user_repeated_reap_runtime_verified;
+static int user_restart_stress_runtime_verified;
 static unsigned int user_process_initial_free_blocks;
 static unsigned int user_restart_wait_ticks;
 static int user_address_space_runtime_verified;
@@ -114,7 +116,8 @@ static void kernel_process_events(void)
         user_reap_runtime_verified = 1;
         serial_write("EfesOS: user process resource cleanup passed.\n");
     }
-    if (!user_restart_runtime_verified && user_process_reap_count() != 0U) {
+    if (user_restart_count < USER_PROCESS_RESTART_TARGET &&
+        user_process_reap_count() > user_restart_count) {
         unsigned int expected_free = user_process_initial_free_blocks +
             USER_PROCESS_ALLOCATION_BLOCKS;
 
@@ -138,13 +141,20 @@ static void kernel_process_events(void)
             if (pmm_free_blocks() != user_process_initial_free_blocks) {
                 kernel_panic("User process restart leaked physical memory.");
             }
-            user_restart_runtime_verified = 1;
+            user_restart_count++;
+            user_restart_wait_ticks = 0U;
             serial_write("EfesOS: user process restart and slot reuse passed.\n");
         }
     }
     if (!user_repeated_reap_runtime_verified && user_process_reap_count() >= 2U) {
         user_repeated_reap_runtime_verified = 1;
         serial_write("EfesOS: repeated user process cleanup passed.\n");
+    }
+    if (!user_restart_stress_runtime_verified &&
+        user_restart_count >= USER_PROCESS_RESTART_TARGET &&
+        user_process_reap_count() >= USER_PROCESS_RESTART_TARGET) {
+        user_restart_stress_runtime_verified = 1;
+        serial_write("EfesOS: repeated user restart stress passed.\n");
     }
     if (!user_address_space_runtime_verified && syscall_user_address_space_call_count() != 0U) {
         user_address_space_runtime_verified = 1;
@@ -267,9 +277,10 @@ void kernel_main(const struct boot_info *boot_info)
     user_runtime_verified = 0;
     user_pointer_runtime_verified = 0;
     user_reap_runtime_verified = 0;
-    user_restart_runtime_verified = 0;
+    user_restart_count = 0U;
     user_restart_wait_ticks = 0U;
     user_repeated_reap_runtime_verified = 0;
+    user_restart_stress_runtime_verified = 0;
     user_address_space_runtime_verified = 0;
     user_ipc_runtime_verified = 0;
     user_ipc_reject_runtime_verified = 0;

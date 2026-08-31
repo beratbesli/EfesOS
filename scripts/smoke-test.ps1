@@ -34,6 +34,7 @@ $successMarkers = @(
     'EfesOS: user process resource cleanup passed.',
     'EfesOS: user process restart and slot reuse passed.',
     'EfesOS: repeated user process cleanup passed.',
+    'EfesOS: repeated user restart stress passed.',
     'EfesOS: user address-space switch runtime test passed.',
     'EfesOS: user IPC syscall runtime test passed.',
     'EfesOS: invalid user IPC pointer rejected.',

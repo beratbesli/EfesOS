@@ -28,6 +28,7 @@ jobs:
           grep -F "EfesOS: user process resource cleanup passed." build/ci-serial.log
           grep -F "EfesOS: user process restart and slot reuse passed." build/ci-serial.log
           grep -F "EfesOS: repeated user process cleanup passed." build/ci-serial.log
+          grep -F "EfesOS: repeated user restart stress passed." build/ci-serial.log
           grep -F "EfesOS: user address-space switch runtime test passed." build/ci-serial.log
           grep -F "EfesOS: user IPC syscall runtime test passed." build/ci-serial.log
           grep -F "EfesOS: invalid user IPC pointer rejected." build/ci-serial.log
