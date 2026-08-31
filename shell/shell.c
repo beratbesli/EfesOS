@@ -65,10 +65,10 @@ static void print_help(void)
 {
     if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
         vga_write("Komutlar: help clear about mem heap input uptime ps demo pci counter snake slot\n");
-        vga_write("echo history color ls cat reboot shutdown tr en\n");
+        vga_write("echo history color ls cat write rm reboot shutdown tr en\n");
     } else {
         vga_write("Commands: help clear about mem heap input uptime ps demo pci counter snake slot\n");
-        vga_write("echo history color ls cat reboot shutdown tr en\n");
+        vga_write("echo history color ls cat write rm reboot shutdown tr en\n");
     }
 }
 
@@ -179,6 +179,25 @@ static void print_file(const char *name)
     vga_write(contents);
 }
 
+static void write_file_command(void)
+{
+    char *name = input + 6;
+    char *separator = name;
+
+    while (*separator != '\0' && *separator != ' ') {
+        separator++;
+    }
+    if (*separator == '\0') {
+        vga_write("Usage: write NAME CONTENT\n");
+        return;
+    }
+    *separator = '\0';
+    if (!ramfs_write_file(name, separator + 1)) {
+        vga_write("Write rejected (name/content too long or filesystem full).\n");
+    }
+    *separator = ' ';
+}
+
 static int set_color(const char *name)
 {
     if (string_equals(name, "green")) {
@@ -273,6 +292,12 @@ static void execute_command(void)
         print_files();
     } else if (string_starts_with(input, "cat ")) {
         print_file(input + 4);
+    } else if (string_starts_with(input, "write ")) {
+        write_file_command();
+    } else if (string_starts_with(input, "rm ")) {
+        if (!ramfs_remove_file(input + 3)) {
+            vga_write("File not found or invalid name.\n");
+        }
     } else if (string_starts_with(input, "echo ")) {
         vga_write(input + 5);
         vga_write_char('\n');

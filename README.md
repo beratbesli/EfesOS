@@ -20,7 +20,7 @@ EfesOS is a learning project, not a production operating system. It has no user-
 - Null-page protection, read-only kernel code/data, dynamic page mapping and a guarded kernel heap
 - VGA text/graphics output with scrolling
 - English (US) and Turkish Q keyboard modes
-- Interactive shell, RAM filesystem, scheduler demo, Snake and slot games
+- Interactive shell, bounded writable RAM filesystem, scheduler demo, Snake and slot games
 
 ## Requirements
 
@@ -55,7 +55,7 @@ The test boots the generated image in QEMU and requires the expected kernel mile
 | `help`, `clear`, `about`, `mem`, `heap`, `input` | Basic kernel and queue information |
 | `uptime`, `ps`, `demo`, `pci`, `counter` | Kernel, PCI and scheduler status |
 | `echo`, `history`, `color` | Shell utilities |
-| `ls`, `cat README`, `cat MOTD`, `cat EFES` | RAM filesystem |
+| `ls`, `cat README`, `cat MOTD`, `cat EFES`, `write NAME CONTENT`, `rm NAME` | Bounded RAM filesystem |
 | `snake`, `slot` | Mini games |
 | `en`, `tr` | Switch language and keyboard layout |
 | `reboot`, `shutdown` | Control the QEMU guest |

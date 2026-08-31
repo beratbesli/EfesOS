@@ -20,7 +20,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Kul
 - Null-page koruması, salt-okunur kernel kod/verisi, dinamik sayfa eşleme ve korumalı kernel heap'i
 - Kaydırma destekli VGA metin/grafik çıktısı
 - İngilizce (US) ve Türkçe Q klavye modları
-- Etkileşimli shell, RAM dosya sistemi, scheduler demosu, Snake ve slot oyunları
+- Etkileşimli shell, sınırlı yazılabilir RAM dosya sistemi, scheduler demosu, Snake ve slot oyunları
 
 ## Gereksinimler
 
