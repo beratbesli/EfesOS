@@ -16,6 +16,7 @@ STAGE2_BIN := $(BUILD_DIR)/stage2.bin
 ENTRY_OBJ := $(BUILD_DIR)/kernel_entry.o
 KERNEL_MAIN_OBJ := $(BUILD_DIR)/kernel.o
 PANIC_OBJ := $(BUILD_DIR)/panic.o
+SYSCALL_OBJ := $(BUILD_DIR)/syscall.o
 LANGUAGE_OBJ := $(BUILD_DIR)/language.o
 SPLASH_OBJ := $(BUILD_DIR)/splash.o
 VGA_OBJ := $(BUILD_DIR)/vga.o
@@ -53,6 +54,9 @@ $(KERNEL_MAIN_OBJ): kernel/kernel.c include/boot_info.h cpu/idt.h games/games.h 
 
 $(PANIC_OBJ): kernel/panic.c kernel/panic.h include/serial.h include/vga.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Ikernel -c $< -o $@
+
+$(SYSCALL_OBJ): kernel/syscall.c include/syscall.h cpu/idt.h cpu/pit.h process/scheduler.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Iprocess -c $< -o $@
 
 $(LANGUAGE_OBJ): kernel/language.c include/language.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
@@ -108,8 +112,8 @@ $(GAMES_OBJ): games/games.c games/games.h cpu/pit.h include/vga.h | $(BUILD_DIR)
 $(SHELL_OBJ): shell/shell.c shell/shell.h include/keyboard.h include/language.h include/pci.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h games/games.h memory/heap.h memory/pmm.h process/programs.h process/scheduler.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ifs -Igames -Imemory -Iprocess -Ishell -c $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
+$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@

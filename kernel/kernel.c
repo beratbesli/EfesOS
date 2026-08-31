@@ -11,6 +11,7 @@
 #include "programs.h"
 #include "scheduler.h"
 #include "serial.h"
+#include "syscall.h"
 #include "shell.h"
 #include "splash.h"
 #include "vga.h"
@@ -82,8 +83,18 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("\n");
 
     idt_init();
+    syscall_init();
     __asm__ volatile ("int $0x03");
     __asm__ volatile ("int $0x30");
+    {
+        unsigned int syscall_ticks;
+
+        __asm__ volatile ("xor %%eax, %%eax\n\tint $0x80" : "=a"(syscall_ticks) : : "memory");
+        if (syscall_ticks != pit_ticks()) {
+            kernel_panic("Syscall ABI self-test failed.");
+        }
+        serial_write("EfesOS: syscall ABI self-test passed.\n");
+    }
     serial_write("EfesOS: interrupt self-tests passed.\n");
 
     if (!paging_init(boot_info)) {

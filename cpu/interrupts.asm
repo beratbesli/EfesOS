@@ -58,6 +58,12 @@ VECTOR_NO_ERROR vector
 %assign vector vector + 1
 %endrep
 
+%assign vector 50
+%rep 79
+VECTOR_NO_ERROR vector
+%assign vector vector + 1
+%endrep
+
 interrupt_common:
     cld
     pushad
@@ -108,7 +114,7 @@ section .rodata
 global interrupt_stub_table
 interrupt_stub_table:
 %assign vector 0
-%rep 50
+%rep 129
     dd interrupt_stub_%+vector
 %assign vector vector + 1
 %endrep

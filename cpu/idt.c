@@ -5,12 +5,13 @@
 #include "pit.h"
 #include "serial.h"
 #include "scheduler.h"
+#include "syscall.h"
 #include "vga.h"
 
 typedef unsigned short idt_u16_t;
 
 #define IDT_ENTRY_COUNT 256U
-#define INSTALLED_VECTOR_COUNT 50U
+#define INSTALLED_VECTOR_COUNT 129U
 #define PIC_MASTER_COMMAND 0x20U
 #define PIC_MASTER_DATA 0x21U
 #define PIC_SLAVE_COMMAND 0xA0U
@@ -111,6 +112,12 @@ static void idt_set_gate(uint8_t vector, interrupt_u32_t address)
     idt_entries[vector].offset_high = (idt_u16_t)((address >> 16U) & 0xFFFFU);
 }
 
+static void idt_set_user_gate(uint8_t vector, interrupt_u32_t address)
+{
+    idt_set_gate(vector, address);
+    idt_entries[vector].type_attributes = 0xEE;
+}
+
 void idt_init(void)
 {
     interrupt_u32_t vector;
@@ -125,6 +132,7 @@ void idt_init(void)
     for (vector = 0; vector < INSTALLED_VECTOR_COUNT; vector++) {
         idt_set_gate((uint8_t)vector, (interrupt_u32_t)interrupt_stub_table[vector]);
     }
+    idt_set_user_gate(0x80U, (interrupt_u32_t)interrupt_stub_table[0x80U]);
 
     idt_descriptor.limit = sizeof(idt_entries) - 1U;
     idt_descriptor.base = (interrupt_u32_t)idt_entries;
@@ -204,6 +212,8 @@ struct interrupt_frame *interrupt_dispatch(struct interrupt_frame *frame)
         return frame;
     } else if (frame->vector == 49U) {
         return scheduler_on_yield(frame);
+    } else if (frame->vector == 0x80U) {
+        return syscall_dispatch(frame);
     } else {
         kernel_panic("Unexpected interrupt vector.");
     }
