@@ -140,7 +140,7 @@ void idt_init(void)
     __asm__ volatile ("lidtl %0" : : "m"(idt_descriptor));
 }
 
-static void handle_exception(struct interrupt_frame *frame)
+static struct interrupt_frame *handle_exception(struct interrupt_frame *frame)
 {
     interrupt_u32_t fault_address = 0;
     const char *name = "Unknown CPU exception";
@@ -164,7 +164,11 @@ static void handle_exception(struct interrupt_frame *frame)
 
     if (frame->vector == 3U) {
         serial_write("EfesOS: breakpoint exception self-test passed.\n");
-        return;
+        return frame;
+    }
+    if ((frame->cs & 3U) == 3U) {
+        serial_write("EfesOS: user exception isolated.\n");
+        return scheduler_on_user_fault(frame);
     }
 
     vga_write("CPU exception: ");
@@ -175,6 +179,7 @@ static void handle_exception(struct interrupt_frame *frame)
     vga_write_unsigned(frame->error_code);
     vga_write("\n");
     kernel_panic(name);
+    return frame;
 }
 
 static struct interrupt_frame *handle_irq(struct interrupt_frame *frame)
@@ -203,8 +208,7 @@ struct interrupt_frame *interrupt_dispatch(struct interrupt_frame *frame)
         kernel_panic("Null interrupt frame.");
     }
     if (frame->vector < 32U) {
-        handle_exception(frame);
-        return frame;
+        return handle_exception(frame);
     } else if (frame->vector < IRQ_LIMIT) {
         return handle_irq(frame);
     } else if (frame->vector == 48U) {

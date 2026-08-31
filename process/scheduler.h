@@ -12,6 +12,7 @@ int scheduler_add_user_task(const char *name, unsigned int entry, unsigned int u
 void scheduler_start(void);
 struct interrupt_frame *scheduler_on_timer(struct interrupt_frame *frame);
 struct interrupt_frame *scheduler_on_yield(struct interrupt_frame *frame);
+struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame);
 unsigned int scheduler_task_count(void);
 const char *scheduler_task_name(unsigned int index);
 scheduler_counter_t scheduler_task_runs(unsigned int index);

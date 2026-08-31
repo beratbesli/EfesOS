@@ -232,6 +232,15 @@ struct interrupt_frame *scheduler_on_yield(struct interrupt_frame *frame)
     return schedule_from_frame(frame);
 }
 
+struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame)
+{
+    if (!scheduler_started || current_task >= task_count || tasks[current_task].mode != TASK_USER) {
+        return frame;
+    }
+    tasks[current_task].state = TASK_TERMINATED;
+    return schedule_from_frame(frame);
+}
+
 static void scheduler_task_trampoline(void)
 {
     scheduler_task_t entry = tasks[current_task].entry;
