@@ -12,9 +12,6 @@ enum {
     GRAPHICS_HEIGHT = 768,
     GRAPHICS_COLUMNS = GRAPHICS_WIDTH / 8,
     GRAPHICS_ROWS = GRAPHICS_HEIGHT / 16,
-    VBE_MODE_FLAG_ADDRESS = 0x04F0,
-    VBE_FONT_SEGMENT_ADDRESS = 0x04F2,
-    VBE_FONT_OFFSET_ADDRESS = 0x04F4,
     VBE_FRAMEBUFFER_VIRTUAL = 0xE0000000,
     BGA_INDEX_PORT = 0x01CE,
     BGA_DATA_PORT = 0x01CF,
@@ -215,18 +212,15 @@ static void draw_graphics_char(char character)
     }
 }
 
-void vga_init(void)
+void vga_init(const struct boot_info *boot_info)
 {
-    uint16_t segment;
-    uint16_t offset;
-
-    if (*(volatile uint16_t *)VBE_MODE_FLAG_ADDRESS != 0xB33FU) {
+    if (boot_info == 0 ||
+        (boot_info->video_flags & BOOT_VIDEO_FONT_AVAILABLE) == 0U ||
+        boot_info->vga_font_address < 0x1000U) {
         return;
     }
 
-    segment = *(volatile uint16_t *)VBE_FONT_SEGMENT_ADDRESS;
-    offset = *(volatile uint16_t *)VBE_FONT_OFFSET_ADDRESS;
-    font_data = (volatile uint8_t *)(((uint32_t)segment << 4) + offset);
+    font_data = (volatile uint8_t *)boot_info->vga_font_address;
     outl(PCI_CONFIG_ADDRESS_PORT, VGA_PCI_CONFIG_BAR0);
     outl(PCI_CONFIG_DATA_PORT, VBE_FRAMEBUFFER_VIRTUAL);
     outl(PCI_CONFIG_ADDRESS_PORT, VGA_PCI_CONFIG_COMMAND);

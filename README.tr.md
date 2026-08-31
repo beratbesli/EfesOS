@@ -13,7 +13,8 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Kul
 - A20 doğrulamalı, yeniden deneyen iki aşamalı BIOS bootloader ve 1.44 MiB floppy imajı
 - BIOS E820 bellek haritası aktarımı ve deterministik `.bss` başlangıcı
 - 32-bit protected mode, GDT, IDT, PIC, PIT ve donanım klavye girişi
-- İlk 4 MiB için identity-mapped paging ve fiziksel bellek bitmap yöneticisi
+- 32-bit adres alanını kapsayan E820 tabanlı fiziksel bellek yöneticisi
+- Null-page koruması, salt-okunur kernel kod/verisi, dinamik sayfa eşleme ve korumalı kernel heap'i
 - Kaydırma destekli VGA metin/grafik çıktısı
 - İngilizce (US) ve Türkçe Q klavye modları
 - Etkileşimli shell, RAM dosya sistemi, scheduler demosu, Snake ve slot oyunları
@@ -68,7 +69,7 @@ fs/         Bellek içi dosya sistemi
 games/      Snake ve slot oyun mantığı
 include/    Paylaşılan başlık dosyaları
 kernel/     Giriş noktası, GDT, splash ve linker betiği
-memory/     Fiziksel bellek yöneticisi ve paging
+memory/     Fiziksel/sanal bellek yöneticileri ve korumalı kernel heap'i
 process/    Scheduler ve demo görevleri
 scripts/    Windows derleme ve QEMU smoke-test yardımcıları
 shell/      Komut satırı shell'i
@@ -78,7 +79,7 @@ shell/      Komut satırı shell'i
 
 - CPU istisnaları yakalanır ve misafir sistem durdurulur; işlenmemiş üçlü hataya düşülmez.
 - Shell girdisi ve komut geçmişi sabit boyutlu, sınırları belirli tamponlar kullanır.
-- Projedeki tüm kod ring 0'da çalışır ve kernel belleği yazılabilir olarak eşlenir. Bu bir güvenlik modeli değildir.
+- Projedeki tüm kod henüz ring 0'da çalışır. Kernel metni ve salt-okunur verisi yazmaya karşı korunur, ancak henüz kullanıcı/kernel güvenlik sınırı yoktur.
 - Bildirim yönergeleri için [SECURITY.md](SECURITY.md) dosyasına bak.
 
 ## Lisans

@@ -1,6 +1,7 @@
 #include "boot_info.h"
 #include "idt.h"
 #include "games.h"
+#include "heap.h"
 #include "keyboard.h"
 #include "paging.h"
 #include "panic.h"
@@ -35,22 +36,30 @@ void kernel_main(const struct boot_info *boot_info)
         kernel_panic("Physical memory manager self-test failed.");
     }
 
-    if (!paging_init()) {
+    idt_init();
+    __asm__ volatile ("int $0x03");
+    __asm__ volatile ("int $0x30");
+    serial_write("EfesOS: interrupt self-tests passed.\n");
+
+    if (!paging_init(boot_info)) {
         kernel_panic("Paging initialization failed.");
     }
+    if (!paging_self_test()) {
+        kernel_panic("Virtual memory manager self-test failed.");
+    }
+    serial_write("EfesOS: VMM self-test passed.\n");
+    if (!heap_init() || !heap_self_test()) {
+        kernel_panic("Kernel heap self-test failed.");
+    }
+    serial_write("EfesOS: kernel heap self-test passed.\n");
 
-    vga_init();
+    vga_init(boot_info);
     vga_clear();
     splash_show();
     vga_write("EfesOS: protected mode and VGA driver ready.\n");
     vga_write("EfesOS: physical memory manager running.\n");
     vga_write("EfesOS: paging enabled.\n");
     serial_write("EfesOS: paging enabled.\n");
-
-    idt_init();
-    __asm__ volatile ("int $0x03");
-    __asm__ volatile ("int $0x30");
-    serial_write("EfesOS: interrupt self-tests passed.\n");
 
     scheduler_init();
     programs_init();

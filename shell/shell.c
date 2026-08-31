@@ -1,6 +1,7 @@
 #include "keyboard.h"
 #include "language.h"
 #include "games.h"
+#include "heap.h"
 #include "pmm.h"
 #include "pit.h"
 #include "programs.h"
@@ -62,10 +63,10 @@ static void print_prompt(void)
 static void print_help(void)
 {
     if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
-        vga_write("Komutlar: help clear about mem uptime ps demo counter snake slot\n");
+        vga_write("Komutlar: help clear about mem heap uptime ps demo counter snake slot\n");
         vga_write("echo history color ls cat reboot shutdown tr en\n");
     } else {
-        vga_write("Commands: help clear about mem uptime ps demo counter snake slot\n");
+        vga_write("Commands: help clear about mem heap uptime ps demo counter snake slot\n");
         vga_write("echo history color ls cat reboot shutdown tr en\n");
     }
 }
@@ -212,6 +213,12 @@ static void execute_command(void)
         vga_write(" KiB free=");
         vga_write_unsigned(pmm_free_blocks() / 256U);
         vga_write(" MiB\n");
+    } else if (string_equals(input, "heap")) {
+        vga_write("Kernel heap: mapped=");
+        vga_write_unsigned(heap_mapped_bytes() / 1024U);
+        vga_write(" KiB used=");
+        vga_write_unsigned(heap_used_bytes());
+        vga_write(" bytes\n");
     } else if (string_equals(input, "uptime")) {
         print_uptime();
     } else if (string_equals(input, "ps")) {

@@ -10,7 +10,7 @@ SECTORS_PER_TRACK     equ 18
 HEADS_PER_CYLINDER    equ 2
 BOOT_INFO_ADDRESS     equ 0x5000
 BOOT_INFO_MAGIC       equ 0x534F4645 ; "EFOS" in little endian
-BOOT_INFO_HEADER_SIZE equ 16
+BOOT_INFO_HEADER_SIZE equ 24
 E820_ENTRY_SIZE       equ 24
 E820_MAX_ENTRIES      equ 32
 
@@ -58,6 +58,8 @@ initialize_boot_info:
     mov dword [BOOT_INFO_ADDRESS + 4], eax
     mov dword [BOOT_INFO_ADDRESS + 8], 0
     mov dword [BOOT_INFO_ADDRESS + 12], E820_ENTRY_SIZE
+    mov dword [BOOT_INFO_ADDRESS + 16], 0
+    mov dword [BOOT_INFO_ADDRESS + 20], 0
     ret
 
 collect_e820_map:
@@ -237,17 +239,18 @@ check_a20:
     ret
 
 capture_vga_font:
-    xor ax, ax
-    mov ds, ax
-    mov word [0x04F0], 0
     mov ax, 0x1130
     mov bh, 0x06
     int 0x10
-    xor ax, ax
-    mov ds, ax
-    mov [0x04F2], es
-    mov [0x04F4], bp
-    mov word [0x04F0], 0xB33F
+    xor eax, eax
+    mov ax, es
+    shl eax, 4
+    movzx edx, bp
+    add eax, edx
+    xor dx, dx
+    mov ds, dx
+    mov [BOOT_INFO_ADDRESS + 16], eax
+    mov dword [BOOT_INFO_ADDRESS + 20], 1
     ret
 
 load_kernel:

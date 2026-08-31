@@ -7,6 +7,7 @@ typedef unsigned int boot_u32_t;
 #define BOOT_INFO_MAGIC 0x534F4645U
 #define BOOT_INFO_MAX_MEMORY_MAP_ENTRIES 32U
 #define BOOT_MEMORY_AVAILABLE 1U
+#define BOOT_VIDEO_FONT_AVAILABLE 1U
 
 struct boot_memory_map_entry {
     boot_u32_t base_low;
@@ -22,6 +23,8 @@ struct boot_info {
     boot_u32_t boot_drive;
     boot_u32_t memory_map_entry_count;
     boot_u32_t memory_map_entry_size;
+    boot_u32_t vga_font_address;
+    boot_u32_t video_flags;
     struct boot_memory_map_entry memory_map[BOOT_INFO_MAX_MEMORY_MAP_ENTRIES];
 } __attribute__((packed));
 

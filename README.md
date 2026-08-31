@@ -13,7 +13,8 @@ EfesOS is a learning project, not a production operating system. It has no user-
 - Retried two-stage BIOS bootloader with A20 verification and a 1.44 MiB floppy image
 - BIOS E820 memory map handoff and deterministic `.bss` initialization
 - 32-bit protected mode, GDT, IDT, PIC, PIT and hardware keyboard input
-- Identity-mapped paging for the first 4 MiB and a physical-memory bitmap allocator
+- E820-backed physical-memory allocation across the 32-bit address space
+- Null-page protection, read-only kernel code/data, dynamic page mapping and a guarded kernel heap
 - VGA text/graphics output with scrolling
 - English (US) and Turkish Q keyboard modes
 - Interactive shell, RAM filesystem, scheduler demo, Snake and slot games
@@ -68,7 +69,7 @@ fs/         In-memory filesystem
 games/      Snake and slot game logic
 include/    Shared headers
 kernel/     Entry point, GDT, splash and linker script
-memory/     Physical memory manager and paging
+memory/     Physical/virtual memory managers and guarded kernel heap
 process/    Scheduler and demo tasks
 scripts/    Windows build and QEMU smoke-test helpers
 shell/      Command shell
@@ -78,7 +79,7 @@ shell/      Command shell
 
 - CPU exceptions are caught and halt the guest instead of escalating to an unhandled triple fault.
 - Shell input and command history use fixed, bounded buffers.
-- The project intentionally runs all code in ring 0 and maps kernel memory as writable. It is not a security model.
+- The project still runs all code in ring 0. Kernel text and read-only data are write-protected, but there is not yet a user/kernel security boundary.
 - See [SECURITY.md](SECURITY.md) for reporting guidance.
 
 ## License

@@ -1,6 +1,8 @@
 #ifndef EFESOS_VGA_H
 #define EFESOS_VGA_H
 
+#include "boot_info.h"
+
 enum vga_color {
     VGA_COLOR_GREEN,
     VGA_COLOR_WHITE,
@@ -9,7 +11,7 @@ enum vga_color {
     VGA_COLOR_YELLOW
 };
 
-void vga_init(void);
+void vga_init(const struct boot_info *boot_info);
 void vga_clear(void);
 void vga_write_char(char character);
 void vga_backspace(void);
