@@ -7,6 +7,7 @@
 #include "panic.h"
 #include "pit.h"
 #include "pmm.h"
+#include "pci.h"
 #include "programs.h"
 #include "scheduler.h"
 #include "serial.h"
@@ -74,6 +75,11 @@ void kernel_main(const struct boot_info *boot_info)
     if (!pmm_self_test()) {
         kernel_panic("Physical memory manager self-test failed.");
     }
+
+    pci_init();
+    serial_write("EfesOS: PCI devices discovered=");
+    serial_write_hex(pci_device_count());
+    serial_write("\n");
 
     idt_init();
     __asm__ volatile ("int $0x03");

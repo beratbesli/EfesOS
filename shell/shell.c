@@ -3,6 +3,7 @@
 #include "games.h"
 #include "heap.h"
 #include "pmm.h"
+#include "pci.h"
 #include "pit.h"
 #include "programs.h"
 #include "ramfs.h"
@@ -63,10 +64,10 @@ static void print_prompt(void)
 static void print_help(void)
 {
     if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
-        vga_write("Komutlar: help clear about mem heap input uptime ps demo counter snake slot\n");
+        vga_write("Komutlar: help clear about mem heap input uptime ps demo pci counter snake slot\n");
         vga_write("echo history color ls cat reboot shutdown tr en\n");
     } else {
-        vga_write("Commands: help clear about mem heap input uptime ps demo counter snake slot\n");
+        vga_write("Commands: help clear about mem heap input uptime ps demo pci counter snake slot\n");
         vga_write("echo history color ls cat reboot shutdown tr en\n");
     }
 }
@@ -111,6 +112,33 @@ static void print_demo(void)
     vga_write(" snake=");
     vga_write_unsigned(snake_program_steps());
     vga_write_char('\n');
+}
+
+static void print_pci(void)
+{
+    unsigned int index;
+
+    vga_write("PCI devices: ");
+    vga_write_unsigned(pci_device_count());
+    vga_write_char('\n');
+    for (index = 0; index < pci_device_count(); index++) {
+        const struct pci_device *device = pci_device_at(index);
+
+        vga_write_unsigned(device->bus);
+        vga_write_char(':');
+        vga_write_unsigned(device->slot);
+        vga_write_char('.');
+        vga_write_unsigned(device->function);
+        vga_write(" vendor=");
+        vga_write_unsigned(device->vendor_id);
+        vga_write(" device=");
+        vga_write_unsigned(device->device_id);
+        vga_write(" class=");
+        vga_write_unsigned(device->class_code);
+        vga_write_char('/');
+        vga_write_unsigned(device->subclass);
+        vga_write_char('\n');
+    }
 }
 
 static void print_history(void)
@@ -229,6 +257,8 @@ static void execute_command(void)
         print_processes();
     } else if (string_equals(input, "demo")) {
         print_demo();
+    } else if (string_equals(input, "pci")) {
+        print_pci();
     } else if (string_equals(input, "counter")) {
         vga_write("counter=");
         vga_write_unsigned(counter_program_runs());

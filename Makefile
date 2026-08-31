@@ -21,6 +21,7 @@ SPLASH_OBJ := $(BUILD_DIR)/splash.o
 VGA_OBJ := $(BUILD_DIR)/vga.o
 SERIAL_OBJ := $(BUILD_DIR)/serial.o
 KEYBOARD_OBJ := $(BUILD_DIR)/keyboard.o
+PCI_OBJ := $(BUILD_DIR)/pci.o
 IDT_OBJ := $(BUILD_DIR)/idt.o
 PIT_OBJ := $(BUILD_DIR)/pit.o
 SYSTEM_OBJ := $(BUILD_DIR)/system.o
@@ -47,7 +48,7 @@ $(BUILD_DIR):
 $(ENTRY_OBJ): kernel/kernel_entry.asm | $(BUILD_DIR)
 	$(NASM) -w+error -f elf32 $< -o $@
 
-$(KERNEL_MAIN_OBJ): kernel/kernel.c include/boot_info.h cpu/idt.h games/games.h include/keyboard.h kernel/panic.h kernel/splash.h memory/heap.h memory/paging.h memory/pmm.h process/scheduler.h include/serial.h shell/shell.h include/vga.h | $(BUILD_DIR)
+$(KERNEL_MAIN_OBJ): kernel/kernel.c include/boot_info.h cpu/idt.h games/games.h include/keyboard.h include/pci.h kernel/panic.h kernel/splash.h memory/heap.h memory/paging.h memory/pmm.h process/scheduler.h include/serial.h shell/shell.h include/vga.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Igames -Ikernel -Imemory -Iprocess -Ishell -c $< -o $@
 
 $(PANIC_OBJ): kernel/panic.c kernel/panic.h include/serial.h include/vga.h | $(BUILD_DIR)
@@ -67,6 +68,9 @@ $(SERIAL_OBJ): drivers/serial.c include/serial.h cpu/io.h | $(BUILD_DIR)
 
 $(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h kernel/splash.h shell/shell.h include/vga.h cpu/io.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Ishell -c $< -o $@
+
+$(PCI_OBJ): drivers/pci.c include/pci.h cpu/io.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -c $< -o $@
 
 $(IDT_OBJ): cpu/idt.c cpu/idt.h cpu/io.h cpu/pit.h include/keyboard.h include/serial.h include/vga.h kernel/panic.h process/scheduler.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -c $< -o $@
@@ -101,11 +105,11 @@ $(RAMFS_OBJ): fs/ramfs.c fs/ramfs.h | $(BUILD_DIR)
 $(GAMES_OBJ): games/games.c games/games.h cpu/pit.h include/vga.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Igames -c $< -o $@
 
-$(SHELL_OBJ): shell/shell.c shell/shell.h include/keyboard.h include/language.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h games/games.h memory/heap.h memory/pmm.h process/programs.h process/scheduler.h | $(BUILD_DIR)
+$(SHELL_OBJ): shell/shell.c shell/shell.h include/keyboard.h include/language.h include/pci.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h games/games.h memory/heap.h memory/pmm.h process/programs.h process/scheduler.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ifs -Igames -Imemory -Iprocess -Ishell -c $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
+$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@
