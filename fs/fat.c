@@ -171,6 +171,8 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
     fat_u8_t fats;
     fat_u16_t root_entries;
     fat_u16_t sectors_per_fat;
+    fat_u32_t cluster_count;
+    fat_u32_t fat_entry_capacity;
 
     last_error = 0;
     if (volume == 0 || read == 0) {
@@ -211,8 +213,10 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
         return 0;
     }
     data_sectors = total_sectors - reserved - ((fat_u32_t)fats * sectors_per_fat) - root_sectors;
-    if (data_sectors == 0U || data_sectors / sectors_per_cluster < 4085U ||
-        data_sectors / sectors_per_cluster >= 65525U) {
+    cluster_count = data_sectors / sectors_per_cluster;
+    fat_entry_capacity = ((fat_u32_t)sectors_per_fat * FAT_SECTOR_SIZE) / 2U;
+    if (data_sectors == 0U || cluster_count < 4085U || cluster_count >= 65525U ||
+        fat_entry_capacity < cluster_count + 2U) {
         last_error = 6;
         return 0;
     }
@@ -227,7 +231,7 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
     volume->sectors_per_fat = sectors_per_fat;
     volume->root_entries = root_entries;
     volume->sectors_per_cluster = sectors_per_cluster;
-    volume->cluster_count = data_sectors / sectors_per_cluster;
+    volume->cluster_count = cluster_count;
     volume->mounted = 1;
     return 1;
 }

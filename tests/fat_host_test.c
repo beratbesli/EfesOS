@@ -111,6 +111,11 @@ int main(void)
         return 1;
     }
     build_fixture();
+    put16(22, 1);
+    if (fat_mount(&volume, read_fixture, 0) || fat_last_error() != 6U) {
+        return 1;
+    }
+    build_fixture();
     disk[13] = 129;
     if (fat_mount(&volume, read_fixture, 0) || fat_last_error() != 4U) {
         return 1;
