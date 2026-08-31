@@ -247,8 +247,14 @@ if ((1 + $stage2Sectors + $kernelSectors) * 512 -gt $floppySize) {
 [System.Array]::Copy($kernelRawBytes, $kernelBytes, $kernelRawBytes.Length)
 [System.IO.File]::WriteAllBytes($kernelBinary, $kernelBytes)
 
+[uint64]$kernelChecksum = 0
+foreach ($byte in $kernelBytes) {
+    $kernelChecksum = ($kernelChecksum + [uint64]$byte) -band 0xFFFFFFFF
+}
+$kernelChecksumLiteral = '0x{0:X8}' -f [uint32]$kernelChecksum
+
 Invoke-Tool -Path $nasm -Arguments @('-w+error', '-D', "STAGE2_SECTORS=$stage2Sectors", '-f', 'bin', $bootSource, '-o', $bootBinary) -FailureMessage 'Stage-1 bootloader derlenemedi.'
-Invoke-Tool -Path $nasm -Arguments @('-w+error', '-D', "STAGE2_SECTORS=$stage2Sectors", '-D', "KERNEL_SECTORS=$kernelSectors", '-f', 'bin', $stage2Source, '-o', $stage2Binary) -FailureMessage 'Stage-2 bootloader derlenemedi.'
+Invoke-Tool -Path $nasm -Arguments @('-w+error', '-D', "STAGE2_SECTORS=$stage2Sectors", '-D', "KERNEL_SECTORS=$kernelSectors", '-D', "KERNEL_CHECKSUM=$kernelChecksumLiteral", '-f', 'bin', $stage2Source, '-o', $stage2Binary) -FailureMessage 'Stage-2 bootloader derlenemedi.'
 
 Assert-FileSize -Path $bootBinary -ExpectedBytes 512
 Assert-FileSize -Path $stage2Binary -ExpectedBytes $stage2Size

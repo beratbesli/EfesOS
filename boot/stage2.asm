@@ -11,6 +11,7 @@ HEADS_PER_CYLINDER    equ 2
 BOOT_INFO_ADDRESS     equ 0x5000
 BOOT_INFO_MAGIC       equ 0x534F4645 ; "EFOS" in little endian
 BOOT_INFO_HEADER_SIZE equ 24
+BOOT_KERNEL_CHECKSUM_VERIFIED equ 2
 E820_ENTRY_SIZE       equ 24
 E820_MAX_ENTRIES      equ 32
 
@@ -20,6 +21,10 @@ E820_MAX_ENTRIES      equ 32
 
 %ifndef KERNEL_SECTORS
 %define KERNEL_SECTORS 1
+%endif
+
+%ifndef KERNEL_CHECKSUM
+%define KERNEL_CHECKSUM 0
 %endif
 
 KERNEL_START_LBA equ 1 + STAGE2_SECTORS
@@ -43,6 +48,10 @@ stage2_start:
 
     call capture_vga_font
     call load_kernel
+    call verify_kernel_checksum
+    test ax, ax
+    jz checksum_error
+    or dword [BOOT_INFO_ADDRESS + 20], BOOT_KERNEL_CHECKSUM_VERIFIED
 
     xor ax, ax
     mov ds, ax
@@ -132,6 +141,28 @@ enable_a20:
     call enable_a20_keyboard_controller
     call check_a20
 .done:
+    ret
+
+verify_kernel_checksum:
+    xor ax, ax
+    mov ds, ax
+    mov esi, KERNEL_LOAD_SEGMENT
+    shl esi, 4
+    xor eax, eax
+    xor edx, edx
+    mov ecx, KERNEL_SECTORS * 512
+.checksum_loop:
+    mov dl, [ds:esi]
+    add eax, edx
+    inc esi
+    dec ecx
+    jnz .checksum_loop
+    cmp eax, KERNEL_CHECKSUM
+    jne .checksum_failed
+    mov ax, 1
+    ret
+.checksum_failed:
+    xor ax, ax
     ret
 
 enable_a20_keyboard_controller:
@@ -332,6 +363,11 @@ a20_error:
     call print_string
     jmp halt
 
+checksum_error:
+    mov si, checksum_error_message
+    call print_string
+    jmp halt
+
 disk_error:
     xor ax, ax
     mov ds, ax
@@ -347,6 +383,8 @@ a20_error_message:
     db 'EfesOS: A20 could not be enabled.', 13, 10, 0
 disk_error_message:
     db 'EfesOS: kernel disk read failed.', 13, 10, 0
+checksum_error_message:
+    db 'EfesOS: kernel integrity check failed.', 13, 10, 0
 
 boot_drive:
     db 0

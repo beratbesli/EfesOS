@@ -25,6 +25,7 @@ jobs:
         run: |
           timeout 20s qemu-system-i386 -display none -monitor none -serial stdio -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a > build/ci-serial.log 2> build/ci-qemu-error.log || true
           grep -F "EfesOS: ELF loader runtime self-test passed." build/ci-serial.log
+          grep -F "EfesOS: stage-2 kernel integrity check passed." build/ci-serial.log
           grep -F "EfesOS: ring3 syscall runtime test passed." build/ci-serial.log
           grep -F "EfesOS: user pointer validation runtime test passed." build/ci-serial.log
           grep -F "EfesOS: user process resource cleanup passed." build/ci-serial.log

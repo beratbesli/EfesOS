@@ -160,7 +160,7 @@ $(BOOT_BIN): boot/boot.asm | $(BUILD_DIR)
 	$(NASM) -w+error -D STAGE2_SECTORS=$(STAGE2_SECTORS) -f bin $< -o $@
 
 $(STAGE2_BIN): boot/stage2.asm $(KERNEL_BIN) | $(BUILD_DIR)
-	sectors=$$(($$(wc -c < $(KERNEL_BIN)) / 512)); $(NASM) -w+error -D STAGE2_SECTORS=$(STAGE2_SECTORS) -D KERNEL_SECTORS=$$sectors -f bin $< -o $@
+	sectors=$$(($$(wc -c < $(KERNEL_BIN)) / 512)); checksum=$$(od -An -tu1 $(KERNEL_BIN) | awk '{ for (i=1; i<=NF; i++) sum=(sum+$$i) % 4294967296 } END { printf "0x%08X", sum }'); $(NASM) -w+error -D STAGE2_SECTORS=$(STAGE2_SECTORS) -D KERNEL_SECTORS=$$sectors -D KERNEL_CHECKSUM=$$checksum -f bin $< -o $@
 
 $(IMAGE): $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN)
 	truncate -s $(FLOPPY_BYTES) $(IMAGE)
