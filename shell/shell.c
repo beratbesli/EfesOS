@@ -1,6 +1,7 @@
 #include "keyboard.h"
 #include "language.h"
 #include "games.h"
+#include "pmm.h"
 #include "pit.h"
 #include "programs.h"
 #include "ramfs.h"
@@ -201,10 +202,16 @@ static void execute_command(void)
         }
     } else if (string_equals(input, "mem")) {
         if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
-            vga_write("16 MiB fiziksel alan, ilk 4 MiB paging ile eslendi.\n");
+            vga_write("Fiziksel bellek: toplam=");
         } else {
-            vga_write("16 MiB physical memory, first 4 MiB mapped with paging.\n");
+            vga_write("Physical memory: total=");
         }
+        vga_write_unsigned(pmm_total_blocks() / 256U);
+        vga_write(" MiB used=");
+        vga_write_unsigned(pmm_used_blocks() * 4U);
+        vga_write(" KiB free=");
+        vga_write_unsigned(pmm_free_blocks() / 256U);
+        vga_write(" MiB\n");
     } else if (string_equals(input, "uptime")) {
         print_uptime();
     } else if (string_equals(input, "ps")) {

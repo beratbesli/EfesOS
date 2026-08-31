@@ -10,14 +10,14 @@
 #define VBE_FRAMEBUFFER_VIRTUAL 0xE0000000U
 #define VBE_FRAMEBUFFER_PAGES 768U
 
-static void load_page_directory(uint32_t address)
+static void load_page_directory(pmm_u32_t address)
 {
     __asm__ volatile ("mov %0, %%cr3" : : "r"(address) : "memory");
 }
 
 static void enable_paging(void)
 {
-    uint32_t cr0;
+    pmm_u32_t cr0;
 
     __asm__ volatile ("mov %%cr0, %0" : "=r"(cr0));
     cr0 |= PAGE_ENABLE;
@@ -26,12 +26,12 @@ static void enable_paging(void)
 
 int paging_init(void)
 {
-    uint32_t directory_address = pmm_alloc_block();
-    uint32_t table_address = pmm_alloc_block();
-    uint32_t framebuffer_table_address = 0;
-    uint32_t *directory;
-    uint32_t *table;
-    uint32_t index;
+    pmm_u32_t directory_address = pmm_alloc_block();
+    pmm_u32_t table_address = pmm_alloc_block();
+    pmm_u32_t framebuffer_table_address = 0;
+    pmm_u32_t *directory;
+    pmm_u32_t *table;
+    pmm_u32_t index;
 
     if (directory_address == 0 || table_address == 0) {
         if (directory_address != 0) {
@@ -43,8 +43,8 @@ int paging_init(void)
         return 0;
     }
 
-    directory = (uint32_t *)directory_address;
-    table = (uint32_t *)table_address;
+    directory = (pmm_u32_t *)directory_address;
+    table = (pmm_u32_t *)table_address;
 
     for (index = 0; index < PAGE_TABLE_ENTRIES; index++) {
         directory[index] = 0;
@@ -54,8 +54,8 @@ int paging_init(void)
     directory[0] = table_address | PAGE_PRESENT | PAGE_WRITABLE;
 
     if (*(volatile unsigned short *)VBE_MODE_FLAG_ADDRESS == 0xB33FU) {
-        uint32_t framebuffer_address = VBE_FRAMEBUFFER_VIRTUAL;
-        uint32_t *framebuffer_table;
+        pmm_u32_t framebuffer_address = VBE_FRAMEBUFFER_VIRTUAL;
+        pmm_u32_t *framebuffer_table;
 
         framebuffer_table_address = pmm_alloc_block();
         if (framebuffer_table_address == 0) {
@@ -67,7 +67,7 @@ int paging_init(void)
             return 0;
         }
 
-        framebuffer_table = (uint32_t *)framebuffer_table_address;
+        framebuffer_table = (pmm_u32_t *)framebuffer_table_address;
         for (index = 0; index < PAGE_TABLE_ENTRIES; index++) {
             framebuffer_table[index] = 0;
         }

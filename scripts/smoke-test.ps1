@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateRange(1, 120)][int]$TimeoutSeconds = 15,
+    [ValidateRange(16, 2048)][int]$MemoryMiB = 128,
     [switch]$SkipBuild
 )
 
@@ -34,7 +35,7 @@ function Get-QemuPath {
 
 if (!$SkipBuild) {
     & (Join-Path $PSScriptRoot 'build.ps1')
-    if ($LASTEXITCODE -ne 0) {
+    if (!$?) {
         throw 'Smoke test oncesi derleme basarisiz oldu.'
     }
 }
@@ -53,6 +54,7 @@ $arguments = @(
     '-serial', "`"file:$serialLog`"",
     '-no-reboot',
     '-no-shutdown',
+    '-m', $MemoryMiB,
     '-drive', "`"file=$imagePath,format=raw,if=floppy`"",
     '-boot', 'a'
 )

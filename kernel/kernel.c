@@ -23,7 +23,14 @@ void kernel_main(const struct boot_info *boot_info)
     }
 
     serial_write("EfesOS: BIOS E820 entries available.\n");
-    pmm_init();
+    if (!pmm_init(boot_info)) {
+        kernel_panic("BIOS memory map contains no usable physical memory.");
+    }
+    serial_write("EfesOS: PMM blocks total=");
+    serial_write_hex(pmm_total_blocks());
+    serial_write(" free=");
+    serial_write_hex(pmm_free_blocks());
+    serial_write("\n");
     if (!pmm_self_test()) {
         kernel_panic("Physical memory manager self-test failed.");
     }
