@@ -13,6 +13,7 @@ extern unsigned char user_demo_end;
 static unsigned int process_loaded_base;
 static unsigned int process_loaded_end;
 static unsigned int process_stack_frame;
+static unsigned int process_address_space;
 static unsigned int process_reaps;
 
 static void copy_bytes(unsigned char *destination, const unsigned char *source, unsigned int length)
@@ -48,10 +49,19 @@ int user_process_init(void)
     unsigned int loaded_base = 0;
     unsigned int loaded_end = 0;
     int image_loaded = 0;
+    unsigned int address_space;
+    unsigned int kernel_directory = paging_kernel_directory();
     unsigned int index;
 
     if (code_size == 0U || code_size > PAGE_SIZE || paging_is_mapped(USER_CODE_ADDRESS) ||
         paging_is_mapped(USER_STACK_ADDRESS) || image_size > sizeof(image)) {
+        return 0;
+    }
+    address_space = paging_create_address_space();
+    if (address_space == 0U || !paging_switch_address_space(address_space)) {
+        if (address_space != 0U) {
+            paging_destroy_address_space(address_space);
+        }
         return 0;
     }
     stack_frame = pmm_alloc_block();
@@ -63,6 +73,8 @@ int user_process_init(void)
         if (stack_frame != 0U) {
             pmm_free_block(stack_frame);
         }
+        paging_switch_address_space(kernel_directory);
+        paging_destroy_address_space(address_space);
         return 0;
     }
     for (index = 0; index < sizeof(image); index++) {
@@ -91,20 +103,38 @@ int user_process_init(void)
     set_u32(image, 80U, 1U);
     copy_bytes(image + 116U, &user_demo_start, code_size);
     image_loaded = elf_load_image(image, image_size, &entry, &loaded_base, &loaded_end);
-    if (!image_loaded ||
-        entry != USER_CODE_ADDRESS || loaded_base != USER_CODE_ADDRESS ||
-        loaded_end != USER_CODE_ADDRESS + PAGE_SIZE ||
-        !scheduler_add_user_task("user-demo", entry, USER_STACK_ADDRESS + PAGE_SIZE)) {
+    if (!image_loaded || entry != USER_CODE_ADDRESS || loaded_base != USER_CODE_ADDRESS ||
+        loaded_end != USER_CODE_ADDRESS + PAGE_SIZE) {
         if (image_loaded) {
             elf_unload_image(loaded_base, loaded_end);
         }
         paging_unmap_page(USER_STACK_ADDRESS);
         pmm_free_block(stack_frame);
+        paging_switch_address_space(kernel_directory);
+        paging_destroy_address_space(address_space);
+        return 0;
+    }
+    if (!paging_switch_address_space(kernel_directory)) {
+        paging_switch_address_space(address_space);
+        elf_unload_image(loaded_base, loaded_end);
+        paging_unmap_page(USER_STACK_ADDRESS);
+        pmm_free_block(stack_frame);
+        return 0;
+    }
+    if (!scheduler_add_user_task_in_space("user-demo", entry, USER_STACK_ADDRESS + PAGE_SIZE,
+        address_space)) {
+        paging_switch_address_space(address_space);
+        elf_unload_image(loaded_base, loaded_end);
+        paging_unmap_page(USER_STACK_ADDRESS);
+        pmm_free_block(stack_frame);
+        paging_switch_address_space(kernel_directory);
+        paging_destroy_address_space(address_space);
         return 0;
     }
     process_loaded_base = loaded_base;
     process_loaded_end = loaded_end;
     process_stack_frame = stack_frame;
+    process_address_space = address_space;
     return 1;
 }
 
@@ -112,6 +142,9 @@ void user_process_reap(void)
 {
     unsigned int physical;
 
+    if (process_address_space != 0U && paging_current_directory() != process_address_space) {
+        paging_switch_address_space(process_address_space);
+    }
     if (process_loaded_base != 0U && process_loaded_end > process_loaded_base) {
         elf_unload_image(process_loaded_base, process_loaded_end);
         process_loaded_base = 0U;
@@ -122,14 +155,22 @@ void user_process_reap(void)
         if (physical != 0U) {
             pmm_free_block(physical);
         }
-    } else if (process_stack_frame != 0U) {
-        pmm_free_block(process_stack_frame);
     }
     process_stack_frame = 0U;
+    if (process_address_space != 0U) {
+        paging_switch_address_space(paging_kernel_directory());
+        paging_destroy_address_space(process_address_space);
+        process_address_space = 0U;
+    }
     process_reaps++;
 }
 
 unsigned int user_process_reap_count(void)
 {
     return process_reaps;
+}
+
+unsigned int user_process_address_space(void)
+{
+    return process_address_space;
 }

@@ -18,5 +18,10 @@ paging_u32_t paging_get_physical(paging_u32_t virtual_address);
 int paging_is_mapped(paging_u32_t virtual_address);
 int paging_validate_user_range(paging_u32_t virtual_address, paging_u32_t length, int writable);
 int paging_copy_from_user(void *destination, paging_u32_t source, paging_u32_t length);
+paging_u32_t paging_kernel_directory(void);
+paging_u32_t paging_current_directory(void);
+paging_u32_t paging_create_address_space(void);
+int paging_switch_address_space(paging_u32_t directory);
+int paging_destroy_address_space(paging_u32_t directory);
 
 #endif

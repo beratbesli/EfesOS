@@ -17,6 +17,8 @@ extern unsigned char __rodata_end;
 
 static paging_u32_t *page_directory;
 static paging_u32_t page_directory_physical;
+static paging_u32_t *kernel_page_directory;
+static paging_u32_t kernel_page_directory_physical;
 static int paging_enabled;
 
 static void clear_page(paging_u32_t *page)
@@ -248,6 +250,78 @@ int paging_copy_from_user(void *destination, paging_u32_t source, paging_u32_t l
     return 1;
 }
 
+paging_u32_t paging_kernel_directory(void)
+{
+    return kernel_page_directory_physical;
+}
+
+paging_u32_t paging_current_directory(void)
+{
+    return page_directory_physical;
+}
+
+paging_u32_t paging_create_address_space(void)
+{
+    paging_u32_t physical;
+    paging_u32_t *directory;
+    paging_u32_t index;
+
+    if (kernel_page_directory == 0) {
+        return 0;
+    }
+    physical = pmm_alloc_block_below(LOW_IDENTITY_LIMIT);
+    if (physical == 0U) {
+        return 0;
+    }
+    directory = (paging_u32_t *)physical;
+    for (index = 0; index < PAGE_TABLE_ENTRIES; index++) {
+        directory[index] = kernel_page_directory[index];
+    }
+    return physical;
+}
+
+int paging_switch_address_space(paging_u32_t directory)
+{
+    if (directory == 0U || (directory & (PAGE_SIZE - 1U)) != 0U ||
+        directory == page_directory_physical) {
+        return directory == page_directory_physical;
+    }
+    page_directory_physical = directory;
+    page_directory = (paging_u32_t *)directory;
+    flush_tlb();
+    return 1;
+}
+
+int paging_destroy_address_space(paging_u32_t directory)
+{
+    paging_u32_t *space;
+    paging_u32_t index;
+
+    if (directory == 0U || directory == kernel_page_directory_physical ||
+        directory == page_directory_physical || (directory & (PAGE_SIZE - 1U)) != 0U) {
+        return 0;
+    }
+    space = (paging_u32_t *)directory;
+    for (index = 1; index < (USER_ADDRESS_LIMIT >> 22U); index++) {
+        paging_u32_t entry = space[index];
+        paging_u32_t *table;
+        paging_u32_t table_index;
+
+        if ((entry & PAGE_PRESENT) == 0U || entry == kernel_page_directory[index]) {
+            continue;
+        }
+        table = (paging_u32_t *)(entry & PAGE_ADDRESS_MASK);
+        for (table_index = 0; table_index < PAGE_TABLE_ENTRIES; table_index++) {
+            if ((table[table_index] & PAGE_PRESENT) != 0U) {
+                pmm_free_block(table[table_index] & PAGE_ADDRESS_MASK);
+            }
+        }
+        pmm_free_block((paging_u32_t)table);
+    }
+    pmm_free_block(directory);
+    return 1;
+}
+
 static void protect_kernel_read_only(void)
 {
     paging_u32_t address = (paging_u32_t)&__text_start;
@@ -293,6 +367,8 @@ int paging_init(const struct boot_info *boot_info)
     }
 
     page_directory = (paging_u32_t *)page_directory_physical;
+    kernel_page_directory = page_directory;
+    kernel_page_directory_physical = page_directory_physical;
     identity_table = (paging_u32_t *)identity_table_physical;
     clear_page(page_directory);
     clear_page(identity_table);

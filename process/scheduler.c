@@ -23,6 +23,7 @@ struct scheduler_task {
     unsigned int stack_frames[SCHEDULER_STACK_PAGES];
     unsigned int user_entry;
     unsigned int user_stack_top;
+    unsigned int address_space;
     unsigned int mode;
     scheduler_counter_t switches;
     unsigned int state;
@@ -48,6 +49,7 @@ static void clear_task(struct scheduler_task *task)
     task->stack_base = 0;
     task->user_entry = 0;
     task->user_stack_top = 0;
+    task->address_space = 0;
     task->mode = TASK_KERNEL;
     task->switches = 0;
     task->state = TASK_TERMINATED;
@@ -155,6 +157,9 @@ static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame
     }
     current_task = next;
     tasks[current_task].switches++;
+    if (!paging_switch_address_space(tasks[current_task].address_space)) {
+        kernel_panic("Task address-space switch failed.");
+    }
     return tasks[current_task].frame;
 }
 
@@ -170,6 +175,7 @@ void scheduler_init(void)
     scheduler_started = 0;
     tasks[0].name = "kernel";
     tasks[0].state = TASK_RUNNABLE;
+    tasks[0].address_space = paging_kernel_directory();
 }
 
 int scheduler_add_task(const char *name, scheduler_task_t task)
@@ -183,6 +189,32 @@ int scheduler_add_task(const char *name, scheduler_task_t task)
     clear_task(new_task);
     new_task->name = name;
     new_task->entry = task;
+    new_task->address_space = paging_kernel_directory();
+    new_task->state = TASK_RUNNABLE;
+    if (!allocate_task_stack(new_task, task_count)) {
+        clear_task(new_task);
+        return 0;
+    }
+    task_count++;
+    return 1;
+}
+
+int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
+    unsigned int user_stack_top, unsigned int address_space)
+{
+    struct scheduler_task *new_task;
+
+    if (name == 0 || entry == 0U || user_stack_top == 0U || scheduler_started != 0 ||
+        address_space == 0U || task_count == SCHEDULER_MAX_TASKS) {
+        return 0;
+    }
+    new_task = &tasks[task_count];
+    clear_task(new_task);
+    new_task->name = name;
+    new_task->user_entry = entry;
+    new_task->user_stack_top = user_stack_top;
+    new_task->address_space = address_space;
+    new_task->mode = TASK_USER;
     new_task->state = TASK_RUNNABLE;
     if (!allocate_task_stack(new_task, task_count)) {
         clear_task(new_task);
@@ -194,25 +226,8 @@ int scheduler_add_task(const char *name, scheduler_task_t task)
 
 int scheduler_add_user_task(const char *name, unsigned int entry, unsigned int user_stack_top)
 {
-    struct scheduler_task *new_task;
-
-    if (name == 0 || entry == 0U || user_stack_top == 0U || scheduler_started != 0 ||
-        task_count == SCHEDULER_MAX_TASKS) {
-        return 0;
-    }
-    new_task = &tasks[task_count];
-    clear_task(new_task);
-    new_task->name = name;
-    new_task->user_entry = entry;
-    new_task->user_stack_top = user_stack_top;
-    new_task->mode = TASK_USER;
-    new_task->state = TASK_RUNNABLE;
-    if (!allocate_task_stack(new_task, task_count)) {
-        clear_task(new_task);
-        return 0;
-    }
-    task_count++;
-    return 1;
+    return scheduler_add_user_task_in_space(name, entry, user_stack_top,
+        paging_current_directory());
 }
 
 void scheduler_start(void)

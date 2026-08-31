@@ -214,6 +214,11 @@ void kernel_main(const struct boot_info *boot_info)
     if (!user_process_init()) {
         kernel_panic("User process initialization failed.");
     }
+    if (user_process_address_space() == 0U ||
+        user_process_address_space() == paging_kernel_directory()) {
+        kernel_panic("User process address-space isolation failed.");
+    }
+    serial_write("EfesOS: user address-space isolation self-test passed.\n");
     scheduler_add_task("event-loop", kernel_event_task);
     last_game_tick = 0;
 
