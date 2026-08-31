@@ -14,6 +14,7 @@ static volatile unsigned int user_ipc_reject_count;
 static volatile unsigned int user_ipc_target_count;
 static volatile unsigned int user_ipc_wait_count;
 static volatile unsigned int user_ipc_block_count;
+static volatile unsigned int user_exit_count;
 static volatile unsigned int user_pid_call_count;
 
 void syscall_init(void)
@@ -26,6 +27,7 @@ void syscall_init(void)
     user_ipc_target_count = 0;
     user_ipc_wait_count = 0;
     user_ipc_block_count = 0;
+    user_exit_count = 0;
     user_pid_call_count = 0;
 }
 
@@ -172,6 +174,7 @@ struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
         if ((frame->cs & 3U) != 3U) {
             frame->eax = SYSCALL_EFAULT;
         } else {
+            user_exit_count++;
             frame = scheduler_on_user_exit(frame);
         }
     } else {
@@ -218,6 +221,11 @@ unsigned int syscall_user_ipc_wait_count(void)
 unsigned int syscall_user_ipc_block_count(void)
 {
     return user_ipc_block_count;
+}
+
+unsigned int syscall_user_exit_count(void)
+{
+    return user_exit_count;
 }
 
 unsigned int syscall_user_pid_call_count(void)

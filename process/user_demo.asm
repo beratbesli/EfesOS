@@ -74,6 +74,16 @@ user_demo_start:
     int 0x80
     mov eax, 0
     int 0x80
+    ; The even-slot task exits through the lifecycle syscall; the odd-slot
+    ; task continues into the deliberate isolated page fault below.
+    mov eax, 5
+    int 0x80
+    test al, 1
+    jnz .fault_probe
+    mov eax, 8
+    int 0x80
+    jmp .loop
+.fault_probe:
     ; Deliberately cross a supervisor-only page. The kernel must terminate this
     ; task and continue running other tasks instead of panicking globally.
     mov dword [0x00010000], eax

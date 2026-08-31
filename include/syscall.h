@@ -29,6 +29,7 @@ unsigned int syscall_user_ipc_reject_count(void);
 unsigned int syscall_user_ipc_target_count(void);
 unsigned int syscall_user_ipc_wait_count(void);
 unsigned int syscall_user_ipc_block_count(void);
+unsigned int syscall_user_exit_count(void);
 unsigned int syscall_user_pid_call_count(void);
 
 #endif

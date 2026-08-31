@@ -28,6 +28,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - IPC syscalls (`IPC_SEND`, `IPC_RECEIVE`, `IPC_SEND_TO`, `IPC_RECEIVE_WAIT`, `EXIT`) with 16-message/64-byte bounds, generation-PID routing, scheduler wakeups, and validated user copies
 - Generation-based `GET_PID` syscall so reused task slots do not retain stale identities
 - Stage-2 kernel integrity checksum before protected-mode handoff (integrity, not authenticity)
+- Bounded user `EXIT` lifecycle with resource reclamation and scheduler slot reuse
 - E820-backed physical-memory allocation across the 32-bit address space
 - Null-page protection, read-only kernel code/data, dynamic page mapping and a guarded kernel heap
 - VGA text/graphics output with scrolling
