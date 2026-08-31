@@ -14,6 +14,8 @@
 #define TASK_TERMINATED 1U
 #define TASK_KERNEL 0U
 #define TASK_USER 1U
+#define SCHEDULER_DEFAULT_PRIORITY 1U
+#define SCHEDULER_MAX_PRIORITY 8U
 
 struct scheduler_task {
     const char *name;
@@ -25,6 +27,8 @@ struct scheduler_task {
     unsigned int user_stack_top;
     unsigned int address_space;
     unsigned int mode;
+    unsigned int priority;
+    unsigned int ticks_left;
     scheduler_counter_t switches;
     unsigned int state;
 };
@@ -51,6 +55,8 @@ static void clear_task(struct scheduler_task *task)
     task->user_stack_top = 0;
     task->address_space = 0;
     task->mode = TASK_KERNEL;
+    task->priority = SCHEDULER_DEFAULT_PRIORITY;
+    task->ticks_left = SCHEDULER_DEFAULT_PRIORITY;
     task->switches = 0;
     task->state = TASK_TERMINATED;
 }
@@ -139,7 +145,7 @@ static void save_user_frame(struct scheduler_task *task, const struct interrupt_
     destination_extra[1] = source_extra[1];
 }
 
-static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame)
+static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame, int force)
 {
     unsigned int next;
 
@@ -151,12 +157,19 @@ static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame
     } else {
         tasks[current_task].frame = frame;
     }
+    if (force == 0 && tasks[current_task].state == TASK_RUNNABLE) {
+        if (tasks[current_task].ticks_left > 1U) {
+            tasks[current_task].ticks_left--;
+            return frame;
+        }
+    }
     next = find_next_runnable();
     if (next == current_task) {
         return frame;
     }
     current_task = next;
     tasks[current_task].switches++;
+    tasks[current_task].ticks_left = tasks[current_task].priority;
     if (!paging_switch_address_space(tasks[current_task].address_space)) {
         kernel_panic("Task address-space switch failed.");
     }
@@ -196,6 +209,17 @@ int scheduler_add_task(const char *name, scheduler_task_t task)
         return 0;
     }
     task_count++;
+    return 1;
+}
+
+int scheduler_set_priority(unsigned int index, unsigned int priority)
+{
+    if (index == 0U || index >= task_count || priority == 0U ||
+        priority > SCHEDULER_MAX_PRIORITY || scheduler_started != 0) {
+        return 0;
+    }
+    tasks[index].priority = priority;
+    tasks[index].ticks_left = priority;
     return 1;
 }
 
@@ -240,12 +264,12 @@ void scheduler_start(void)
 
 struct interrupt_frame *scheduler_on_timer(struct interrupt_frame *frame)
 {
-    return schedule_from_frame(frame);
+    return schedule_from_frame(frame, 0);
 }
 
 struct interrupt_frame *scheduler_on_yield(struct interrupt_frame *frame)
 {
-    return schedule_from_frame(frame);
+    return schedule_from_frame(frame, 1);
 }
 
 struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame)
@@ -255,7 +279,7 @@ struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame)
     }
     tasks[current_task].state = TASK_TERMINATED;
     user_process_reap();
-    return schedule_from_frame(frame);
+    return schedule_from_frame(frame, 1);
 }
 
 static void scheduler_task_trampoline(void)

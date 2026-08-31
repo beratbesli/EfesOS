@@ -226,6 +226,10 @@ void kernel_main(const struct boot_info *boot_info)
     }
     serial_write("EfesOS: user address-space isolation self-test passed.\n");
     scheduler_add_task("event-loop", kernel_event_task);
+    if (!scheduler_set_priority(1U, 2U) || !scheduler_set_priority(2U, 1U)) {
+        kernel_panic("Scheduler priority setup failed.");
+    }
+    serial_write("EfesOS: scheduler priority self-test passed.\n");
     last_game_tick = 0;
 
     keyboard_init();
