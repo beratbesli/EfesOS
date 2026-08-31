@@ -1,4 +1,5 @@
 #include "keyboard.h"
+#include "ata.h"
 #include "language.h"
 #include "games.h"
 #include "heap.h"
@@ -64,10 +65,10 @@ static void print_prompt(void)
 static void print_help(void)
 {
     if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
-        vga_write("Komutlar: help clear about mem heap input uptime ps demo pci counter snake slot\n");
+        vga_write("Komutlar: help clear about mem heap input uptime ps demo pci disk counter snake slot\n");
         vga_write("echo history color ls cat write rm reboot shutdown tr en\n");
     } else {
-        vga_write("Commands: help clear about mem heap input uptime ps demo pci counter snake slot\n");
+        vga_write("Commands: help clear about mem heap input uptime ps demo pci disk counter snake slot\n");
         vga_write("echo history color ls cat write rm reboot shutdown tr en\n");
     }
 }
@@ -137,6 +138,16 @@ static void print_pci(void)
         vga_write_unsigned(device->class_code);
         vga_write_char('/');
         vga_write_unsigned(device->subclass);
+        vga_write_char('\n');
+    }
+}
+
+static void print_disk(void)
+{
+    vga_write("ATA primary master: ");
+    vga_write(ata_present() ? "present sectors=" : "not present\n");
+    if (ata_present()) {
+        vga_write_unsigned(ata_sector_count());
         vga_write_char('\n');
     }
 }
@@ -278,6 +289,8 @@ static void execute_command(void)
         print_demo();
     } else if (string_equals(input, "pci")) {
         print_pci();
+    } else if (string_equals(input, "disk")) {
+        print_disk();
     } else if (string_equals(input, "counter")) {
         vga_write("counter=");
         vga_write_unsigned(counter_program_runs());

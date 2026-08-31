@@ -1,4 +1,5 @@
 #include "boot_info.h"
+#include "ata.h"
 #include "idt.h"
 #include "games.h"
 #include "heap.h"
@@ -100,6 +101,12 @@ void kernel_main(const struct boot_info *boot_info)
     pci_init();
     serial_write("EfesOS: PCI devices discovered=");
     serial_write_hex(pci_device_count());
+    serial_write("\n");
+    ata_init();
+    serial_write("EfesOS: ATA primary-master present=");
+    serial_write_hex(ata_present());
+    serial_write(" sectors=");
+    serial_write_hex(ata_sector_count());
     serial_write("\n");
 
     idt_init();

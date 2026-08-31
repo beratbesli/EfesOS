@@ -16,6 +16,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Kul
 - Koruma sayfalı görev yığınları ve PIT tabanlı bağlam değişimi olan öncelikli kernel-thread scheduler
 - Shell ve oyunları donanım IRQ'ları dışında çalıştıran ertelenmiş olay döngüsü
 - Sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
+- Zaman aşımı ve hata denetimli ATA PIO birincil disk erişimi; disk yokluğu açıkça raporlanır
 - 32-bit adres alanını kapsayan E820 tabanlı fiziksel bellek yöneticisi
 - Null-page koruması, salt-okunur kernel kod/verisi, dinamik sayfa eşleme ve korumalı kernel heap'i
 - Kaydırma destekli VGA metin/grafik çıktısı

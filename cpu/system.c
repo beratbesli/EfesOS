@@ -1,11 +1,6 @@
 #include "io.h"
 #include "system.h"
 
-static void outw(unsigned short port, unsigned short value)
-{
-    __asm__ volatile ("outw %0, %1" : : "a"(value), "Nd"(port));
-}
-
 static void stop_cpu(void)
 {
     __asm__ volatile ("cli");

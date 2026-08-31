@@ -17,6 +17,18 @@ static inline void outb(unsigned short port, uint8_t value)
     __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
 }
 
+static inline uint16_t inw(unsigned short port)
+{
+    uint16_t value;
+    __asm__ volatile ("inw %1, %0" : "=a"(value) : "Nd"(port));
+    return value;
+}
+
+static inline void outw(unsigned short port, uint16_t value)
+{
+    __asm__ volatile ("outw %0, %1" : : "a"(value), "Nd"(port));
+}
+
 static inline uint32_t inl(unsigned short port)
 {
     uint32_t value;
