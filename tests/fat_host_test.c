@@ -34,6 +34,20 @@ static int read_fixture(unsigned int lba, unsigned char count, void *buffer)
     return 1;
 }
 
+static int read_fixed_boot(unsigned int lba, unsigned char count, void *buffer)
+{
+    unsigned int index;
+
+    (void)lba;
+    if (count != 1U) {
+        return 0;
+    }
+    for (index = 0; index < SECTOR_SIZE; index++) {
+        ((unsigned char *)buffer)[index] = disk[index];
+    }
+    return 1;
+}
+
 static void build_fixture(void)
 {
     unsigned int index;
@@ -89,6 +103,20 @@ int main(void)
         name[0] != 'H' || name[1] != 'E' || name[2] != 'L' ||
         !fat_read_file(&volume, "hello.txt", contents, sizeof(contents), &size) ||
         size != 14U || contents[0] != 'E' || contents[13] != '\n') {
+        return 1;
+    }
+    build_fixture();
+    put16(11, 256);
+    if (fat_mount(&volume, read_fixture, 0) || fat_last_error() != 4U) {
+        return 1;
+    }
+    build_fixture();
+    disk[13] = 129;
+    if (fat_mount(&volume, read_fixture, 0) || fat_last_error() != 4U) {
+        return 1;
+    }
+    build_fixture();
+    if (fat_mount(&volume, read_fixed_boot, 0xFFFFFFF0U) || fat_last_error() != 7U) {
         return 1;
     }
     puts("FAT host self-test passed.");
