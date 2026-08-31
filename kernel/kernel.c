@@ -16,6 +16,7 @@
 #include "syscall.h"
 #include "tss.h"
 #include "user_process.h"
+#include "elf_loader.h"
 #include "vfs.h"
 #include "fat.h"
 #include "shell.h"
@@ -99,6 +100,10 @@ void kernel_main(const struct boot_info *boot_info)
     if (!pmm_self_test()) {
         kernel_panic("Physical memory manager self-test failed.");
     }
+    if (!elf_loader_self_test()) {
+        kernel_panic("ELF loader self-test failed.");
+    }
+    serial_write("EfesOS: ELF loader validation self-test passed.\n");
 
     pci_init();
     serial_write("EfesOS: PCI devices discovered=");
