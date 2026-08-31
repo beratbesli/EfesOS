@@ -1,0 +1,27 @@
+name: EfesOS CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain and emulator
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y clang lld nasm qemu-system-x86 make
+      - name: Build and verify image
+        run: make verify
+      - name: FAT parser host test
+        run: clang -std=c11 -Wall -Wextra -Werror -Ifs tests/fat_host_test.c fs/fat.c -o build/fat-host-test && build/fat-host-test
+      - name: QEMU boot smoke test
+        run: |
+          timeout 20s qemu-system-i386 -display none -monitor none -serial file:build/ci-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
+          grep -F "EfesOS: ring3 syscall runtime test passed." build/ci-serial.log
+          grep -F "EfesOS: user exception isolated." build/ci-serial.log
+          grep -F "EfesOS: preemptive scheduler runtime test passed." build/ci-serial.log
