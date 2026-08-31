@@ -4,6 +4,7 @@
 #include "paging.h"
 #include "panic.h"
 #include "pmm.h"
+#include "user_process.h"
 
 #define SCHEDULER_MAX_TASKS 8U
 #define SCHEDULER_STACK_PAGES 4U
@@ -238,6 +239,7 @@ struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame)
         return frame;
     }
     tasks[current_task].state = TASK_TERMINATED;
+    user_process_reap();
     return schedule_from_frame(frame);
 }
 

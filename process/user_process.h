@@ -2,5 +2,7 @@
 #define EFESOS_USER_PROCESS_H
 
 int user_process_init(void);
+void user_process_reap(void);
+unsigned int user_process_reap_count(void);
 
 #endif

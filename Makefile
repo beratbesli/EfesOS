@@ -114,7 +114,7 @@ $(PAGING_OBJ): memory/paging.c memory/paging.h memory/pmm.h include/boot_info.h 
 $(HEAP_OBJ): memory/heap.c memory/heap.h memory/paging.h memory/pmm.h include/boot_info.h kernel/panic.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Ikernel -Imemory -c $< -o $@
 
-$(SCHEDULER_OBJ): process/scheduler.c process/scheduler.h cpu/idt.h memory/heap.h memory/paging.h memory/pmm.h kernel/panic.h | $(BUILD_DIR)
+$(SCHEDULER_OBJ): process/scheduler.c process/scheduler.h process/user_process.h cpu/idt.h memory/heap.h memory/paging.h memory/pmm.h kernel/panic.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Imemory -Iprocess -c $< -o $@
 
 $(USER_PROCESS_OBJ): process/user_process.c process/user_process.h process/scheduler.h memory/paging.h memory/pmm.h | $(BUILD_DIR)

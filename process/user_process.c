@@ -10,6 +10,11 @@
 extern unsigned char user_demo_start;
 extern unsigned char user_demo_end;
 
+static unsigned int process_loaded_base;
+static unsigned int process_loaded_end;
+static unsigned int process_stack_frame;
+static unsigned int process_reaps;
+
 static void copy_bytes(unsigned char *destination, const unsigned char *source, unsigned int length)
 {
     unsigned int index;
@@ -97,5 +102,34 @@ int user_process_init(void)
         pmm_free_block(stack_frame);
         return 0;
     }
+    process_loaded_base = loaded_base;
+    process_loaded_end = loaded_end;
+    process_stack_frame = stack_frame;
     return 1;
+}
+
+void user_process_reap(void)
+{
+    unsigned int physical;
+
+    if (process_loaded_base != 0U && process_loaded_end > process_loaded_base) {
+        elf_unload_image(process_loaded_base, process_loaded_end);
+        process_loaded_base = 0U;
+        process_loaded_end = 0U;
+    }
+    if (process_stack_frame != 0U && paging_is_mapped(USER_STACK_ADDRESS)) {
+        physical = paging_unmap_page(USER_STACK_ADDRESS);
+        if (physical != 0U) {
+            pmm_free_block(physical);
+        }
+    } else if (process_stack_frame != 0U) {
+        pmm_free_block(process_stack_frame);
+    }
+    process_stack_frame = 0U;
+    process_reaps++;
+}
+
+unsigned int user_process_reap_count(void)
+{
+    return process_reaps;
 }
