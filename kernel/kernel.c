@@ -25,6 +25,7 @@
 
 static int scheduler_runtime_verified;
 static int user_runtime_verified;
+static int user_pointer_runtime_verified;
 static pit_tick_t last_game_tick;
 
 static void verify_mounted_disk_read(void)
@@ -33,7 +34,10 @@ static void verify_mounted_disk_read(void)
     char contents[65];
     unsigned int size;
 
-    if (!vfs_is_mounted() || vfs_file_count() == 0U ||
+    if (!vfs_is_mounted()) {
+        return;
+    }
+    if (vfs_file_count() == 0U ||
         !vfs_file_name(0, name, sizeof(name)) ||
         !vfs_read_file(name, contents, sizeof(contents) - 1U, &size)) {
         return;
@@ -88,6 +92,10 @@ static void kernel_process_events(void)
     if (!user_runtime_verified && syscall_user_call_count() != 0U) {
         user_runtime_verified = 1;
         serial_write("EfesOS: ring3 syscall runtime test passed.\n");
+    }
+    if (!user_pointer_runtime_verified && syscall_user_pointer_reject_count() != 0U) {
+        user_pointer_runtime_verified = 1;
+        serial_write("EfesOS: user pointer validation runtime test passed.\n");
     }
     if (pit_ticks() != last_game_tick) {
         last_game_tick = pit_ticks();
@@ -188,6 +196,7 @@ void kernel_main(const struct boot_info *boot_info)
     scheduler_init();
     scheduler_runtime_verified = 0;
     user_runtime_verified = 0;
+    user_pointer_runtime_verified = 0;
     programs_init();
     ramfs_init();
     if (!ramfs_self_test()) {

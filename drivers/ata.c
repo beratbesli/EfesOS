@@ -20,7 +20,7 @@
 #define ATA_STATUS_DF 0x20U
 #define ATA_STATUS_RDY 0x40U
 #define ATA_STATUS_BSY 0x80U
-#define ATA_TIMEOUT 1U
+#define ATA_TIMEOUT 1000U
 
 static int device_present;
 static uint32_t sectors;
@@ -47,6 +47,14 @@ static void ata_400ns_delay(void)
     inb(ATA_STATUS);
 }
 
+static void ata_poll_delay(void)
+{
+    inb(ATA_CONTROL);
+    inb(ATA_CONTROL);
+    inb(ATA_CONTROL);
+    inb(ATA_CONTROL);
+}
+
 static int wait_status(uint8_t required, uint8_t forbidden)
 {
     unsigned int attempt;
@@ -55,12 +63,17 @@ static int wait_status(uint8_t required, uint8_t forbidden)
         uint8_t status = inb(ATA_STATUS);
         last_status = status;
 
-        if ((status & forbidden) != 0U) {
+        if ((status & (forbidden & (uint8_t)~ATA_STATUS_BSY)) != 0U) {
             return 0;
+        }
+        if ((status & ATA_STATUS_BSY) != 0U) {
+            ata_poll_delay();
+            continue;
         }
         if ((status & required) == required) {
             return 1;
         }
+        ata_poll_delay();
     }
     return 0;
 }
@@ -163,6 +176,10 @@ int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer)
                 destination[(sector * ATA_SECTOR_SIZE) + (word * 2U) + 1U] = (uint8_t)(value >> 8U);
             }
         }
+        if (!wait_status(0, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
+            irq_restore(flags);
+            return 0;
+        }
     }
     irq_restore(flags);
     return 1;
@@ -197,6 +214,10 @@ int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
                     ((uint16_t)source[(sector * ATA_SECTOR_SIZE) + (word * 2U) + 1U] << 8U);
                 outw(ATA_DATA, value);
             }
+        }
+        if (!wait_status(0, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
+            irq_restore(flags);
+            return 0;
         }
     }
     outb(ATA_COMMAND, ATA_CMD_FLUSH);
