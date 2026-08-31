@@ -18,6 +18,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Deferred event loop; shell and games never run inside hardware IRQ handlers
 - PCI configuration-space enumeration with a bounded `pci` diagnostic command
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
+- ATA raw writes disabled by default until a transactional filesystem layer is available
 - Read-only FAT16 VFS mount with bounded 8.3 directory and file reads (`diskls`, `diskcat`)
 - Bounded ELF32 segment loader with BSS initialization, W^X checks and page-permission finalization
 - Bounded user-buffer validation for the data-carrying serial syscall, including overflow and permission checks

@@ -22,11 +22,13 @@
 #define ATA_STATUS_BSY 0x80U
 #define ATA_TIMEOUT 1000U
 #define ATA_LBA28_LIMIT 0x10000000U
+#define ATA_WRITES_PROTECTED_BY_DEFAULT 1
 
 static int device_present;
 static uint32_t sectors;
 static uint8_t last_status;
 static uint16_t identify_type;
+static int writes_protected;
 
 static unsigned int irq_save(void)
 {
@@ -108,6 +110,7 @@ void ata_init(void)
     sectors = 0;
     last_status = 0;
     identify_type = 0;
+    writes_protected = ATA_WRITES_PROTECTED_BY_DEFAULT;
     /* Polling mode: disable ATA IRQ delivery while commands are in flight. */
     outb(ATA_CONTROL, 0x02U);
     outb(ATA_DRIVE, 0xA0U);
@@ -159,7 +162,7 @@ int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer)
     unsigned int sector;
     unsigned int flags;
 
-    if (!valid_request(lba, count, buffer)) {
+    if (writes_protected || !valid_request(lba, count, buffer)) {
         return 0;
     }
     flags = irq_save();
@@ -190,6 +193,11 @@ int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer)
     }
     irq_restore(flags);
     return 1;
+}
+
+int ata_write_protected(void)
+{
+    return writes_protected;
 }
 
 int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
