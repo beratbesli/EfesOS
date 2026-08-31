@@ -14,6 +14,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - BIOS E820 bellek haritası aktarımı ve deterministik `.bss` başlangıcı
 - 32-bit protected mode, GDT, vektör duyarlı IDT, PIC, PIT ve tamponlanmış donanım klavye girişi
 - Koruma sayfalı görev yığınları ve PIT tabanlı bağlam değişimi olan öncelikli kernel-thread scheduler
+- Açık `yield` desteğiyle sınırlı öncelik zaman dilimleri
 - Shell ve oyunları donanım IRQ'ları dışında çalıştıran ertelenmiş olay döngüsü
 - Sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
 - Zaman aşımı ve hata denetimli ATA PIO birincil disk erişimi; disk yokluğu açıkça raporlanır

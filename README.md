@@ -14,6 +14,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - BIOS E820 memory map handoff and deterministic `.bss` initialization
 - 32-bit protected mode, GDT, vector-aware IDT, PIC, PIT and buffered hardware keyboard input
 - Preemptive kernel-thread scheduler with guarded per-task stacks and timer-driven context switching
+- Bounded priority time slices with explicit voluntary-yield handling
 - Deferred event loop; shell and games never run inside hardware IRQ handlers
 - PCI configuration-space enumeration with a bounded `pci` diagnostic command
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
