@@ -20,10 +20,10 @@ EfesOS is a learning project, not a production operating system. It has no user-
 ## Requirements
 
 - NASM
-- `i686-elf-gcc`, `i686-elf-ld`, `i686-elf-objcopy`
+- Either `i686-elf-gcc`, `i686-elf-ld`, and `i686-elf-objcopy`, or LLVM (`clang`, `ld.lld`, and `llvm-objcopy`)
 - QEMU (`qemu-system-i386`)
 
-Use a toolchain obtained from a trusted source and verify its checksum before installing it. EfesOS does not download or vendor compiler binaries.
+The Windows build script prefers the GNU cross-toolchain when it is available and otherwise uses Clang with the `i686-none-elf` target. Use tools obtained from trusted sources and verify their checksums before installing them. EfesOS does not download or vendor compiler binaries.
 
 ## Build and run on Windows
 

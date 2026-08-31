@@ -20,10 +20,10 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Kul
 ## Gereksinimler
 
 - NASM
-- `i686-elf-gcc`, `i686-elf-ld`, `i686-elf-objcopy`
+- `i686-elf-gcc`, `i686-elf-ld`, `i686-elf-objcopy` veya LLVM (`clang`, `ld.lld`, `llvm-objcopy`)
 - QEMU (`qemu-system-i386`)
 
-Araç zincirini güvenilir bir kaynaktan edin ve kurmadan önce checksum doğrulaması yap. EfesOS derleyici ikililerini indirmez veya depoda barındırmaz.
+Windows derleme betiği varsa GNU cross-toolchain'i, yoksa Clang'in `i686-none-elf` hedefini kullanır. Araçları güvenilir bir kaynaktan edin ve kurmadan önce checksum doğrulaması yap. EfesOS derleyici ikililerini indirmez veya depoda barındırmaz.
 
 ## Windows'ta derleme ve çalıştırma
 
