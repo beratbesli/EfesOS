@@ -2,6 +2,8 @@
 
 global kernel_entry
 extern kernel_main
+extern __bss_start
+extern __bss_end
 
 CODE_SEGMENT equ 0x08
 DATA_SEGMENT equ 0x10
@@ -29,8 +31,19 @@ protected_mode_entry:
     mov fs, ax
     mov gs, ax
     mov ss, ax
+
+    ; C requires all objects in .bss to start as zero. The raw kernel image does
+    ; not contain SHT_NOBITS bytes, so the loader cannot do this for us.
+    mov edi, __bss_start
+    mov ecx, __bss_end
+    sub ecx, edi
+    xor eax, eax
+    rep stosb
+
     mov esp, 0x90000
+    push esi
     call kernel_main
+    add esp, 4
 
 .halt:
     hlt

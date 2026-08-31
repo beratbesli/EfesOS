@@ -1,0 +1,93 @@
+[CmdletBinding()]
+param(
+    [ValidateRange(1, 120)][int]$TimeoutSeconds = 15,
+    [switch]$SkipBuild
+)
+
+$ErrorActionPreference = 'Stop'
+
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$buildDirectory = Join-Path $projectRoot 'build'
+$imagePath = Join-Path $buildDirectory 'efesos.img'
+$serialLog = Join-Path $buildDirectory 'smoke-serial.log'
+$qemuErrorLog = Join-Path $buildDirectory 'smoke-qemu-error.log'
+$successMarker = 'EfesOS: paging enabled.'
+
+function Get-QemuPath {
+    $command = Get-Command 'qemu-system-i386' -ErrorAction SilentlyContinue
+    if ($null -ne $command) {
+        return $command.Source
+    }
+
+    $fallbacks = @(
+        (Join-Path $env:ProgramFiles 'qemu\qemu-system-i386.exe'),
+        (Join-Path $env:ProgramFiles 'QEMU\qemu-system-i386.exe')
+    )
+    foreach ($path in $fallbacks) {
+        if (Test-Path -LiteralPath $path) {
+            return $path
+        }
+    }
+
+    throw 'Gerekli arac bulunamadi: qemu-system-i386'
+}
+
+if (!$SkipBuild) {
+    & (Join-Path $PSScriptRoot 'build.ps1')
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Smoke test oncesi derleme basarisiz oldu.'
+    }
+}
+
+if (!(Test-Path -LiteralPath $imagePath)) {
+    throw "Disk imaji bulunamadi: $imagePath"
+}
+
+New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null
+Remove-Item -LiteralPath $serialLog, $qemuErrorLog -Force -ErrorAction SilentlyContinue
+
+$qemu = Get-QemuPath
+$arguments = @(
+    '-display', 'none',
+    '-monitor', 'none',
+    '-serial', "`"file:$serialLog`"",
+    '-no-reboot',
+    '-no-shutdown',
+    '-drive', "`"file=$imagePath,format=raw,if=floppy`"",
+    '-boot', 'a'
+)
+
+$process = Start-Process -FilePath $qemu -ArgumentList $arguments -RedirectStandardError $qemuErrorLog -WindowStyle Hidden -PassThru
+$deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+$passed = $false
+
+try {
+    while ([DateTime]::UtcNow -lt $deadline) {
+        if (Test-Path -LiteralPath $serialLog) {
+            $output = Get-Content -LiteralPath $serialLog -Raw -ErrorAction SilentlyContinue
+            if ($output -like "*$successMarker*") {
+                $passed = $true
+                break
+            }
+        }
+
+        if ($process.HasExited) {
+            break
+        }
+        Start-Sleep -Milliseconds 200
+        $process.Refresh()
+    }
+} finally {
+    if (!$process.HasExited) {
+        Stop-Process -Id $process.Id -Force
+        $process.WaitForExit()
+    }
+}
+
+if (!$passed) {
+    $serialOutput = if (Test-Path -LiteralPath $serialLog) { Get-Content -LiteralPath $serialLog -Raw } else { '<no serial output>' }
+    $qemuError = if (Test-Path -LiteralPath $qemuErrorLog) { Get-Content -LiteralPath $qemuErrorLog -Raw } else { '<no qemu error output>' }
+    throw "QEMU smoke test basarisiz oldu.`nSerial:`n$serialOutput`nQEMU:`n$qemuError"
+}
+
+Write-Host "QEMU smoke test passed: $successMarker"

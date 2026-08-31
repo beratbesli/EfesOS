@@ -4,17 +4,22 @@ QEMU ?= qemu-system-i386
 CC := $(CROSS)-gcc
 LD := $(CROSS)-ld
 OBJCOPY := $(CROSS)-objcopy
+CFLAGS := -m32 -std=c11 -ffreestanding -fno-builtin -fno-pic -fno-pie -fno-stack-protector -fno-unwind-tables -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -nostdlib -Wall -Wextra -Werror
 
 BUILD_DIR := build
-KERNEL_SECTORS ?= 52
-KERNEL_BYTES := $(shell expr $(KERNEL_SECTORS) \* 512)
+STAGE2_SECTORS ?= 8
+STAGE2_BYTES := $(shell expr $(STAGE2_SECTORS) \* 512)
+KERNEL_MAX_BYTES := 458752
 FLOPPY_BYTES := 1474560
 BOOT_BIN := $(BUILD_DIR)/boot.bin
+STAGE2_BIN := $(BUILD_DIR)/stage2.bin
 ENTRY_OBJ := $(BUILD_DIR)/kernel_entry.o
 KERNEL_MAIN_OBJ := $(BUILD_DIR)/kernel.o
+PANIC_OBJ := $(BUILD_DIR)/panic.o
 LANGUAGE_OBJ := $(BUILD_DIR)/language.o
 SPLASH_OBJ := $(BUILD_DIR)/splash.o
 VGA_OBJ := $(BUILD_DIR)/vga.o
+SERIAL_OBJ := $(BUILD_DIR)/serial.o
 KEYBOARD_OBJ := $(BUILD_DIR)/keyboard.o
 IDT_OBJ := $(BUILD_DIR)/idt.o
 PIT_OBJ := $(BUILD_DIR)/pit.o
@@ -39,76 +44,87 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(ENTRY_OBJ): kernel/kernel_entry.asm | $(BUILD_DIR)
-	$(NASM) -f elf32 $< -o $@
+	$(NASM) -w+error -f elf32 $< -o $@
 
-$(KERNEL_MAIN_OBJ): kernel/kernel.c cpu/idt.h games/games.h include/keyboard.h kernel/splash.h memory/paging.h memory/pmm.h process/scheduler.h shell/shell.h include/vga.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Igames -Imemory -Iprocess -Ishell -c $< -o $@
+$(KERNEL_MAIN_OBJ): kernel/kernel.c include/boot_info.h cpu/idt.h games/games.h include/keyboard.h kernel/panic.h kernel/splash.h memory/paging.h memory/pmm.h process/scheduler.h include/serial.h shell/shell.h include/vga.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Igames -Ikernel -Imemory -Iprocess -Ishell -c $< -o $@
+
+$(PANIC_OBJ): kernel/panic.c kernel/panic.h include/serial.h include/vga.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Ikernel -c $< -o $@
 
 $(LANGUAGE_OBJ): kernel/language.c include/language.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -c $< -o $@
+	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
 $(SPLASH_OBJ): kernel/splash.c kernel/splash.h shell/shell.h include/vga.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Ikernel -Ishell -c $< -o $@
+	$(CC) $(CFLAGS) -Iinclude -Ikernel -Ishell -c $< -o $@
 
 $(VGA_OBJ): drivers/vga.c include/vga.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -c $< -o $@
+	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
+
+$(SERIAL_OBJ): drivers/serial.c include/serial.h cpu/io.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -c $< -o $@
 
 $(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h kernel/splash.h shell/shell.h include/vga.h cpu/io.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Ikernel -Ishell -c $< -o $@
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Ishell -c $< -o $@
 
 $(IDT_OBJ): cpu/idt.c cpu/idt.h include/vga.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -c $< -o $@
+	$(CC) $(CFLAGS) -Iinclude -Icpu -c $< -o $@
 
 $(PIT_OBJ): cpu/pit.c cpu/pit.h cpu/io.h process/scheduler.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Icpu -Iprocess -c $< -o $@
+	$(CC) $(CFLAGS) -Icpu -Iprocess -c $< -o $@
 
 $(SYSTEM_OBJ): cpu/system.c cpu/system.h cpu/io.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Icpu -c $< -o $@
+	$(CC) $(CFLAGS) -Icpu -c $< -o $@
 
 $(INTERRUPTS_OBJ): cpu/interrupts.asm | $(BUILD_DIR)
-	$(NASM) -f elf32 $< -o $@
+	$(NASM) -w+error -f elf32 $< -o $@
 
 $(PMM_OBJ): memory/pmm.c memory/pmm.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Imemory -c $< -o $@
+	$(CC) $(CFLAGS) -Imemory -c $< -o $@
 
 $(PAGING_OBJ): memory/paging.c memory/paging.h memory/pmm.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Imemory -c $< -o $@
+	$(CC) $(CFLAGS) -Imemory -c $< -o $@
 
 $(SCHEDULER_OBJ): process/scheduler.c process/scheduler.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iprocess -c $< -o $@
+	$(CC) $(CFLAGS) -Iprocess -c $< -o $@
 
 $(PROGRAMS_OBJ): process/programs.c process/programs.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iprocess -c $< -o $@
+	$(CC) $(CFLAGS) -Iprocess -c $< -o $@
 
 $(RAMFS_OBJ): fs/ramfs.c fs/ramfs.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Ifs -c $< -o $@
+	$(CC) $(CFLAGS) -Ifs -c $< -o $@
 
 $(GAMES_OBJ): games/games.c games/games.h cpu/pit.h include/vga.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Igames -c $< -o $@
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Igames -c $< -o $@
 
 $(SHELL_OBJ): shell/shell.c shell/shell.h include/keyboard.h include/language.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h games/games.h process/programs.h process/scheduler.h | $(BUILD_DIR)
-	$(CC) -m32 -std=c11 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra -Iinclude -Icpu -Ifs -Igames -Iprocess -Ishell -c $< -o $@
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Ifs -Igames -Iprocess -Ishell -c $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
+$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(SCHEDULER_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@
-	test $$(wc -c < $@) -le $(KERNEL_BYTES)
-	truncate -s $(KERNEL_BYTES) $@
+	test $$(wc -c < $@) -le $(KERNEL_MAX_BYTES)
+	sectors=$$((($$(wc -c < $@) + 511) / 512)); truncate -s $$((sectors * 512)) $@
 
-$(BOOT_BIN): boot/boot.asm $(KERNEL_BIN) | $(BUILD_DIR)
-	$(NASM) -D KERNEL_SECTORS=$(KERNEL_SECTORS) -f bin $< -o $@
+$(BOOT_BIN): boot/boot.asm | $(BUILD_DIR)
+	$(NASM) -w+error -D STAGE2_SECTORS=$(STAGE2_SECTORS) -f bin $< -o $@
 
-$(IMAGE): $(BOOT_BIN) $(KERNEL_BIN)
+$(STAGE2_BIN): boot/stage2.asm $(KERNEL_BIN) | $(BUILD_DIR)
+	sectors=$$(($$(wc -c < $(KERNEL_BIN)) / 512)); $(NASM) -w+error -D STAGE2_SECTORS=$(STAGE2_SECTORS) -D KERNEL_SECTORS=$$sectors -f bin $< -o $@
+
+$(IMAGE): $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN)
 	truncate -s $(FLOPPY_BYTES) $(IMAGE)
 	dd if=$(BOOT_BIN) of=$(IMAGE) conv=notrunc status=none
-	dd if=$(KERNEL_BIN) of=$(IMAGE) bs=512 seek=1 conv=notrunc status=none
+	dd if=$(STAGE2_BIN) of=$(IMAGE) bs=512 seek=1 conv=notrunc status=none
+	dd if=$(KERNEL_BIN) of=$(IMAGE) bs=512 seek=$$((1 + $(STAGE2_SECTORS))) conv=notrunc status=none
 	$(MAKE) verify
 
-verify: $(BOOT_BIN) $(KERNEL_BIN) $(IMAGE)
+verify: $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN) $(IMAGE)
 	test $$(wc -c < $(BOOT_BIN)) -eq 512
-	test $$(wc -c < $(KERNEL_BIN)) -eq $(KERNEL_BYTES)
+	test $$(wc -c < $(STAGE2_BIN)) -eq $(STAGE2_BYTES)
+	test $$(($$(wc -c < $(KERNEL_BIN)) % 512)) -eq 0
 	test $$(wc -c < $(IMAGE)) -eq $(FLOPPY_BYTES)
 
 run: $(IMAGE)

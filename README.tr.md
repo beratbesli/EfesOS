@@ -10,7 +10,8 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Kul
 
 ## Özellikler
 
-- 1.44 MiB floppy imajı için BIOS stage-1 bootloader
+- A20 doğrulamalı, yeniden deneyen iki aşamalı BIOS bootloader ve 1.44 MiB floppy imajı
+- BIOS E820 bellek haritası aktarımı ve deterministik `.bss` başlangıcı
 - 32-bit protected mode, GDT, IDT, PIC, PIT ve donanım klavye girişi
 - İlk 4 MiB için identity-mapped paging ve fiziksel bellek bitmap yöneticisi
 - Kaydırma destekli VGA metin/grafik çıktısı
@@ -35,6 +36,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Run
 
 Bu betik `build\efesos.img` imajını üretir, boyutunu doğrular ve QEMU'yu başlatır. Yalnızca derlemek için `-Run` parametresini kaldır.
 
+Kernel değişikliklerinden sonra başlıksız boot smoke testini çalıştır:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
+```
+
+Test, üretilen imajı QEMU'da açar ve başarılı sayılmadan önce COM1 üzerinde beklenen kernel aşamasını görmeyi zorunlu tutar.
+
 ## Shell komutları
 
 | Komut | Açıklama |
@@ -52,7 +61,7 @@ Snake için `W`, `A`, `S`, `D` tuşlarıyla hareket edilir; çıkış `Q` tuşud
 ## Depo yapısı
 
 ```text
-boot/       BIOS boot sector
+boot/       BIOS stage-1 ve stage-2 yükleyicileri
 cpu/        IDT, PIC, PIT ve kesme stub'ları
 drivers/    VGA ve klavye sürücüleri
 fs/         Bellek içi dosya sistemi
@@ -61,7 +70,7 @@ include/    Paylaşılan başlık dosyaları
 kernel/     Giriş noktası, GDT, splash ve linker betiği
 memory/     Fiziksel bellek yöneticisi ve paging
 process/    Scheduler ve demo görevleri
-scripts/    Windows derleme yardımcısı
+scripts/    Windows derleme ve QEMU smoke-test yardımcıları
 shell/      Komut satırı shell'i
 ```
 

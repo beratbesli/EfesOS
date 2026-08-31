@@ -10,7 +10,8 @@ EfesOS is a learning project, not a production operating system. It has no user-
 
 ## Features
 
-- BIOS stage-1 bootloader with a 1.44 MiB floppy image
+- Retried two-stage BIOS bootloader with A20 verification and a 1.44 MiB floppy image
+- BIOS E820 memory map handoff and deterministic `.bss` initialization
 - 32-bit protected mode, GDT, IDT, PIC, PIT and hardware keyboard input
 - Identity-mapped paging for the first 4 MiB and a physical-memory bitmap allocator
 - VGA text/graphics output with scrolling
@@ -35,6 +36,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Run
 
 The script builds `build\efesos.img`, validates its size and starts QEMU. Without `-Run`, it only builds the image.
 
+Run the headless boot smoke test after kernel changes:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
+```
+
+The test boots the generated image in QEMU and requires the expected kernel milestone on COM1 before it passes.
+
 ## Shell commands
 
 | Command | Description |
@@ -52,7 +61,7 @@ Snake uses `W`, `A`, `S`, `D` to move and `Q` to exit. Slot uses Space to spin a
 ## Repository layout
 
 ```text
-boot/       BIOS boot sector
+boot/       BIOS stage-1 and stage-2 loaders
 cpu/        IDT, PIC, PIT and interrupt stubs
 drivers/    VGA and keyboard drivers
 fs/         In-memory filesystem
@@ -61,7 +70,7 @@ include/    Shared headers
 kernel/     Entry point, GDT, splash and linker script
 memory/     Physical memory manager and paging
 process/    Scheduler and demo tasks
-scripts/    Windows build helper
+scripts/    Windows build and QEMU smoke-test helpers
 shell/      Command shell
 ```
 
