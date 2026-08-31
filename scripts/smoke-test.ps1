@@ -26,6 +26,7 @@ $successMarkers = @(
     'EfesOS: kernel heap self-test passed.',
     'EfesOS: RAM filesystem self-test passed.',
     'EfesOS: ring3 syscall runtime test passed.',
+    'EfesOS: user exception isolated.',
     'EfesOS: preemptive scheduler runtime test passed.'
 )
 
