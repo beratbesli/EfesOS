@@ -50,14 +50,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
 
 Test, üretilen imajı QEMU'da açar ve başarılı sayılmadan önce COM1 üzerinde beklenen kernel aşamasını görmeyi zorunlu tutar.
 
+Dosya sistemi değişikliklerinde bağımsız FAT ayrıştırıcı testini çalıştır:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1
+```
+
 ## Shell komutları
 
 | Komut | Açıklama |
 | --- | --- |
 | `help`, `clear`, `about`, `mem`, `heap`, `input` | Temel kernel ve kuyruk bilgileri |
-| `uptime`, `ps`, `demo`, `counter` | Kernel ve scheduler durumu |
+| `uptime`, `ps`, `demo`, `pci`, `disk`, `diskls`, `diskcat NAME`, `counter` | Kernel, PCI, disk ve scheduler durumu |
 | `echo`, `history`, `color` | Shell araçları |
-| `ls`, `cat README`, `cat MOTD`, `cat EFES` | RAM dosya sistemi |
+| `ls`, `cat README`, `cat MOTD`, `cat EFES`, `write NAME CONTENT`, `rm NAME` | Sınırlı RAM dosya sistemi |
 | `snake`, `slot` | Mini oyunlar |
 | `en`, `tr` | Dil ve klavye düzenini değiştirir |
 | `reboot`, `shutdown` | QEMU misafirini denetler |

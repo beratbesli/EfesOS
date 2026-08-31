@@ -50,6 +50,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
 
 The test boots the generated image in QEMU and requires the expected kernel milestone on COM1 before it passes.
 
+Run the standalone FAT parser test when changing filesystem code:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1
+```
+
 ## Shell commands
 
 | Command | Description |
