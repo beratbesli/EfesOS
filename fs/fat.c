@@ -299,6 +299,7 @@ int fat_read_file(const struct fat_volume *volume, const char *name, void *buffe
     fat_u32_t cluster;
     fat_u32_t output = 0;
     fat_u32_t guard = 0;
+    fat_u32_t max_sectors;
 
     if (size != 0) {
         *size = 0;
@@ -308,7 +309,9 @@ int fat_read_file(const struct fat_volume *volume, const char *name, void *buffe
         return 0;
     }
     remaining = read_u32(entry, 28);
-    if (remaining > capacity || remaining > volume->cluster_count * volume->sectors_per_cluster * FAT_SECTOR_SIZE) {
+    max_sectors = volume->cluster_count * volume->sectors_per_cluster;
+    if (remaining > capacity || remaining / FAT_SECTOR_SIZE > max_sectors ||
+        ((remaining % FAT_SECTOR_SIZE) != 0U && remaining / FAT_SECTOR_SIZE >= max_sectors)) {
         return 0;
     }
     cluster = read_u16(entry, 26);
