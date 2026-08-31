@@ -1,6 +1,10 @@
 #include "io.h"
 #include "keyboard.h"
-#include "shell.h"
+
+#define KEYBOARD_BUFFER_SIZE 128U
+
+_Static_assert((KEYBOARD_BUFFER_SIZE & (KEYBOARD_BUFFER_SIZE - 1U)) == 0U,
+               "keyboard buffer size must be a power of two");
 
 static const unsigned char english_keymap[128] = {
     [0x02] = '1', [0x03] = '2', [0x04] = '3', [0x05] = '4', [0x06] = '5',
@@ -62,12 +66,50 @@ static const unsigned char *active_keymap = english_keymap;
 static const unsigned char *active_shift_keymap = english_shift_keymap;
 static unsigned char left_shift_active;
 static unsigned char right_shift_active;
+static unsigned char control_active;
+static unsigned char alt_active;
+static unsigned char caps_lock_active;
+static unsigned char extended_prefix;
+static unsigned char input_buffer[KEYBOARD_BUFFER_SIZE];
+static volatile unsigned int input_head;
+static volatile unsigned int input_tail;
+static volatile unsigned int dropped_input_count;
+
+static int key_is_letter(unsigned char key_code)
+{
+    unsigned char character = active_keymap[key_code];
+
+    return (character >= 'a' && character <= 'z') ||
+           character == 0xFD || character == 0xF0 || character == 0xFC ||
+           character == 0xFE || character == 0xF6 || character == 0xE7;
+}
+
+static void enqueue_character(unsigned char character)
+{
+    unsigned int next_head = (input_head + 1U) & (KEYBOARD_BUFFER_SIZE - 1U);
+
+    if (next_head == input_tail) {
+        if (dropped_input_count != 0xFFFFFFFFU) {
+            dropped_input_count++;
+        }
+        return;
+    }
+    input_buffer[input_head] = character;
+    input_head = next_head;
+}
 
 void keyboard_init(void)
 {
     keyboard_set_layout(KEYBOARD_LAYOUT_ENGLISH);
     left_shift_active = 0;
     right_shift_active = 0;
+    control_active = 0;
+    alt_active = 0;
+    caps_lock_active = 0;
+    extended_prefix = 0;
+    input_head = 0;
+    input_tail = 0;
+    dropped_input_count = 0;
 }
 
 void keyboard_set_layout(enum keyboard_layout layout)
@@ -87,6 +129,22 @@ void keyboard_irq_handler(void)
     unsigned char scan_code = inb(0x60);
     unsigned char key_code = scan_code & 0x7F;
     unsigned char character;
+    int shift_active;
+
+    if (scan_code == 0xE0) {
+        extended_prefix = 1;
+        return;
+    }
+
+    if (extended_prefix != 0) {
+        if (key_code == 0x1D) {
+            control_active = (scan_code & 0x80) == 0;
+        } else if (key_code == 0x38) {
+            alt_active = (scan_code & 0x80) == 0;
+        }
+        extended_prefix = 0;
+        return;
+    }
 
     if (key_code == 0x2A) {
         left_shift_active = (scan_code & 0x80) == 0;
@@ -98,17 +156,59 @@ void keyboard_irq_handler(void)
         return;
     }
 
+    if (key_code == 0x1D) {
+        control_active = (scan_code & 0x80) == 0;
+        extended_prefix = 0;
+        return;
+    }
+
+    if (key_code == 0x38) {
+        alt_active = (scan_code & 0x80) == 0;
+        extended_prefix = 0;
+        return;
+    }
+
     if ((scan_code & 0x80) != 0) {
         return;
     }
 
-    if (left_shift_active != 0 || right_shift_active != 0) {
+    if (key_code == 0x3A) {
+        caps_lock_active = caps_lock_active == 0;
+        return;
+    }
+
+    shift_active = left_shift_active != 0 || right_shift_active != 0;
+    if (caps_lock_active != 0 && key_is_letter(key_code)) {
+        shift_active = !shift_active;
+    }
+    if (shift_active) {
         character = active_shift_keymap[key_code];
     } else {
         character = active_keymap[key_code];
     }
 
-    if (character != '\0') {
-        shell_handle_char(character);
+    if (character != '\0' && control_active == 0 && alt_active == 0) {
+        enqueue_character(character);
     }
+}
+
+int keyboard_has_pending(void)
+{
+    return input_head != input_tail;
+}
+
+int keyboard_read_char(unsigned char *character)
+{
+    if (character == 0 || input_tail == input_head) {
+        return 0;
+    }
+
+    *character = input_buffer[input_tail];
+    input_tail = (input_tail + 1U) & (KEYBOARD_BUFFER_SIZE - 1U);
+    return 1;
+}
+
+unsigned int keyboard_dropped_input_count(void)
+{
+    return dropped_input_count;
 }

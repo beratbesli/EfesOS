@@ -12,7 +12,8 @@ EfesOS is a learning project, not a production operating system. It has no user-
 
 - Retried two-stage BIOS bootloader with A20 verification and a 1.44 MiB floppy image
 - BIOS E820 memory map handoff and deterministic `.bss` initialization
-- 32-bit protected mode, GDT, IDT, PIC, PIT and hardware keyboard input
+- 32-bit protected mode, GDT, vector-aware IDT, PIC, PIT and buffered hardware keyboard input
+- Deferred event loop; shell, games and scheduler callbacks never run inside hardware IRQ handlers
 - E820-backed physical-memory allocation across the 32-bit address space
 - Null-page protection, read-only kernel code/data, dynamic page mapping and a guarded kernel heap
 - VGA text/graphics output with scrolling
@@ -49,7 +50,7 @@ The test boots the generated image in QEMU and requires the expected kernel mile
 
 | Command | Description |
 | --- | --- |
-| `help`, `clear`, `about`, `mem` | Basic shell information |
+| `help`, `clear`, `about`, `mem`, `heap`, `input` | Basic kernel and queue information |
 | `uptime`, `ps`, `demo`, `counter` | Kernel and scheduler status |
 | `echo`, `history`, `color` | Shell utilities |
 | `ls`, `cat README`, `cat MOTD`, `cat EFES` | RAM filesystem |
@@ -79,6 +80,7 @@ shell/      Command shell
 
 - CPU exceptions are caught and halt the guest instead of escalating to an unhandled triple fault.
 - Shell input and command history use fixed, bounded buffers.
+- Keyboard IRQ input uses a bounded single-producer/single-consumer queue and reports dropped input.
 - The project still runs all code in ring 0. Kernel text and read-only data are write-protected, but there is not yet a user/kernel security boundary.
 - See [SECURITY.md](SECURITY.md) for reporting guidance.
 

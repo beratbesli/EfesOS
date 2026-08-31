@@ -12,7 +12,8 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Kul
 
 - A20 doğrulamalı, yeniden deneyen iki aşamalı BIOS bootloader ve 1.44 MiB floppy imajı
 - BIOS E820 bellek haritası aktarımı ve deterministik `.bss` başlangıcı
-- 32-bit protected mode, GDT, IDT, PIC, PIT ve donanım klavye girişi
+- 32-bit protected mode, GDT, vektör duyarlı IDT, PIC, PIT ve tamponlanmış donanım klavye girişi
+- Shell, oyun ve scheduler callback'lerini donanım IRQ'ları dışında çalıştıran ertelenmiş olay döngüsü
 - 32-bit adres alanını kapsayan E820 tabanlı fiziksel bellek yöneticisi
 - Null-page koruması, salt-okunur kernel kod/verisi, dinamik sayfa eşleme ve korumalı kernel heap'i
 - Kaydırma destekli VGA metin/grafik çıktısı
@@ -49,7 +50,7 @@ Test, üretilen imajı QEMU'da açar ve başarılı sayılmadan önce COM1 üzer
 
 | Komut | Açıklama |
 | --- | --- |
-| `help`, `clear`, `about`, `mem` | Temel shell bilgileri |
+| `help`, `clear`, `about`, `mem`, `heap`, `input` | Temel kernel ve kuyruk bilgileri |
 | `uptime`, `ps`, `demo`, `counter` | Kernel ve scheduler durumu |
 | `echo`, `history`, `color` | Shell araçları |
 | `ls`, `cat README`, `cat MOTD`, `cat EFES` | RAM dosya sistemi |
@@ -79,6 +80,7 @@ shell/      Komut satırı shell'i
 
 - CPU istisnaları yakalanır ve misafir sistem durdurulur; işlenmemiş üçlü hataya düşülmez.
 - Shell girdisi ve komut geçmişi sabit boyutlu, sınırları belirli tamponlar kullanır.
+- Klavye IRQ girdisi sınırlı tek-üretici/tek-tüketici kuyruğu kullanır ve düşen girdileri raporlar.
 - Projedeki tüm kod henüz ring 0'da çalışır. Kernel metni ve salt-okunur verisi yazmaya karşı korunur, ancak henüz kullanıcı/kernel güvenlik sınırı yoktur.
 - Bildirim yönergeleri için [SECURITY.md](SECURITY.md) dosyasına bak.
 

@@ -14,6 +14,39 @@
 #include "splash.h"
 #include "vga.h"
 
+static int scheduler_runtime_verified;
+
+static int kernel_work_pending(void)
+{
+    return keyboard_has_pending() || scheduler_has_pending();
+}
+
+static void kernel_wait_for_work(void)
+{
+    __asm__ volatile ("cli" : : : "memory");
+    if (!kernel_work_pending()) {
+        __asm__ volatile ("sti\n\thlt" : : : "memory");
+    } else {
+        __asm__ volatile ("sti" : : : "memory");
+    }
+}
+
+static void kernel_process_events(void)
+{
+    unsigned int processed_input = 0;
+    unsigned char character;
+
+    while (processed_input < 32U && keyboard_read_char(&character)) {
+        shell_handle_char(character);
+        processed_input++;
+    }
+    scheduler_run_pending();
+    if (!scheduler_runtime_verified && counter_program_runs() != 0U) {
+        scheduler_runtime_verified = 1;
+        serial_write("EfesOS: deferred scheduler runtime test passed.\n");
+    }
+}
+
 void kernel_main(const struct boot_info *boot_info)
 {
     serial_init();
@@ -62,6 +95,7 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("EfesOS: paging enabled.\n");
 
     scheduler_init();
+    scheduler_runtime_verified = 0;
     programs_init();
     scheduler_add_task("counter", counter_program);
     scheduler_add_task("snake", snake_program);
@@ -72,5 +106,10 @@ void kernel_main(const struct boot_info *boot_info)
     vga_write("EfesOS: scheduler and game loop running.\n");
     shell_init();
     pit_init();
-    __asm__ volatile ("sti");
+    serial_write("EfesOS: deferred event loop ready.\n");
+
+    for (;;) {
+        kernel_wait_for_work();
+        kernel_process_events();
+    }
 }
