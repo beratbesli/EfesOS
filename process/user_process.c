@@ -40,7 +40,7 @@ static void set_u32(unsigned char *data, unsigned int offset, unsigned int value
     data[offset + 3U] = (unsigned char)(value >> 24U);
 }
 
-int user_process_init(void)
+static int user_process_init_locked(void)
 {
     unsigned int code_size = (unsigned int)(&user_demo_end - &user_demo_start);
     unsigned int stack_frame;
@@ -173,6 +173,17 @@ void user_process_reap(void)
 unsigned int user_process_reap_count(void)
 {
     return process_reaps;
+}
+
+int user_process_init(void)
+{
+    unsigned int flags;
+    int result;
+
+    __asm__ volatile ("pushfl\n\tpopl %0\n\tcli" : "=r"(flags) : : "memory");
+    result = user_process_init_locked();
+    __asm__ volatile ("pushl %0\n\tpopfl" : : "r"(flags) : "memory");
+    return result;
 }
 
 unsigned int user_process_address_space(void)

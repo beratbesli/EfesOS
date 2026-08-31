@@ -43,6 +43,35 @@ static unsigned int stack_reap_count;
 
 static void scheduler_task_trampoline(void);
 
+static unsigned int scheduler_irq_save(void)
+{
+    unsigned int flags;
+
+    __asm__ volatile ("pushfl\n\tpopl %0\n\tcli" : "=r"(flags) : : "memory");
+    return flags;
+}
+
+static void scheduler_irq_restore(unsigned int flags)
+{
+    __asm__ volatile ("pushl %0\n\tpopfl" : : "r"(flags) : "memory");
+}
+
+static unsigned int find_task_slot(void)
+{
+    unsigned int index;
+
+    for (index = 1U; index < task_count; index++) {
+        if (index != pending_reap && tasks[index].state == TASK_TERMINATED &&
+            tasks[index].stack_base == 0U && tasks[index].frame == 0) {
+            return index;
+        }
+    }
+    if (task_count < SCHEDULER_MAX_TASKS) {
+        return task_count;
+    }
+    return SCHEDULER_MAX_TASKS;
+}
+
 static void reap_task_stack(struct scheduler_task *task)
 {
     unsigned int index;
@@ -236,21 +265,33 @@ void scheduler_init(void)
 int scheduler_add_task(const char *name, scheduler_task_t task)
 {
     struct scheduler_task *new_task;
+    unsigned int slot;
+    unsigned int flags;
 
-    if (name == 0 || task == 0 || scheduler_started != 0 || task_count == SCHEDULER_MAX_TASKS) {
+    if (name == 0 || task == 0) {
         return 0;
     }
-    new_task = &tasks[task_count];
+    flags = scheduler_irq_save();
+    slot = find_task_slot();
+    if (slot == SCHEDULER_MAX_TASKS) {
+        scheduler_irq_restore(flags);
+        return 0;
+    }
+    new_task = &tasks[slot];
     clear_task(new_task);
     new_task->name = name;
     new_task->entry = task;
     new_task->address_space = paging_kernel_directory();
     new_task->state = TASK_RUNNABLE;
-    if (!allocate_task_stack(new_task, task_count)) {
+    if (!allocate_task_stack(new_task, slot)) {
         clear_task(new_task);
+        scheduler_irq_restore(flags);
         return 0;
     }
-    task_count++;
+    if (slot == task_count) {
+        task_count++;
+    }
+    scheduler_irq_restore(flags);
     return 1;
 }
 
@@ -300,12 +341,20 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
     unsigned int user_stack_top, unsigned int address_space)
 {
     struct scheduler_task *new_task;
+    unsigned int slot;
+    unsigned int flags;
 
-    if (name == 0 || entry == 0U || user_stack_top == 0U || scheduler_started != 0 ||
-        address_space == 0U || task_count == SCHEDULER_MAX_TASKS) {
+    if (name == 0 || entry == 0U || user_stack_top == 0U ||
+        address_space == 0U) {
         return 0;
     }
-    new_task = &tasks[task_count];
+    flags = scheduler_irq_save();
+    slot = find_task_slot();
+    if (slot == SCHEDULER_MAX_TASKS) {
+        scheduler_irq_restore(flags);
+        return 0;
+    }
+    new_task = &tasks[slot];
     clear_task(new_task);
     new_task->name = name;
     new_task->user_entry = entry;
@@ -313,11 +362,15 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
     new_task->address_space = address_space;
     new_task->mode = TASK_USER;
     new_task->state = TASK_RUNNABLE;
-    if (!allocate_task_stack(new_task, task_count)) {
+    if (!allocate_task_stack(new_task, slot)) {
         clear_task(new_task);
+        scheduler_irq_restore(flags);
         return 0;
     }
-    task_count++;
+    if (slot == task_count) {
+        task_count++;
+    }
+    scheduler_irq_restore(flags);
     return 1;
 }
 

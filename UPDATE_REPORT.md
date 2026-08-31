@@ -12,6 +12,7 @@
 - ELF32 başlık/segment doğrulaması ve gerçek kullanıcı sayfası yüklemesi W^X, adres aralığı, taşma, BSS sıfırlama ve son izin kontrolleriyle eklendi.
 - Veri taşıyan `write` syscall’i için kullanıcı sayfa/izin/taşma doğrulaması, bounded kernel kopyası ve geçersiz pointer reddi eklendi.
 - Kullanıcı page fault sonrası ELF ve kullanıcı yığını kaynaklarının scheduler’a dönmeden geri kazanılması eklendi.
+- Terminated görev slotları artık kernel çalışma sırasında güvenli biçimde yeniden kullanılabiliyor; kullanıcı demo süreci fault sonrası iki ardışık kez yeniden başlatılarak adres alanı/yığın temizliği ve tekrar tahsis doğrulanıyor.
 - Kullanıcı süreçleri için kernel PDE’lerini paylaşan özel page directory’ler, scheduler CR3 geçişi ve adres alanı yıkımı eklendi.
 - Seri tanılama çıktısı kritik bölümlerde atomikleştirildi; preemption sırasında log satırlarının bölünmesi engellendi.
 - Paging API’si kullanıcı bayrağını korunan taban adresin altında reddediyor; bu kural VMM self-test’iyle doğrulanıyor.
@@ -32,18 +33,18 @@
 
 - `scripts/build.ps1` başarılı.
 - `scripts/fat-self-test.ps1` başarılı.
-- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 25 kritik boot/runtime işaretçisi doğrulanıyor.
+- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 27 kritik boot/runtime işaretçisi doğrulanıyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
-- Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT uçtan uca testi başarılı; mount, kök dizin ve dosya okuması dahil 26 işaretçi doğrulanıyor.
+- Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT uçtan uca testi başarılı; mount, kök dizin ve dosya okuması dahil 28 işaretçi doğrulanıyor.
 - Değişiklikler `codex/core-hardening` dalında checkpoint commit’leriyle kaydedildi.
 
 ## Bilinen sınırlar
 
-ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddi kullanılıyor. Disk yazma ve kalıcı dosya sistemi kullanıcıya hâlâ açılmadı. IPC syscall’leri bounded ve non-blocking’dir; kuyruk boş/dolu olduğunda `EAGAIN` döner. Scheduler bloklama/uyandırma primitive’leri hazır olsa da IPC ile henüz otomatik bağlanmadı. Çoklu süreç yaşam döngüsü, gelecekteki syscall’lerin tamamı için ABI doğrulaması, authentication, secure boot, ağ/USB/SMP ve tam VFS hâlâ sonraki aşamalardır.
+ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddi kullanılıyor. Disk yazma ve kalıcı dosya sistemi kullanıcıya hâlâ açılmadı. IPC syscall’leri bounded ve non-blocking’dir; kuyruk boş/dolu olduğunda `EAGAIN` döner. Scheduler slot yeniden kullanımı ve tek kullanıcı demo sürecinin ardışık restart’ı doğrulandı; eşzamanlı çoklu kullanıcı süreçleri, sahiplik ve tam yaşam döngüsü hâlâ sonraki aşamalardır. Authentication, secure boot, ağ/USB/SMP ve tam VFS de sonraki aşamalardır.
 
 ## Öncelikli sonraki geliştirmeler
 
-1. **Kullanıcı süreçleri (P0):** Çoklu süreç yaşam döngüsünü, copy-on-write/ASLR seçeneklerini ve veri taşıyan her yeni syscall için kullanıcı aralığı doğrulaması/kopyalama katmanını ekle.
+1. **Kullanıcı süreçleri (P0):** Eşzamanlı çoklu süreç tablolarını, süreç sahipliğini, copy-on-write/ASLR seçeneklerini ve veri taşıyan her yeni syscall için kullanıcı aralığı doğrulamasını ekle.
 2. **Çekirdek yaşam döngüsü (P1):** IPC boş/dolu durumlarını scheduler bloklama/uyandırma ile bağla; süreç sahipliği ve sonlandırılan kernel görevlerinin diğer kaynaklarını geri kazan.
 3. **Depolama (P1):** ATA sürücüsünü IRQ/DMA ve gerçek donanım matrisiyle doğrula; yazmayı ancak hata kurtarma, journaling ve FAT bütünlük kontrollerinden sonra aç.
 4. **Donanım kapsamı (P2):** PCI BAR ayrıştırma, blok aygıt soyutlaması, USB/HID, ağ ve zamanlayıcı sürücülerini ekle; her biri için QEMU/host fixture testi yaz.

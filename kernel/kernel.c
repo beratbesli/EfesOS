@@ -28,6 +28,8 @@ static int scheduler_runtime_verified;
 static int user_runtime_verified;
 static int user_pointer_runtime_verified;
 static int user_reap_runtime_verified;
+static int user_restart_runtime_verified;
+static int user_repeated_reap_runtime_verified;
 static int user_address_space_runtime_verified;
 static int user_ipc_runtime_verified;
 static int user_ipc_reject_runtime_verified;
@@ -107,6 +109,18 @@ static void kernel_process_events(void)
     if (!user_reap_runtime_verified && user_process_reap_count() != 0U) {
         user_reap_runtime_verified = 1;
         serial_write("EfesOS: user process resource cleanup passed.\n");
+    }
+    if (!user_restart_runtime_verified && user_process_reap_count() != 0U &&
+        scheduler_stack_reap_count() != 0U) {
+        if (!user_process_init()) {
+            kernel_panic("User process restart failed.");
+        }
+        user_restart_runtime_verified = 1;
+        serial_write("EfesOS: user process restart and slot reuse passed.\n");
+    }
+    if (!user_repeated_reap_runtime_verified && user_process_reap_count() >= 2U) {
+        user_repeated_reap_runtime_verified = 1;
+        serial_write("EfesOS: repeated user process cleanup passed.\n");
     }
     if (!user_address_space_runtime_verified && syscall_user_address_space_call_count() != 0U) {
         user_address_space_runtime_verified = 1;
@@ -229,6 +243,8 @@ void kernel_main(const struct boot_info *boot_info)
     user_runtime_verified = 0;
     user_pointer_runtime_verified = 0;
     user_reap_runtime_verified = 0;
+    user_restart_runtime_verified = 0;
+    user_repeated_reap_runtime_verified = 0;
     user_address_space_runtime_verified = 0;
     user_ipc_runtime_verified = 0;
     user_ipc_reject_runtime_verified = 0;

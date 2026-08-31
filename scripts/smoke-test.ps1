@@ -32,6 +32,8 @@ $successMarkers = @(
     'EfesOS: ring3 syscall runtime test passed.',
     'EfesOS: user pointer validation runtime test passed.',
     'EfesOS: user process resource cleanup passed.',
+    'EfesOS: user process restart and slot reuse passed.',
+    'EfesOS: repeated user process cleanup passed.',
     'EfesOS: user address-space switch runtime test passed.',
     'EfesOS: user IPC syscall runtime test passed.',
     'EfesOS: invalid user IPC pointer rejected.',
