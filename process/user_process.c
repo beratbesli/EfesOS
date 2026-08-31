@@ -158,7 +158,7 @@ static int user_process_init_locked(void)
     return 1;
 }
 
-void user_process_reap_task(unsigned int task_index)
+int user_process_reap_task(unsigned int task_index)
 {
     struct user_process_record *process = 0;
     unsigned int physical;
@@ -171,7 +171,7 @@ void user_process_reap_task(unsigned int task_index)
         }
     }
     if (process == 0) {
-        return;
+        return 0;
     }
 
     if (process->address_space != 0U && paging_current_directory() != process->address_space) {
@@ -207,6 +207,7 @@ void user_process_reap_task(unsigned int task_index)
     process->task_index = 0U;
     process->active = 0;
     process_reaps++;
+    return 1;
 }
 
 void user_process_reap(void)

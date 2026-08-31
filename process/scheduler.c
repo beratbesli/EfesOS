@@ -348,7 +348,8 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
     unsigned int flags;
 
     if (name == 0 || entry == 0U || user_stack_top == 0U ||
-        address_space == 0U) {
+        address_space == 0U || address_space == paging_kernel_directory() ||
+        (address_space & (PAGE_SIZE - 1U)) != 0U) {
         return 0;
     }
     flags = scheduler_irq_save();
@@ -409,7 +410,9 @@ struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame)
     }
     tasks[current_task].state = TASK_TERMINATED;
     pending_reap = current_task;
-    user_process_reap_task(scheduler_current_task_index());
+    if (!user_process_reap_task(scheduler_current_task_index())) {
+        kernel_panic("Unowned user task faulted.");
+    }
     return schedule_from_frame(frame, 1);
 }
 
