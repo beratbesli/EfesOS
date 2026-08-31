@@ -24,12 +24,16 @@
 #include "splash.h"
 #include "vga.h"
 
+#define USER_PROCESS_ALLOCATION_BLOCKS 9U
+
 static int scheduler_runtime_verified;
 static int user_runtime_verified;
 static int user_pointer_runtime_verified;
 static int user_reap_runtime_verified;
 static int user_restart_runtime_verified;
 static int user_repeated_reap_runtime_verified;
+static unsigned int user_process_initial_free_blocks;
+static unsigned int user_restart_wait_ticks;
 static int user_address_space_runtime_verified;
 static int user_ipc_runtime_verified;
 static int user_ipc_reject_runtime_verified;
@@ -110,13 +114,33 @@ static void kernel_process_events(void)
         user_reap_runtime_verified = 1;
         serial_write("EfesOS: user process resource cleanup passed.\n");
     }
-    if (!user_restart_runtime_verified && user_process_reap_count() != 0U &&
-        scheduler_stack_reap_count() != 0U) {
-        if (!user_process_init()) {
-            kernel_panic("User process restart failed.");
+    if (!user_restart_runtime_verified && user_process_reap_count() != 0U) {
+        unsigned int expected_free = user_process_initial_free_blocks +
+            USER_PROCESS_ALLOCATION_BLOCKS;
+
+        if (pmm_free_blocks() < user_process_initial_free_blocks ||
+            user_restart_wait_ticks++ > 200U) {
+            serial_write("EfesOS: restart accounting baseline=");
+            serial_write_hex(user_process_initial_free_blocks);
+            serial_write(" expected=");
+            serial_write_hex(expected_free);
+            serial_write(" current=");
+            serial_write_hex(pmm_free_blocks());
+            serial_write(" waits=");
+            serial_write_hex(user_restart_wait_ticks);
+            serial_write("\n");
+            kernel_panic("User process restart leaked physical memory.");
         }
-        user_restart_runtime_verified = 1;
-        serial_write("EfesOS: user process restart and slot reuse passed.\n");
+        if (pmm_free_blocks() == expected_free) {
+            if (!user_process_init()) {
+                kernel_panic("User process restart failed.");
+            }
+            if (pmm_free_blocks() != user_process_initial_free_blocks) {
+                kernel_panic("User process restart leaked physical memory.");
+            }
+            user_restart_runtime_verified = 1;
+            serial_write("EfesOS: user process restart and slot reuse passed.\n");
+        }
     }
     if (!user_repeated_reap_runtime_verified && user_process_reap_count() >= 2U) {
         user_repeated_reap_runtime_verified = 1;
@@ -244,6 +268,7 @@ void kernel_main(const struct boot_info *boot_info)
     user_pointer_runtime_verified = 0;
     user_reap_runtime_verified = 0;
     user_restart_runtime_verified = 0;
+    user_restart_wait_ticks = 0U;
     user_repeated_reap_runtime_verified = 0;
     user_address_space_runtime_verified = 0;
     user_ipc_runtime_verified = 0;
@@ -279,6 +304,7 @@ void kernel_main(const struct boot_info *boot_info)
         !scheduler_wake_task(2U) || scheduler_blocked_count() != 0U) {
         kernel_panic("Scheduler block/wake self-test failed.");
     }
+    user_process_initial_free_blocks = pmm_free_blocks();
     serial_write("EfesOS: scheduler priority self-test passed.\n");
     last_game_tick = 0;
 
