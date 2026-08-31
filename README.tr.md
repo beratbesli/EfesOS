@@ -6,7 +6,7 @@ EfesOS; C ve NASM Assembly ile yazılmış, deneysel bir 32-bit x86 işletim sis
 
 ## Durum
 
-EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Temel bir ring-3 demo sınırı, salt-okunur kernel sayfaları ve salt-okunur FAT16 yoklaması vardır; ancak kimlik doğrulama, secure boot, imzalı ikili dosyalar ve üretim seviyesinde kalıcı dosya sistemi henüz yoktur. Hassas verilerle ya da bir güvenlik sınırı olarak kullanılmamalıdır.
+EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Temel bir ring-3 demo sınırı, doğrulamalı ELF segment yükleyicisi, salt-okunur kernel sayfaları ve salt-okunur FAT16 yoklaması vardır; ancak kimlik doğrulama, secure boot, imzalı ikili dosyalar ve üretim seviyesinde kalıcı dosya sistemi henüz yoktur. Hassas verilerle ya da bir güvenlik sınırı olarak kullanılmamalıdır.
 
 ## Özellikler
 
@@ -18,6 +18,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
 - Zaman aşımı ve hata denetimli ATA PIO birincil disk erişimi; disk yokluğu açıkça raporlanır
 - Sınırlı 8.3 dizin/dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat`)
+- BSS sıfırlama, W^X denetimi ve son sayfa izinleriyle sınırlı ELF32 segment yükleyicisi
 - 32-bit adres alanını kapsayan E820 tabanlı fiziksel bellek yöneticisi
 - Null-page koruması, salt-okunur kernel kod/verisi, dinamik sayfa eşleme ve korumalı kernel heap'i
 - Kaydırma destekli VGA metin/grafik çıktısı

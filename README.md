@@ -6,7 +6,7 @@ EfesOS is an experimental 32-bit x86 operating system written in C and NASM asse
 
 ## Status
 
-EfesOS is a learning project, not a production operating system. It now has a small ring-3 demo boundary, read-only kernel text pages, and a read-only FAT16 probe, but it still lacks authentication, secure boot, signed binaries, and a production-grade persistent filesystem. Do not use it with sensitive data or as a security boundary.
+EfesOS is a learning project, not a production operating system. It now has a small ring-3 demo boundary, validated ELF segment loading, read-only kernel text pages, and a read-only FAT16 probe, but it still lacks authentication, secure boot, signed binaries, and a production-grade persistent filesystem. Do not use it with sensitive data or as a security boundary.
 
 ## Features
 
@@ -18,6 +18,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - PCI configuration-space enumeration with a bounded `pci` diagnostic command
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
 - Read-only FAT16 VFS mount with bounded 8.3 directory and file reads (`diskls`, `diskcat`)
+- Bounded ELF32 segment loader with BSS initialization, W^X checks and page-permission finalization
 - E820-backed physical-memory allocation across the 32-bit address space
 - Null-page protection, read-only kernel code/data, dynamic page mapping and a guarded kernel heap
 - VGA text/graphics output with scrolling
