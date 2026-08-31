@@ -190,7 +190,7 @@ Invoke-CCompile -Source $splashSource -Output $splashObject -Includes @($include
 Invoke-CCompile -Source $vgaSource -Output $vgaObject -Includes @($includeDirectory) -FailureMessage 'VGA surucusu derlenemedi.'
 Invoke-CCompile -Source $serialSource -Output $serialObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu')) -FailureMessage 'Seri port surucusu derlenemedi.'
 Invoke-CCompile -Source $keyboardSource -Output $keyboardObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'shell')) -FailureMessage 'Klavye surucusu derlenemedi.'
-Invoke-CCompile -Source $idtSource -Output $idtObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu')) -FailureMessage 'IDT derlenemedi.'
+Invoke-CCompile -Source $idtSource -Output $idtObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'kernel')) -FailureMessage 'IDT derlenemedi.'
 Invoke-CCompile -Source $pitSource -Output $pitObject -Includes @((Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'process')) -FailureMessage 'PIT surucusu derlenemedi.'
 Invoke-CCompile -Source $systemSource -Output $systemObject -Includes @((Join-Path $projectRoot 'cpu')) -FailureMessage 'Sistem denetimi derlenemedi.'
 Invoke-Tool -Path $nasm -Arguments @('-w+error', '-f', 'elf32', $interruptSource, '-o', $interruptObject) -FailureMessage 'Kesme stub derlenemedi.'

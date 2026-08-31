@@ -67,8 +67,8 @@ $(SERIAL_OBJ): drivers/serial.c include/serial.h cpu/io.h | $(BUILD_DIR)
 $(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h kernel/splash.h shell/shell.h include/vga.h cpu/io.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Ishell -c $< -o $@
 
-$(IDT_OBJ): cpu/idt.c cpu/idt.h include/vga.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Icpu -c $< -o $@
+$(IDT_OBJ): cpu/idt.c cpu/idt.h cpu/io.h cpu/pit.h include/keyboard.h include/serial.h include/vga.h kernel/panic.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -c $< -o $@
 
 $(PIT_OBJ): cpu/pit.c cpu/pit.h cpu/io.h process/scheduler.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Icpu -Iprocess -c $< -o $@

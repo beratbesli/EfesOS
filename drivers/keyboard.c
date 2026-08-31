@@ -63,11 +63,6 @@ static const unsigned char *active_shift_keymap = english_shift_keymap;
 static unsigned char left_shift_active;
 static unsigned char right_shift_active;
 
-static void acknowledge_master_pic(void)
-{
-    outb(0x20, 0x20);
-}
-
 void keyboard_init(void)
 {
     keyboard_set_layout(KEYBOARD_LAYOUT_ENGLISH);
@@ -95,18 +90,15 @@ void keyboard_irq_handler(void)
 
     if (key_code == 0x2A) {
         left_shift_active = (scan_code & 0x80) == 0;
-        acknowledge_master_pic();
         return;
     }
 
     if (key_code == 0x36) {
         right_shift_active = (scan_code & 0x80) == 0;
-        acknowledge_master_pic();
         return;
     }
 
     if ((scan_code & 0x80) != 0) {
-        acknowledge_master_pic();
         return;
     }
 
@@ -119,6 +111,4 @@ void keyboard_irq_handler(void)
     if (character != '\0') {
         shell_handle_char(character);
     }
-
-    acknowledge_master_pic();
 }

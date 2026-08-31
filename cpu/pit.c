@@ -20,7 +20,6 @@ void pit_irq_handler(void)
 {
     tick_count++;
     scheduler_tick();
-    outb(0x20, 0x20);
 }
 
 pit_tick_t pit_ticks(void)

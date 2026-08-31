@@ -48,7 +48,9 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("EfesOS: paging enabled.\n");
 
     idt_init();
+    __asm__ volatile ("int $0x03");
     __asm__ volatile ("int $0x30");
+    serial_write("EfesOS: interrupt self-tests passed.\n");
 
     scheduler_init();
     programs_init();

@@ -12,7 +12,7 @@ $buildDirectory = Join-Path $projectRoot 'build'
 $imagePath = Join-Path $buildDirectory 'efesos.img'
 $serialLog = Join-Path $buildDirectory 'smoke-serial.log'
 $qemuErrorLog = Join-Path $buildDirectory 'smoke-qemu-error.log'
-$successMarker = 'EfesOS: paging enabled.'
+$successMarker = 'EfesOS: interrupt self-tests passed.'
 
 function Get-QemuPath {
     $command = Get-Command 'qemu-system-i386' -ErrorAction SilentlyContinue
