@@ -16,6 +16,8 @@
 #define TASK_BLOCKED SCHEDULER_TASK_BLOCKED
 #define TASK_KERNEL 0U
 #define TASK_USER 1U
+#define SCHEDULER_USER_MIN_ADDRESS 0x00400000U
+#define SCHEDULER_USER_ADDRESS_LIMIT 0xC0000000U
 #define SCHEDULER_DEFAULT_PRIORITY 1U
 #define SCHEDULER_MAX_PRIORITY 8U
 
@@ -440,7 +442,10 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
     unsigned int slot;
     unsigned int flags;
 
-    if (name == 0 || entry == 0U || user_stack_top == 0U ||
+    if (name == 0 || entry < SCHEDULER_USER_MIN_ADDRESS ||
+        entry >= SCHEDULER_USER_ADDRESS_LIMIT ||
+        user_stack_top < SCHEDULER_USER_MIN_ADDRESS ||
+        user_stack_top > SCHEDULER_USER_ADDRESS_LIMIT ||
         address_space == 0U || address_space == paging_kernel_directory() ||
         (address_space & (PAGE_SIZE - 1U)) != 0U) {
         return 0;

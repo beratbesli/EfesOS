@@ -337,6 +337,10 @@ void kernel_main(const struct boot_info *boot_info)
         0x00801000U, paging_kernel_directory())) {
         kernel_panic("Kernel address space accepted for user task.");
     }
+    if (scheduler_add_user_task_in_space("invalid-kernel-entry", 0xC0000000U,
+        0x00801000U, user_process_address_space())) {
+        kernel_panic("Kernel entry accepted for user task.");
+    }
     serial_write("EfesOS: user address-space isolation self-test passed.\n");
     scheduler_add_task("event-loop", kernel_event_task);
     if (!scheduler_set_priority(1U, 2U) || !scheduler_set_priority(2U, 1U)) {
