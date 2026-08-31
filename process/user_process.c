@@ -6,8 +6,9 @@
 #include "user_process.h"
 
 #define USER_CODE_ADDRESS 0x00400000U
-#define USER_STACK_GUARD_ADDRESS 0x00800000U
-#define USER_STACK_ADDRESS 0x00801000U
+#define USER_STACK_REGION_BASE 0x00800000U
+#define USER_STACK_REGION_STRIDE 0x00100000U
+#define USER_STACK_REGION_COUNT 8U
 #define USER_PROCESS_MAX 2U
 
 extern unsigned char user_demo_start;
@@ -17,6 +18,7 @@ struct user_process_record {
     unsigned int loaded_base;
     unsigned int loaded_end;
     unsigned int stack_frame;
+    unsigned int stack_address;
     unsigned int address_space;
     unsigned int task_index;
     int active;
@@ -62,6 +64,8 @@ static int user_process_init_locked(void)
     unsigned int kernel_directory = paging_kernel_directory();
     unsigned int index;
     unsigned int process_index;
+    unsigned int stack_address;
+    unsigned int stack_guard_address;
 
     for (process_index = 0U; process_index < USER_PROCESS_MAX; process_index++) {
         if (!processes[process_index].active) {
@@ -72,8 +76,12 @@ static int user_process_init_locked(void)
         return 0;
     }
 
+    stack_guard_address = USER_STACK_REGION_BASE +
+        (((process_reaps + process_index) % USER_STACK_REGION_COUNT) * USER_STACK_REGION_STRIDE);
+    stack_address = stack_guard_address + PAGE_SIZE;
+
     if (code_size == 0U || code_size > PAGE_SIZE || paging_is_mapped(USER_CODE_ADDRESS) ||
-        paging_is_mapped(USER_STACK_GUARD_ADDRESS) || paging_is_mapped(USER_STACK_ADDRESS) ||
+        paging_is_mapped(stack_guard_address) || paging_is_mapped(stack_address) ||
         image_size > sizeof(image)) {
         return 0;
     }
@@ -86,9 +94,9 @@ static int user_process_init_locked(void)
     }
     stack_frame = pmm_alloc_block();
     if (stack_frame == 0U ||
-        !paging_map_page(USER_STACK_ADDRESS, stack_frame, PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
-        if (paging_is_mapped(USER_STACK_ADDRESS)) {
-            paging_unmap_page(USER_STACK_ADDRESS);
+        !paging_map_page(stack_address, stack_frame, PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
+        if (paging_is_mapped(stack_address)) {
+            paging_unmap_page(stack_address);
         }
         if (stack_frame != 0U) {
             pmm_free_block(stack_frame);
@@ -128,7 +136,7 @@ static int user_process_init_locked(void)
         if (image_loaded) {
             elf_unload_image(loaded_base, loaded_end);
         }
-        paging_unmap_page(USER_STACK_ADDRESS);
+        paging_unmap_page(stack_address);
         pmm_free_block(stack_frame);
         paging_switch_address_space(kernel_directory);
         paging_destroy_address_space(address_space);
@@ -137,15 +145,15 @@ static int user_process_init_locked(void)
     if (!paging_switch_address_space(kernel_directory)) {
         paging_switch_address_space(address_space);
         elf_unload_image(loaded_base, loaded_end);
-        paging_unmap_page(USER_STACK_ADDRESS);
+        paging_unmap_page(stack_address);
         pmm_free_block(stack_frame);
         kernel_panic("Failed to restore kernel address space.");
     }
-    if (!scheduler_add_user_task_in_space("user-demo", entry, USER_STACK_ADDRESS + PAGE_SIZE,
+    if (!scheduler_add_user_task_in_space("user-demo", entry, stack_address + PAGE_SIZE,
         address_space)) {
         paging_switch_address_space(address_space);
         elf_unload_image(loaded_base, loaded_end);
-        paging_unmap_page(USER_STACK_ADDRESS);
+        paging_unmap_page(stack_address);
         pmm_free_block(stack_frame);
         paging_switch_address_space(kernel_directory);
         paging_destroy_address_space(address_space);
@@ -154,6 +162,7 @@ static int user_process_init_locked(void)
     processes[process_index].loaded_base = loaded_base;
     processes[process_index].loaded_end = loaded_end;
     processes[process_index].stack_frame = stack_frame;
+    processes[process_index].stack_address = stack_address;
     processes[process_index].address_space = address_space;
     processes[process_index].task_index = scheduler_last_added_task();
     processes[process_index].active = 1;
@@ -189,16 +198,18 @@ int user_process_reap_task(unsigned int task_index)
         process->loaded_end = 0U;
     }
     if (process->stack_frame != 0U) {
-        if (!paging_is_mapped(USER_STACK_ADDRESS) || paging_is_mapped(USER_STACK_GUARD_ADDRESS)) {
+        if (!paging_is_mapped(process->stack_address) ||
+            paging_is_mapped(process->stack_address - PAGE_SIZE)) {
             kernel_panic("User stack mapping disappeared before cleanup.");
         }
-        physical = paging_unmap_page(USER_STACK_ADDRESS);
+        physical = paging_unmap_page(process->stack_address);
         if (physical == 0U) {
             kernel_panic("Failed to unmap user stack.");
         }
         pmm_free_block(physical);
     }
     process->stack_frame = 0U;
+    process->stack_address = 0U;
     if (process->address_space != 0U) {
         if (!paging_switch_address_space(paging_kernel_directory()) ||
             !paging_destroy_address_space(process->address_space)) {

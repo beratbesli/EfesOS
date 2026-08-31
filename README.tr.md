@@ -24,6 +24,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Hata alan demo süreçlerinin ELF sayfaları ve yığın çerçeveleri scheduler devam etmeden geri kazanılır
 - İki bounded kullanıcı süreci özel page directory alır; scheduler adres alanlarını CR3 ile değiştirir ve fault sonrası slotları yeniden kullanır
 - Kullanıcı yığınlarının altında eşlenmemiş guard sayfası bulunur; aşağı yönlü stack taşması komşu eşlemelere ulaşmadan fault üretir
+- Yeni kullanıcı süreçleri sekiz bounded stack bölgesinden birini kullanır; tek bir sabit kullanıcı stack adresine bağımlılık azaltılır
 - 16 mesaj/64 bayt sınırları, generation-PID hedefleme, scheduler uyandırma ve usercopy doğrulaması olan IPC syscall’leri (`IPC_SEND`, `IPC_RECEIVE`, `IPC_SEND_TO`, `IPC_RECEIVE_WAIT`, `EXIT`)
 - Slot yeniden kullanımında stale kimlikleri önleyen generation tabanlı `GET_PID` syscall’i
 - 32-bit adres alanını kapsayan E820 tabanlı fiziksel bellek yöneticisi
