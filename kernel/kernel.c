@@ -118,8 +118,9 @@ static void kernel_process_events(void)
     }
     if (user_restart_count < USER_PROCESS_RESTART_TARGET &&
         user_process_reap_count() > user_restart_count) {
+        unsigned int pending_restarts = user_process_reap_count() - user_restart_count;
         unsigned int expected_free = user_process_initial_free_blocks +
-            USER_PROCESS_ALLOCATION_BLOCKS;
+            USER_PROCESS_ALLOCATION_BLOCKS * pending_restarts;
 
         if (pmm_free_blocks() < user_process_initial_free_blocks ||
             user_restart_wait_ticks++ > 200U) {
@@ -138,7 +139,7 @@ static void kernel_process_events(void)
             if (!user_process_init()) {
                 kernel_panic("User process restart failed.");
             }
-            if (pmm_free_blocks() != user_process_initial_free_blocks) {
+            if (pmm_free_blocks() != expected_free - USER_PROCESS_ALLOCATION_BLOCKS) {
                 kernel_panic("User process restart leaked physical memory.");
             }
             user_restart_count++;
@@ -299,13 +300,17 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("EfesOS: bounded IPC queue self-test passed.\n");
     scheduler_add_task("counter", counter_program);
     scheduler_add_task("snake", snake_program);
-    if (!user_process_init()) {
+    if (!user_process_init() || !user_process_init()) {
         kernel_panic("User process initialization failed.");
     }
     if (user_process_address_space() == 0U ||
         user_process_address_space() == paging_kernel_directory()) {
         kernel_panic("User process address-space isolation failed.");
     }
+    if (user_process_active_count() != 2U) {
+        kernel_panic("Multiple user process initialization failed.");
+    }
+    serial_write("EfesOS: multiple user process isolation self-test passed.\n");
     serial_write("EfesOS: user address-space isolation self-test passed.\n");
     scheduler_add_task("event-loop", kernel_event_task);
     if (!scheduler_set_priority(1U, 2U) || !scheduler_set_priority(2U, 1U)) {

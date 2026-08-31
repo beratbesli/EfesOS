@@ -40,6 +40,7 @@ static unsigned int current_task;
 static unsigned char scheduler_started;
 static unsigned int pending_reap;
 static unsigned int stack_reap_count;
+static unsigned int last_added_task;
 
 static void scheduler_task_trampoline(void);
 
@@ -257,6 +258,7 @@ void scheduler_init(void)
     scheduler_started = 0;
     pending_reap = SCHEDULER_MAX_TASKS;
     stack_reap_count = 0U;
+    last_added_task = SCHEDULER_MAX_TASKS;
     tasks[0].name = "kernel";
     tasks[0].state = TASK_RUNNABLE;
     tasks[0].address_space = paging_kernel_directory();
@@ -291,6 +293,7 @@ int scheduler_add_task(const char *name, scheduler_task_t task)
     if (slot == task_count) {
         task_count++;
     }
+    last_added_task = slot;
     scheduler_irq_restore(flags);
     return 1;
 }
@@ -370,6 +373,7 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
     if (slot == task_count) {
         task_count++;
     }
+    last_added_task = slot;
     scheduler_irq_restore(flags);
     return 1;
 }
@@ -405,7 +409,7 @@ struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame)
     }
     tasks[current_task].state = TASK_TERMINATED;
     pending_reap = current_task;
-    user_process_reap();
+    user_process_reap_task(scheduler_current_task_index());
     return schedule_from_frame(frame, 1);
 }
 
@@ -448,6 +452,16 @@ scheduler_counter_t scheduler_task_runs(unsigned int index)
 unsigned int scheduler_stack_reap_count(void)
 {
     return stack_reap_count;
+}
+
+unsigned int scheduler_current_task_index(void)
+{
+    return current_task;
+}
+
+unsigned int scheduler_last_added_task(void)
+{
+    return last_added_task;
 }
 
 unsigned int scheduler_blocked_count(void)

@@ -7,14 +7,21 @@
 
 #define USER_CODE_ADDRESS 0x00400000U
 #define USER_STACK_ADDRESS 0x00800000U
+#define USER_PROCESS_MAX 2U
 
 extern unsigned char user_demo_start;
 extern unsigned char user_demo_end;
 
-static unsigned int process_loaded_base;
-static unsigned int process_loaded_end;
-static unsigned int process_stack_frame;
-static unsigned int process_address_space;
+struct user_process_record {
+    unsigned int loaded_base;
+    unsigned int loaded_end;
+    unsigned int stack_frame;
+    unsigned int address_space;
+    unsigned int task_index;
+    int active;
+};
+
+static struct user_process_record processes[USER_PROCESS_MAX];
 static unsigned int process_reaps;
 
 static void copy_bytes(unsigned char *destination, const unsigned char *source, unsigned int length)
@@ -53,6 +60,16 @@ static int user_process_init_locked(void)
     unsigned int address_space;
     unsigned int kernel_directory = paging_kernel_directory();
     unsigned int index;
+    unsigned int process_index;
+
+    for (process_index = 0U; process_index < USER_PROCESS_MAX; process_index++) {
+        if (!processes[process_index].active) {
+            break;
+        }
+    }
+    if (process_index == USER_PROCESS_MAX) {
+        return 0;
+    }
 
     if (code_size == 0U || code_size > PAGE_SIZE || paging_is_mapped(USER_CODE_ADDRESS) ||
         paging_is_mapped(USER_STACK_ADDRESS) || image_size > sizeof(image)) {
@@ -132,42 +149,63 @@ static int user_process_init_locked(void)
         paging_destroy_address_space(address_space);
         return 0;
     }
-    process_loaded_base = loaded_base;
-    process_loaded_end = loaded_end;
-    process_stack_frame = stack_frame;
-    process_address_space = address_space;
+    processes[process_index].loaded_base = loaded_base;
+    processes[process_index].loaded_end = loaded_end;
+    processes[process_index].stack_frame = stack_frame;
+    processes[process_index].address_space = address_space;
+    processes[process_index].task_index = scheduler_last_added_task();
+    processes[process_index].active = 1;
     return 1;
 }
 
-void user_process_reap(void)
+void user_process_reap_task(unsigned int task_index)
 {
+    struct user_process_record *process = 0;
     unsigned int physical;
+    unsigned int index;
 
-    if (process_address_space != 0U && paging_current_directory() != process_address_space) {
-        if (!paging_switch_address_space(process_address_space)) {
+    for (index = 0U; index < USER_PROCESS_MAX; index++) {
+        if (processes[index].active && processes[index].task_index == task_index) {
+            process = &processes[index];
+            break;
+        }
+    }
+    if (process == 0) {
+        return;
+    }
+
+    if (process->address_space != 0U && paging_current_directory() != process->address_space) {
+        if (!paging_switch_address_space(process->address_space)) {
             kernel_panic("Failed to enter user address space for cleanup.");
         }
     }
-    if (process_loaded_base != 0U && process_loaded_end > process_loaded_base) {
-        elf_unload_image(process_loaded_base, process_loaded_end);
-        process_loaded_base = 0U;
-        process_loaded_end = 0U;
+    if (process->loaded_base != 0U && process->loaded_end > process->loaded_base) {
+        elf_unload_image(process->loaded_base, process->loaded_end);
+        process->loaded_base = 0U;
+        process->loaded_end = 0U;
     }
-    if (process_stack_frame != 0U && paging_is_mapped(USER_STACK_ADDRESS)) {
+    if (process->stack_frame != 0U && paging_is_mapped(USER_STACK_ADDRESS)) {
         physical = paging_unmap_page(USER_STACK_ADDRESS);
         if (physical != 0U) {
             pmm_free_block(physical);
         }
     }
-    process_stack_frame = 0U;
-    if (process_address_space != 0U) {
+    process->stack_frame = 0U;
+    if (process->address_space != 0U) {
         if (!paging_switch_address_space(paging_kernel_directory()) ||
-            !paging_destroy_address_space(process_address_space)) {
+            !paging_destroy_address_space(process->address_space)) {
             kernel_panic("Failed to destroy user address space.");
         }
-        process_address_space = 0U;
+        process->address_space = 0U;
     }
+    process->task_index = 0U;
+    process->active = 0;
     process_reaps++;
+}
+
+void user_process_reap(void)
+{
+    user_process_reap_task(scheduler_current_task_index());
 }
 
 unsigned int user_process_reap_count(void)
@@ -188,5 +226,25 @@ int user_process_init(void)
 
 unsigned int user_process_address_space(void)
 {
-    return process_address_space;
+    unsigned int index;
+
+    for (index = 0U; index < USER_PROCESS_MAX; index++) {
+        if (processes[index].active) {
+            return processes[index].address_space;
+        }
+    }
+    return 0U;
+}
+
+unsigned int user_process_active_count(void)
+{
+    unsigned int index;
+    unsigned int active = 0U;
+
+    for (index = 0U; index < USER_PROCESS_MAX; index++) {
+        if (processes[index].active) {
+            active++;
+        }
+    }
+    return active;
 }
