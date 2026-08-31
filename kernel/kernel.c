@@ -17,6 +17,7 @@
 #include "tss.h"
 #include "user_process.h"
 #include "elf_loader.h"
+#include "ipc.h"
 #include "vfs.h"
 #include "fat.h"
 #include "shell.h"
@@ -221,6 +222,11 @@ void kernel_main(const struct boot_info *boot_info)
         kernel_panic("RAM filesystem self-test failed.");
     }
     serial_write("EfesOS: RAM filesystem self-test passed.\n");
+    ipc_init();
+    if (!ipc_self_test()) {
+        kernel_panic("IPC queue self-test failed.");
+    }
+    serial_write("EfesOS: bounded IPC queue self-test passed.\n");
     scheduler_add_task("counter", counter_program);
     scheduler_add_task("snake", snake_program);
     if (!user_process_init()) {
