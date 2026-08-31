@@ -248,3 +248,19 @@ unsigned int user_process_active_count(void)
     }
     return active;
 }
+
+unsigned int user_process_address_space_at(unsigned int index)
+{
+    unsigned int process_index;
+    unsigned int active_index = 0U;
+
+    for (process_index = 0U; process_index < USER_PROCESS_MAX; process_index++) {
+        if (!processes[process_index].active) {
+            continue;
+        }
+        if (active_index++ == index) {
+            return processes[process_index].address_space;
+        }
+    }
+    return 0U;
+}
