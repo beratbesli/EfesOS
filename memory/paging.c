@@ -107,6 +107,34 @@ int paging_map_page(paging_u32_t virtual_address, paging_u32_t physical_address,
     return 1;
 }
 
+int paging_protect_page(paging_u32_t virtual_address, paging_u32_t flags)
+{
+    paging_u32_t *table;
+    paging_u32_t table_index;
+    paging_u32_t entry;
+
+    if (page_directory == 0 || virtual_address < PAGE_SIZE ||
+        (virtual_address & (PAGE_SIZE - 1U)) != 0U ||
+        (flags & ~PAGE_ALLOWED_FLAGS) != 0U) {
+        return 0;
+    }
+    table = get_page_table(virtual_address);
+    if (table == 0) {
+        return 0;
+    }
+    table_index = (virtual_address >> 12U) & 0x3FFU;
+    entry = table[table_index];
+    if ((entry & PAGE_PRESENT) == 0U) {
+        return 0;
+    }
+    table[table_index] = (entry & PAGE_ADDRESS_MASK) | PAGE_PRESENT | flags;
+    if ((flags & PAGE_FLAG_USER) != 0U) {
+        page_directory[virtual_address >> 22U] |= PAGE_FLAG_USER;
+    }
+    invalidate_page(virtual_address);
+    return 1;
+}
+
 paging_u32_t paging_unmap_page(paging_u32_t virtual_address)
 {
     paging_u32_t *table;

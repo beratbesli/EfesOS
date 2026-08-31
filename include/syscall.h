@@ -8,5 +8,6 @@ struct interrupt_frame;
 
 void syscall_init(void);
 struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame);
+unsigned int syscall_user_call_count(void);
 
 #endif

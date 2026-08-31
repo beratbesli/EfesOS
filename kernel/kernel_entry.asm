@@ -58,8 +58,33 @@ gdt_start:
     dq 0x00CF92000000FFFF
     dq 0x00CFFA000000FFFF
     dq 0x00CFF2000000FFFF
+    dw tss_end - tss - 1
+    dw 0
+    db 0
+    db 0x89
+    db (tss_end - tss - 1) >> 16
+    db 0
 gdt_end:
 
 gdt_descriptor:
     dw gdt_end - gdt_start - 1
     dd gdt_start
+
+global tss_init
+tss_init:
+    mov eax, tss
+    mov word [gdt_start + 42], ax
+    shr eax, 16
+    mov byte [gdt_start + 44], al
+    mov byte [gdt_start + 47], ah
+    mov dword [tss + 4], 0x00090000
+    mov word [tss + 8], DATA_SEGMENT
+    mov word [tss + 102], 104
+    mov ax, 0x28
+    ltr ax
+    ret
+
+align 4
+tss:
+    times 104 db 0
+tss_end:

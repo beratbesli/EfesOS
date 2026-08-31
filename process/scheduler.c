@@ -11,6 +11,8 @@
 #define SCHEDULER_STACK_BASE 0xC0000000U
 #define TASK_RUNNABLE 0U
 #define TASK_TERMINATED 1U
+#define TASK_KERNEL 0U
+#define TASK_USER 1U
 
 struct scheduler_task {
     const char *name;
@@ -18,6 +20,9 @@ struct scheduler_task {
     struct interrupt_frame *frame;
     unsigned int stack_base;
     unsigned int stack_frames[SCHEDULER_STACK_PAGES];
+    unsigned int user_entry;
+    unsigned int user_stack_top;
+    unsigned int mode;
     scheduler_counter_t switches;
     unsigned int state;
 };
@@ -40,6 +45,9 @@ static void clear_task(struct scheduler_task *task)
     task->entry = 0;
     task->frame = 0;
     task->stack_base = 0;
+    task->user_entry = 0;
+    task->user_stack_top = 0;
+    task->mode = TASK_KERNEL;
     task->switches = 0;
     task->state = TASK_TERMINATED;
 }
@@ -71,11 +79,11 @@ static int allocate_task_stack(struct scheduler_task *task, unsigned int slot)
         task->stack_frames[index] = physical;
     }
 
-    task->frame = (struct interrupt_frame *)(base + SCHEDULER_STACK_STRIDE - sizeof(struct interrupt_frame));
-    task->frame->gs = 0x10;
-    task->frame->fs = 0x10;
-    task->frame->es = 0x10;
-    task->frame->ds = 0x10;
+    task->frame = (struct interrupt_frame *)(base + SCHEDULER_STACK_STRIDE - sizeof(struct interrupt_frame) - 8U);
+    task->frame->gs = task->mode == TASK_USER ? 0x23U : 0x10U;
+    task->frame->fs = task->mode == TASK_USER ? 0x23U : 0x10U;
+    task->frame->es = task->mode == TASK_USER ? 0x23U : 0x10U;
+    task->frame->ds = task->mode == TASK_USER ? 0x23U : 0x10U;
     task->frame->edi = 0;
     task->frame->esi = 0;
     task->frame->ebp = 0;
@@ -86,9 +94,14 @@ static int allocate_task_stack(struct scheduler_task *task, unsigned int slot)
     task->frame->eax = 0;
     task->frame->vector = 0;
     task->frame->error_code = 0;
-    task->frame->eip = (unsigned int)scheduler_task_trampoline;
-    task->frame->cs = 0x08;
+    task->frame->eip = task->mode == TASK_USER ? task->user_entry : (unsigned int)scheduler_task_trampoline;
+    task->frame->cs = task->mode == TASK_USER ? 0x1BU : 0x08U;
     task->frame->eflags = 0x202;
+    if (task->mode == TASK_USER) {
+        unsigned int *return_words = (unsigned int *)(task->frame + 1);
+        return_words[0] = task->user_stack_top;
+        return_words[1] = 0x23U;
+    }
     return 1;
 }
 
@@ -105,6 +118,24 @@ static unsigned int find_next_runnable(void)
     return current_task;
 }
 
+static void save_user_frame(struct scheduler_task *task, const struct interrupt_frame *frame)
+{
+    unsigned int index;
+    unsigned int *source_extra;
+    unsigned int *destination_extra;
+
+    if (task->frame == 0 || task->frame == frame) {
+        return;
+    }
+    for (index = 0; index < sizeof(struct interrupt_frame) / sizeof(unsigned int); index++) {
+        ((unsigned int *)task->frame)[index] = ((const unsigned int *)frame)[index];
+    }
+    source_extra = (unsigned int *)(frame + 1);
+    destination_extra = (unsigned int *)(task->frame + 1);
+    destination_extra[0] = source_extra[0];
+    destination_extra[1] = source_extra[1];
+}
+
 static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame)
 {
     unsigned int next;
@@ -112,7 +143,11 @@ static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame
     if (!scheduler_started || task_count == 0U || frame == 0) {
         return frame;
     }
-    tasks[current_task].frame = frame;
+    if (tasks[current_task].mode == TASK_USER) {
+        save_user_frame(&tasks[current_task], frame);
+    } else {
+        tasks[current_task].frame = frame;
+    }
     next = find_next_runnable();
     if (next == current_task) {
         return frame;
@@ -156,8 +191,34 @@ int scheduler_add_task(const char *name, scheduler_task_t task)
     return 1;
 }
 
+int scheduler_add_user_task(const char *name, unsigned int entry, unsigned int user_stack_top)
+{
+    struct scheduler_task *new_task;
+
+    if (name == 0 || entry == 0U || user_stack_top == 0U || scheduler_started != 0 ||
+        task_count == SCHEDULER_MAX_TASKS) {
+        return 0;
+    }
+    new_task = &tasks[task_count];
+    clear_task(new_task);
+    new_task->name = name;
+    new_task->user_entry = entry;
+    new_task->user_stack_top = user_stack_top;
+    new_task->mode = TASK_USER;
+    new_task->state = TASK_RUNNABLE;
+    if (!allocate_task_stack(new_task, task_count)) {
+        clear_task(new_task);
+        return 0;
+    }
+    task_count++;
+    return 1;
+}
+
 void scheduler_start(void)
 {
+    /* The boot call stack is not a schedulable task. All runtime work uses a
+       dedicated task stack, so saved interrupt frames remain stable. */
+    tasks[0].state = TASK_TERMINATED;
     scheduler_started = 1;
 }
 

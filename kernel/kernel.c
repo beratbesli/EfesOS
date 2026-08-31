@@ -13,12 +13,26 @@
 #include "scheduler.h"
 #include "serial.h"
 #include "syscall.h"
+#include "tss.h"
+#include "user_process.h"
 #include "shell.h"
 #include "splash.h"
 #include "vga.h"
 
 static int scheduler_runtime_verified;
+static int user_runtime_verified;
 static pit_tick_t last_game_tick;
+
+static void kernel_wait_for_work(void);
+static void kernel_process_events(void);
+
+static void kernel_event_task(void)
+{
+    for (;;) {
+        kernel_wait_for_work();
+        kernel_process_events();
+    }
+}
 
 static int kernel_work_pending(void)
 {
@@ -50,6 +64,10 @@ static void kernel_process_events(void)
         scheduler_runtime_verified = 1;
         serial_write("EfesOS: preemptive scheduler runtime test passed.\n");
     }
+    if (!user_runtime_verified && syscall_user_call_count() != 0U) {
+        user_runtime_verified = 1;
+        serial_write("EfesOS: ring3 syscall runtime test passed.\n");
+    }
     if (pit_ticks() != last_game_tick) {
         last_game_tick = pit_ticks();
         games_tick();
@@ -60,6 +78,7 @@ void kernel_main(const struct boot_info *boot_info)
 {
     serial_init();
     serial_write("EfesOS: kernel entry reached.\n");
+    tss_init();
 
     if (!boot_info_is_valid(boot_info)) {
         kernel_panic("Invalid or missing BIOS E820 boot information.");
@@ -122,6 +141,7 @@ void kernel_main(const struct boot_info *boot_info)
 
     scheduler_init();
     scheduler_runtime_verified = 0;
+    user_runtime_verified = 0;
     programs_init();
     ramfs_init();
     if (!ramfs_self_test()) {
@@ -130,17 +150,20 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("EfesOS: RAM filesystem self-test passed.\n");
     scheduler_add_task("counter", counter_program);
     scheduler_add_task("snake", snake_program);
+    if (!user_process_init()) {
+        kernel_panic("User process initialization failed.");
+    }
+    scheduler_add_task("event-loop", kernel_event_task);
     last_game_tick = 0;
-    scheduler_start();
 
     keyboard_init();
     vga_write("EfesOS: scheduler and game loop running.\n");
     shell_init();
     pit_init();
     serial_write("EfesOS: deferred event loop ready.\n");
+    scheduler_start();
 
     for (;;) {
-        kernel_wait_for_work();
-        kernel_process_events();
+        __asm__ volatile ("sti\n\thlt" : : : "memory");
     }
 }

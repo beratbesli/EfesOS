@@ -12,6 +12,7 @@ typedef unsigned int paging_u32_t;
 int paging_init(const struct boot_info *boot_info);
 int paging_self_test(void);
 int paging_map_page(paging_u32_t virtual_address, paging_u32_t physical_address, paging_u32_t flags);
+int paging_protect_page(paging_u32_t virtual_address, paging_u32_t flags);
 paging_u32_t paging_unmap_page(paging_u32_t virtual_address);
 paging_u32_t paging_get_physical(paging_u32_t virtual_address);
 int paging_is_mapped(paging_u32_t virtual_address);
