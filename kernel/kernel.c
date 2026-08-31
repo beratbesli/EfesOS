@@ -327,7 +327,9 @@ void kernel_main(const struct boot_info *boot_info)
     }
     if (user_process_active_count() != 2U ||
         user_process_address_space_at(0U) == 0U ||
-        user_process_address_space_at(0U) == user_process_address_space_at(1U)) {
+        user_process_address_space_at(0U) == user_process_address_space_at(1U) ||
+        user_process_stack_address_at(0U) == 0U ||
+        user_process_stack_address_at(0U) == user_process_stack_address_at(1U)) {
         kernel_panic("Multiple user process initialization failed.");
     }
     serial_write("EfesOS: multiple user process isolation self-test passed.\n");

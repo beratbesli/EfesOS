@@ -30,11 +30,29 @@ struct boot_info {
 
 static inline int boot_info_is_valid(const struct boot_info *info)
 {
-    return info != 0 &&
-           info->magic == BOOT_INFO_MAGIC &&
-           info->memory_map_entry_size == sizeof(struct boot_memory_map_entry) &&
-           info->memory_map_entry_count != 0 &&
-           info->memory_map_entry_count <= BOOT_INFO_MAX_MEMORY_MAP_ENTRIES;
+    boot_u32_t index;
+
+    if (info == 0 || info->magic != BOOT_INFO_MAGIC ||
+        info->memory_map_entry_size != sizeof(struct boot_memory_map_entry) ||
+        info->memory_map_entry_count == 0 ||
+        info->memory_map_entry_count > BOOT_INFO_MAX_MEMORY_MAP_ENTRIES ||
+        ((info->video_flags & BOOT_VIDEO_FONT_AVAILABLE) != 0U &&
+         (info->vga_font_address < 0x1000U || info->vga_font_address >= 0x003FF000U))) {
+        return 0;
+    }
+    for (index = 0; index < info->memory_map_entry_count; index++) {
+        const struct boot_memory_map_entry *entry = &info->memory_map[index];
+        unsigned long long base = ((unsigned long long)entry->base_high << 32U) |
+            entry->base_low;
+        unsigned long long length = ((unsigned long long)entry->length_high << 32U) |
+            entry->length_low;
+        unsigned long long end = base + length;
+
+        if (length == 0U || end < base) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 #endif
