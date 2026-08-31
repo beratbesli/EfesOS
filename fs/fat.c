@@ -328,7 +328,7 @@ int fat_read_file(const struct fat_volume *volume, const char *name, void *buffe
         fat_u32_t sector_index;
         fat_u32_t cluster_offset;
 
-        if (cluster < 2U || cluster >= volume->cluster_count + 2U || guard++ > volume->cluster_count) {
+        if (cluster < 2U || cluster >= volume->cluster_count + 2U || guard++ >= volume->cluster_count) {
             return 0;
         }
         for (sector_index = 0; sector_index < volume->sectors_per_cluster && remaining != 0U; sector_index++) {

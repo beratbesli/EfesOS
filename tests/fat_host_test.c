@@ -130,6 +130,16 @@ int main(void)
         return 1;
     }
     build_fixture();
+    put32((65U * SECTOR_SIZE) + 28U, 1537U);
+    put16(516U, 2U);
+    if (!fat_mount(&volume, read_fixture, 0)) {
+        return 1;
+    }
+    volume.cluster_count = 2U;
+    if (fat_read_file(&volume, "hello.txt", contents, sizeof(contents), &size)) {
+        return 1;
+    }
+    build_fixture();
     if (fat_mount(&volume, read_fixed_boot, 0xFFFFFFF0U) || fat_last_error() != 7U) {
         return 1;
     }
