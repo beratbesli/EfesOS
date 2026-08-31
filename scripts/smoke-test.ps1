@@ -73,6 +73,12 @@ if ($DiskImage -ne '') {
 
 New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null
 Remove-Item -LiteralPath $serialLog, $qemuErrorLog -Force -ErrorAction SilentlyContinue
+if (Test-Path -LiteralPath $serialLog) {
+    throw "Eski seri log dosyasi silinemedi: $serialLog"
+}
+if (Test-Path -LiteralPath $qemuErrorLog) {
+    throw "Eski QEMU hata logu silinemedi: $qemuErrorLog"
+}
 
 $qemu = Get-QemuPath
 $arguments = @(
