@@ -12,7 +12,17 @@ $buildDirectory = Join-Path $projectRoot 'build'
 $imagePath = Join-Path $buildDirectory 'efesos.img'
 $serialLog = Join-Path $buildDirectory 'smoke-serial.log'
 $qemuErrorLog = Join-Path $buildDirectory 'smoke-qemu-error.log'
-$successMarker = 'EfesOS: preemptive scheduler runtime test passed.'
+$successMarkers = @(
+    'EfesOS: kernel entry reached.',
+    'EfesOS: BIOS E820 entries available.',
+    'EfesOS: PCI devices discovered=',
+    'EfesOS: syscall ABI self-test passed.',
+    'EfesOS: interrupt self-tests passed.',
+    'EfesOS: VMM self-test passed.',
+    'EfesOS: kernel heap self-test passed.',
+    'EfesOS: RAM filesystem self-test passed.',
+    'EfesOS: preemptive scheduler runtime test passed.'
+)
 
 function Get-QemuPath {
     $command = Get-Command 'qemu-system-i386' -ErrorAction SilentlyContinue
@@ -67,7 +77,14 @@ try {
     while ([DateTime]::UtcNow -lt $deadline) {
         if (Test-Path -LiteralPath $serialLog) {
             $output = Get-Content -LiteralPath $serialLog -Raw -ErrorAction SilentlyContinue
-            if ($output -like "*$successMarker*") {
+            $allMarkersFound = $true
+            foreach ($marker in $successMarkers) {
+                if ($output -notlike "*$marker*") {
+                    $allMarkersFound = $false
+                    break
+                }
+            }
+            if ($allMarkersFound) {
                 $passed = $true
                 break
             }
@@ -92,4 +109,4 @@ if (!$passed) {
     throw "QEMU smoke test basarisiz oldu.`nSerial:`n$serialOutput`nQEMU:`n$qemuError"
 }
 
-Write-Host "QEMU smoke test passed: $successMarker"
+Write-Host "QEMU smoke test passed: all $($successMarkers.Count) boot markers found."
