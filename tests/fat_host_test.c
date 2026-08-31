@@ -116,6 +116,20 @@ int main(void)
         return 1;
     }
     build_fixture();
+    put16(17, 1);
+    disk[(65U * SECTOR_SIZE) + 32U] = 'E';
+    disk[(65U * SECTOR_SIZE) + 33U] = 'V';
+    disk[(65U * SECTOR_SIZE) + 34U] = 'I';
+    disk[(65U * SECTOR_SIZE) + 35U] = 'L';
+    disk[(65U * SECTOR_SIZE) + 40U] = 'T';
+    disk[(65U * SECTOR_SIZE) + 41U] = 'X';
+    disk[(65U * SECTOR_SIZE) + 42U] = 'T';
+    disk[(65U * SECTOR_SIZE) + 43U] = 0x20;
+    if (!fat_mount(&volume, read_fixture, 0) || fat_file_count(&volume) != 1U ||
+        fat_file_name(&volume, 1U, name, sizeof(name))) {
+        return 1;
+    }
+    build_fixture();
     if (fat_mount(&volume, read_fixed_boot, 0xFFFFFFF0U) || fat_last_error() != 7U) {
         return 1;
     }

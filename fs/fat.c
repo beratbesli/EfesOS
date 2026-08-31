@@ -135,7 +135,7 @@ static int find_entry(const struct fat_volume *volume, const fat_u8_t *short_nam
         if (!read_sector(volume, volume->root_start + sector_index, sector)) {
             return 0;
         }
-        for (item = 0; item < 16U; item++) {
+        for (item = 0; item < 16U && sector_index * 16U + item < volume->root_entries; item++) {
             fat_u8_t *candidate = sector + (item * 32U);
             if (candidate[0] == 0U) {
                 return 0;
@@ -251,7 +251,7 @@ unsigned int fat_file_count(const struct fat_volume *volume)
         if (!read_sector(volume, volume->root_start + sector_index, sector)) {
             return count;
         }
-        for (item = 0; item < 16U; item++) {
+        for (item = 0; item < 16U && sector_index * 16U + item < volume->root_entries; item++) {
             const fat_u8_t *entry = sector + (item * 32U);
             if (entry[0] == 0U) {
                 return count;
@@ -279,7 +279,7 @@ int fat_file_name(const struct fat_volume *volume, unsigned int index, char *nam
         if (!read_sector(volume, volume->root_start + sector_index, sector)) {
             return 0;
         }
-        for (item = 0; item < 16U; item++) {
+        for (item = 0; item < 16U && sector_index * 16U + item < volume->root_entries; item++) {
             fat_u8_t *entry = sector + (item * 32U);
             if (entry[0] == 0U) {
                 return 0;
