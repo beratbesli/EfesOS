@@ -326,6 +326,64 @@ int elf_loader_self_test(void)
     if (elf_validate_image(image, sizeof(image), 0)) {
         return 0;
     }
+    /* Exercise independent malformed-header/segment cases so future parser
+       changes cannot silently remove one of the overflow and policy guards. */
+    {
+        static const unsigned int malformed_offsets[] = {
+            ELF_PHOFF_OFFSET, ELF_PHNUM_OFFSET,
+            ELF32_HEADER_SIZE + ELF_PT_OFFSET_OFFSET,
+            ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET,
+            ELF32_HEADER_SIZE + ELF_PT_FILESZ_OFFSET,
+            ELF32_HEADER_SIZE + ELF_PT_MEMSZ_OFFSET,
+            ELF32_HEADER_SIZE + ELF_PT_FLAGS_OFFSET,
+            ELF32_HEADER_SIZE + ELF_PT_ALIGN_OFFSET, ELF_ENTRY_OFFSET
+        };
+        static const unsigned int malformed_values[] = {
+            0xFFFFFFFFU, 0U, 0xFFFFFFFFU, 0x003FF000U, 0xFFFFFFFFU,
+            3U, 8U, 2U, USER_MIN_ADDRESS + PAGE_SIZE
+        };
+        unsigned int malformed_index;
+
+        for (malformed_index = 0U;
+             malformed_index < sizeof(malformed_offsets) / sizeof(malformed_offsets[0]);
+             malformed_index++) {
+            unsigned int value = malformed_values[malformed_index];
+
+            for (index = 0U; index < sizeof(image); index++) {
+                image[index] = 0;
+            }
+            image[0] = 0x7F;
+            image[1] = 'E';
+            image[2] = 'L';
+            image[3] = 'F';
+            image[4] = ELF_CLASS_32;
+            image[5] = ELF_DATA_LSB;
+            image[6] = ELF_VERSION_CURRENT;
+            set_u16(image, ELF_TYPE_OFFSET, ELF_ET_EXEC);
+            set_u16(image, ELF_MACHINE_OFFSET, ELF_EM_386);
+            set_u32(image, ELF_VERSION_OFFSET, ELF_VERSION_CURRENT);
+            set_u32(image, ELF_ENTRY_OFFSET, USER_MIN_ADDRESS);
+            set_u32(image, ELF_PHOFF_OFFSET, ELF32_HEADER_SIZE);
+            set_u16(image, ELF_PHENTSIZE_OFFSET, ELF32_PROGRAM_HEADER_SIZE);
+            set_u16(image, ELF_PHNUM_OFFSET, 1U);
+            set_u32(image, ELF32_HEADER_SIZE + ELF_PT_TYPE_OFFSET, ELF_PT_LOAD);
+            set_u32(image, ELF32_HEADER_SIZE + ELF_PT_OFFSET_OFFSET, 116U);
+            set_u32(image, ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET, USER_MIN_ADDRESS);
+            set_u32(image, ELF32_HEADER_SIZE + ELF_PT_FILESZ_OFFSET, 4U);
+            set_u32(image, ELF32_HEADER_SIZE + ELF_PT_MEMSZ_OFFSET, 4096U);
+            set_u32(image, ELF32_HEADER_SIZE + ELF_PT_FLAGS_OFFSET, ELF_FLAG_EXECUTABLE);
+            set_u32(image, ELF32_HEADER_SIZE + ELF_PT_ALIGN_OFFSET, 1U);
+            image[116] = 0xC3;
+            if (malformed_offsets[malformed_index] == ELF_PHNUM_OFFSET) {
+                set_u16(image, malformed_offsets[malformed_index], (unsigned short)value);
+            } else {
+                set_u32(image, malformed_offsets[malformed_index], value);
+            }
+            if (elf_validate_image(image, sizeof(image), 0)) {
+                return 0;
+            }
+        }
+    }
     return 1;
 }
 
