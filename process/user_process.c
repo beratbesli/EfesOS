@@ -6,7 +6,8 @@
 #include "user_process.h"
 
 #define USER_CODE_ADDRESS 0x00400000U
-#define USER_STACK_ADDRESS 0x00800000U
+#define USER_STACK_GUARD_ADDRESS 0x00800000U
+#define USER_STACK_ADDRESS 0x00801000U
 #define USER_PROCESS_MAX 2U
 
 extern unsigned char user_demo_start;
@@ -72,7 +73,8 @@ static int user_process_init_locked(void)
     }
 
     if (code_size == 0U || code_size > PAGE_SIZE || paging_is_mapped(USER_CODE_ADDRESS) ||
-        paging_is_mapped(USER_STACK_ADDRESS) || image_size > sizeof(image)) {
+        paging_is_mapped(USER_STACK_GUARD_ADDRESS) || paging_is_mapped(USER_STACK_ADDRESS) ||
+        image_size > sizeof(image)) {
         return 0;
     }
     address_space = paging_create_address_space();
@@ -187,7 +189,7 @@ int user_process_reap_task(unsigned int task_index)
         process->loaded_end = 0U;
     }
     if (process->stack_frame != 0U) {
-        if (!paging_is_mapped(USER_STACK_ADDRESS)) {
+        if (!paging_is_mapped(USER_STACK_ADDRESS) || paging_is_mapped(USER_STACK_GUARD_ADDRESS)) {
             kernel_panic("User stack mapping disappeared before cleanup.");
         }
         physical = paging_unmap_page(USER_STACK_ADDRESS);
