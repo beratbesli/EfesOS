@@ -12,6 +12,10 @@ int scheduler_add_user_task(const char *name, unsigned int entry, unsigned int u
 int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
     unsigned int user_stack_top, unsigned int address_space);
 int scheduler_set_priority(unsigned int index, unsigned int priority);
+int scheduler_block_task(unsigned int index);
+int scheduler_wake_task(unsigned int index);
+int scheduler_block_current(void);
+unsigned int scheduler_blocked_count(void);
 void scheduler_start(void);
 struct interrupt_frame *scheduler_on_timer(struct interrupt_frame *frame);
 struct interrupt_frame *scheduler_on_yield(struct interrupt_frame *frame);

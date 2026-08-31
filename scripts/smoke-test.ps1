@@ -35,6 +35,7 @@ $successMarkers = @(
     'EfesOS: user address-space switch runtime test passed.',
     'EfesOS: user IPC syscall runtime test passed.',
     'EfesOS: scheduler stack resource cleanup passed.',
+    'EfesOS: scheduler block/wake lifecycle self-test passed.',
     'EfesOS: user exception isolated.',
     'EfesOS: preemptive scheduler runtime test passed.'
 )

@@ -31,6 +31,7 @@ static int user_reap_runtime_verified;
 static int user_address_space_runtime_verified;
 static int user_ipc_runtime_verified;
 static int scheduler_stack_reap_runtime_verified;
+static int scheduler_block_runtime_verified;
 static pit_tick_t last_game_tick;
 
 static void verify_mounted_disk_read(void)
@@ -117,6 +118,10 @@ static void kernel_process_events(void)
     if (!scheduler_stack_reap_runtime_verified && scheduler_stack_reap_count() != 0U) {
         scheduler_stack_reap_runtime_verified = 1;
         serial_write("EfesOS: scheduler stack resource cleanup passed.\n");
+    }
+    if (!scheduler_block_runtime_verified && scheduler_blocked_count() == 0U) {
+        scheduler_block_runtime_verified = 1;
+        serial_write("EfesOS: scheduler block/wake lifecycle self-test passed.\n");
     }
     if (pit_ticks() != last_game_tick) {
         last_game_tick = pit_ticks();
@@ -222,6 +227,7 @@ void kernel_main(const struct boot_info *boot_info)
     user_address_space_runtime_verified = 0;
     user_ipc_runtime_verified = 0;
     scheduler_stack_reap_runtime_verified = 0;
+    scheduler_block_runtime_verified = 0;
     programs_init();
     ramfs_init();
     if (!ramfs_self_test()) {
@@ -246,6 +252,10 @@ void kernel_main(const struct boot_info *boot_info)
     scheduler_add_task("event-loop", kernel_event_task);
     if (!scheduler_set_priority(1U, 2U) || !scheduler_set_priority(2U, 1U)) {
         kernel_panic("Scheduler priority setup failed.");
+    }
+    if (!scheduler_block_task(2U) || scheduler_blocked_count() != 1U ||
+        !scheduler_wake_task(2U) || scheduler_blocked_count() != 0U) {
+        kernel_panic("Scheduler block/wake self-test failed.");
     }
     serial_write("EfesOS: scheduler priority self-test passed.\n");
     last_game_tick = 0;

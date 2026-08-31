@@ -12,6 +12,7 @@
 #define SCHEDULER_STACK_BASE 0xC0000000U
 #define TASK_RUNNABLE 0U
 #define TASK_TERMINATED 1U
+#define TASK_BLOCKED 2U
 #define TASK_KERNEL 0U
 #define TASK_USER 1U
 #define SCHEDULER_DEFAULT_PRIORITY 1U
@@ -149,6 +150,19 @@ static unsigned int find_next_runnable(void)
     return current_task;
 }
 
+static int has_other_runnable(void)
+{
+    unsigned int index;
+
+    for (index = 0U; index < task_count; index++) {
+        if (index != current_task && tasks[index].state == TASK_RUNNABLE &&
+            tasks[index].frame != 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static void save_user_frame(struct scheduler_task *task, const struct interrupt_frame *frame)
 {
     unsigned int index;
@@ -251,6 +265,37 @@ int scheduler_set_priority(unsigned int index, unsigned int priority)
     return 1;
 }
 
+int scheduler_block_task(unsigned int index)
+{
+    if (index == 0U || index >= task_count || scheduler_started != 0 ||
+        tasks[index].state != TASK_RUNNABLE || tasks[index].frame == 0) {
+        return 0;
+    }
+    tasks[index].state = TASK_BLOCKED;
+    return 1;
+}
+
+int scheduler_wake_task(unsigned int index)
+{
+    if (index == 0U || index >= task_count || tasks[index].state != TASK_BLOCKED ||
+        tasks[index].frame == 0) {
+        return 0;
+    }
+    tasks[index].state = TASK_RUNNABLE;
+    tasks[index].ticks_left = tasks[index].priority;
+    return 1;
+}
+
+int scheduler_block_current(void)
+{
+    if (!scheduler_started || current_task == 0U || current_task >= task_count ||
+        tasks[current_task].state != TASK_RUNNABLE || !has_other_runnable()) {
+        return 0;
+    }
+    tasks[current_task].state = TASK_BLOCKED;
+    return 1;
+}
+
 int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
     unsigned int user_stack_top, unsigned int address_space)
 {
@@ -350,4 +395,17 @@ scheduler_counter_t scheduler_task_runs(unsigned int index)
 unsigned int scheduler_stack_reap_count(void)
 {
     return stack_reap_count;
+}
+
+unsigned int scheduler_blocked_count(void)
+{
+    unsigned int index;
+    unsigned int blocked = 0U;
+
+    for (index = 0U; index < task_count; index++) {
+        if (tasks[index].state == TASK_BLOCKED) {
+            blocked++;
+        }
+    }
+    return blocked;
 }
