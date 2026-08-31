@@ -14,6 +14,7 @@ int ipc_receive_for(unsigned int receiver_id, unsigned int *type, void *data,
 unsigned int ipc_pending(void);
 unsigned int ipc_pending_for(unsigned int receiver_id);
 unsigned int ipc_purge_receiver(unsigned int receiver_id);
+unsigned int ipc_purge_sender(unsigned int sender_id);
 int ipc_self_test(void);
 
 #endif

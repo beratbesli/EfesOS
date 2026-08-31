@@ -202,6 +202,45 @@ unsigned int ipc_purge_receiver(unsigned int receiver_id)
     return removed;
 }
 
+static unsigned int ipc_purge_field(unsigned int task_id, int match_sender)
+{
+    unsigned int flags;
+    unsigned int offset;
+    unsigned int removed = 0U;
+
+    if (task_id == 0U) {
+        return 0U;
+    }
+    flags = irq_save();
+    offset = 0U;
+    while (offset < count) {
+        unsigned int position = (tail + offset) % IPC_QUEUE_CAPACITY;
+        unsigned int shift;
+        unsigned int matches = match_sender ? queue[position].sender_id :
+            queue[position].receiver_id;
+
+        if (matches != task_id) {
+            offset++;
+            continue;
+        }
+        for (shift = offset; shift + 1U < count; shift++) {
+            unsigned int destination = (tail + shift) % IPC_QUEUE_CAPACITY;
+            unsigned int source = (tail + shift + 1U) % IPC_QUEUE_CAPACITY;
+            copy_message(&queue[destination], &queue[source]);
+        }
+        count--;
+        head = (tail + count) % IPC_QUEUE_CAPACITY;
+        removed++;
+    }
+    irq_restore(flags);
+    return removed;
+}
+
+unsigned int ipc_purge_sender(unsigned int sender_id)
+{
+    return ipc_purge_field(sender_id, 1);
+}
+
 static int bytes_equal(const unsigned char *left, const unsigned char *right, unsigned int length)
 {
     unsigned int i;
@@ -276,8 +315,8 @@ int ipc_self_test(void)
         !ipc_send_from_to(0x707U, 0x606U, 11U, second, sizeof(second)) ||
         !ipc_send_from_to(0x808U, 0x909U, 12U, first, sizeof(first)) ||
         !ipc_send(9U, 0, 0U) ||
-        ipc_purge_receiver(0x606U) != 2U || ipc_pending_for(0x606U) != 1U ||
-        ipc_pending_for(0x909U) != 2U) {
+        ipc_purge_sender(0x707U) != 1U || ipc_purge_receiver(0x606U) != 1U ||
+        ipc_pending_for(0x606U) != 1U || ipc_pending_for(0x909U) != 2U) {
         return 0;
     }
     if (!ipc_receive_for(0x909U, &type, output, sizeof(output), &length) ||

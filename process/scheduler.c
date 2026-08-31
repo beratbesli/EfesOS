@@ -512,6 +512,7 @@ struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame)
         return frame;
     }
     ipc_purge_receiver(scheduler_current_task_id());
+    ipc_purge_sender(scheduler_current_task_id());
     tasks[current_task].state = TASK_TERMINATED;
     pending_reap = current_task;
     if (!user_process_reap_task(scheduler_current_task_index())) {
@@ -527,6 +528,7 @@ struct interrupt_frame *scheduler_on_user_exit(struct interrupt_frame *frame)
         return frame;
     }
     ipc_purge_receiver(scheduler_current_task_id());
+    ipc_purge_sender(scheduler_current_task_id());
     tasks[current_task].state = TASK_TERMINATED;
     pending_reap = current_task;
     if (!user_process_reap_task(scheduler_current_task_index())) {

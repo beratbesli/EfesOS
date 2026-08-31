@@ -45,6 +45,7 @@
 - Ring-3 IPC negatif testi, supervisor adresine gönderimi `EFAULT` ile reddediyor; bu reddetme ayrı QEMU smoke marker’ı ve CI kontrolüyle izleniyor.
 - IPC mesajları artık gönderici/hedef generation-PID bilgisi taşıyor; `IPC_SEND_TO` yalnızca aktif bir kullanıcı sürecine yönlendirme yapıyor, alıcı tarafı da yayın veya kendi PID’si olmayan mesajları tüketemiyor. Hedef süreç uyandırma kancası scheduler’a bağlandı ve kuyruk self-test’i hedef izolasyonunu doğruluyor.
 - `IPC_RECEIVE_WAIT` eklendi: eşleşen mesaj yoksa kullanıcı görevi scheduler tarafından bloklanıyor, hedef/yayın gönderimiyle uyandırılıyor ve kullanıcı alanı çağrıyı yeniden deneyebiliyor. Süreç fault/exit olduğunda eski generation-PID’ye ait hedefli mesajlar kuyruktan siliniyor.
+- Süreç fault/exit’inde sender tarafında kalan orphan IPC mesajları da siliniyor; hem alıcı hem gönderici yönündeki kuyruk kaynakları generation-PID ile temizleniyor.
 - Kullanıcı yığını artık ayrılmış bir guard sayfasının üstünde kuruluyor; yığın aşağı taşarsa komşu sayfaya yazmak yerine izole user fault yoluna giriyor.
 - Her yeni kullanıcı süreci, sekiz bounded stack bölgesinden generation/reap durumuna göre farklı bir stack bölgesi alıyor; stack adresi process kaydında tutulup cleanup sırasında aynı adrese göre doğrulanıyor.
 - `EXIT` syscall’i gerçek demo akışında doğrulandı; normal çıkan user task’ın adres alanı/yığını fault yolu ile aynı fail-closed cleanup’tan geçiyor ve slot güvenle yeniden kullanılıyor.
