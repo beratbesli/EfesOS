@@ -56,6 +56,13 @@ Run the standalone FAT parser test when changing filesystem code:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1
 ```
 
+Exercise the complete QEMU ATA/FAT read path with the deterministic fixture:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\create-test-disk.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DiskImage .\build\test-disk.img
+```
+
 ## Shell commands
 
 | Command | Description |

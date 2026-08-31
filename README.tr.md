@@ -56,6 +56,13 @@ Dosya sistemi değişikliklerinde bağımsız FAT ayrıştırıcı testini çal�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1
 ```
 
+QEMU üzerindeki ATA/FAT okuma yolunun tamamını deterministik test diskiyle sına:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\create-test-disk.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DiskImage .\build\test-disk.img
+```
+
 ## Shell komutları
 
 | Komut | Açıklama |

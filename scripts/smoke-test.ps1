@@ -62,6 +62,9 @@ if (!(Test-Path -LiteralPath $imagePath)) {
 if ($DiskImage -ne '' -and !(Test-Path -LiteralPath $DiskImage)) {
     throw "Disk imaji bulunamadi: $DiskImage"
 }
+if ($DiskImage -ne '') {
+    $successMarkers += 'EfesOS: FAT directory/file read self-test passed'
+}
 
 New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null
 Remove-Item -LiteralPath $serialLog, $qemuErrorLog -Force -ErrorAction SilentlyContinue

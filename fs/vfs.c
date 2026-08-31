@@ -4,6 +4,20 @@
 
 static struct fat_volume volume;
 
+#define ATA_READ_RETRIES 3U
+
+static int read_with_retry(fat_u32_t lba, fat_u8_t count, void *buffer)
+{
+    unsigned int attempt;
+
+    for (attempt = 0; attempt < ATA_READ_RETRIES; attempt++) {
+        if (ata_read_sectors(lba, count, buffer)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static fat_u32_t read_u32(const fat_u8_t *data, unsigned int offset)
 {
     return (fat_u32_t)data[offset] | ((fat_u32_t)data[offset + 1U] << 8U) |
@@ -14,14 +28,14 @@ void vfs_init(void)
 {
     volume.mounted = 0;
     if (ata_present()) {
-        if (fat_mount(&volume, ata_read_sectors, 0)) {
+        if (fat_mount(&volume, read_with_retry, 0)) {
             return;
         }
         {
             fat_u8_t mbr[512];
             unsigned int index;
 
-            if (!ata_read_sectors(0, 1, mbr) || mbr[510] != 0x55U || mbr[511] != 0xAAU) {
+            if (!read_with_retry(0, 1, mbr) || mbr[510] != 0x55U || mbr[511] != 0xAAU) {
                 return;
             }
             for (index = 0; index < 4U; index++) {
@@ -32,7 +46,7 @@ void vfs_init(void)
 
                 if ((type == 0x04U || type == 0x06U || type == 0x0EU) && length != 0U &&
                     start < ata_sector_count() && length <= ata_sector_count() - start &&
-                    fat_mount(&volume, ata_read_sectors, start)) {
+                    fat_mount(&volume, read_with_retry, start)) {
                     return;
                 }
             }
