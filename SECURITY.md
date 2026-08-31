@@ -17,6 +17,6 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - ELF32 validation and loading reject malformed ranges, integer-overflowable sizes, unsupported machines and writable/executable segments before mapping user pages; loaded pages are zero-initialized and finalized with segment permissions.
 - ATA access is bounded and timeout-controlled. FAT16 support is read-only; no shell command can write arbitrary disk sectors.
 
-This remains a learning kernel. It has no authentication, secure boot, signed modules, ASLR, SMP isolation, per-process address spaces, user-pointer validation for data-bearing syscalls, or a fully validated persistent filesystem. Do not treat it as a production security boundary until those items are implemented and audited.
+This remains a learning kernel. It has no authentication, secure boot, signed modules, ASLR, SMP isolation, per-process address spaces, comprehensive validation for every future syscall ABI, or a fully validated persistent filesystem. Do not treat it as a production security boundary until those items are implemented and audited.
 
 Every pull request should pass the LLVM/GCC build, deterministic FAT host test and QEMU ring-3 fault-isolation smoke test defined in `.github/workflows/ci.yml`.

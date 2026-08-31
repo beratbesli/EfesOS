@@ -19,6 +19,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
 - Read-only FAT16 VFS mount with bounded 8.3 directory and file reads (`diskls`, `diskcat`)
 - Bounded ELF32 segment loader with BSS initialization, W^X checks and page-permission finalization
+- Bounded user-buffer validation for the data-carrying serial syscall, including overflow and permission checks
 - E820-backed physical-memory allocation across the 32-bit address space
 - Null-page protection, read-only kernel code/data, dynamic page mapping and a guarded kernel heap
 - VGA text/graphics output with scrolling
