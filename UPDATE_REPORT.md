@@ -27,7 +27,7 @@
 
 ## Bilinen sınırlar
 
-ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışında timeout içi polling ve üç denemeli bounded retry kullanılıyor. Disk yazma ve kalıcı dosya sistemi kullanıcıya hâlâ açılmadı. Per-process adres alanı, gelecekteki syscall’lerin tamamı için ABI doğrulaması, authentication, secure boot, ağ/USB/SMP ve tam VFS hâlâ sonraki aşamalardır.
+ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışında timeout içi polling ve üç denemeli bounded retry kullanılıyor. Disk yazma ve kalıcı dosya sistemi kullanıcıya hâlâ açılmadı. Çoklu süreç yaşam döngüsü, gelecekteki syscall’lerin tamamı için ABI doğrulaması, authentication, secure boot, ağ/USB/SMP ve tam VFS hâlâ sonraki aşamalardır.
 
 ## Öncelikli sonraki geliştirmeler
 
