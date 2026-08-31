@@ -6,7 +6,7 @@ EfesOS is an experimental 32-bit x86 operating system written in C and NASM asse
 
 ## Status
 
-EfesOS is a learning project, not a production operating system. It has no user-mode isolation, executable permission enforcement, disk filesystem, authentication, secure boot, or persistent storage. Do not use it with sensitive data or as a security boundary.
+EfesOS is a learning project, not a production operating system. It now has a small ring-3 demo boundary, read-only kernel text pages, and a read-only FAT16 probe, but it still lacks authentication, secure boot, signed binaries, and a production-grade persistent filesystem. Do not use it with sensitive data or as a security boundary.
 
 ## Features
 
@@ -88,10 +88,10 @@ shell/      Command shell
 
 ## Security notes
 
-- CPU exceptions are caught and halt the guest instead of escalating to an unhandled triple fault.
+- CPU exceptions are decoded; faults in the demo ring-3 task are isolated, while unrecoverable kernel faults halt the guest.
 - Shell input and command history use fixed, bounded buffers.
 - Keyboard IRQ input uses a bounded single-producer/single-consumer queue and reports dropped input.
-- The project still runs all code in ring 0. Kernel text and read-only data are write-protected, but there is not yet a user/kernel security boundary.
+- A deliberately small ring-3 task uses a TSS transition stack, user-only pages, a restricted syscall ABI, and fault termination. This is a demonstration boundary, not a complete process model.
 - See [SECURITY.md](SECURITY.md) for reporting guidance.
 
 ## License

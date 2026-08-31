@@ -180,8 +180,11 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
     volume->mounted = 0;
     volume->read = read;
     volume->start_lba = start_lba;
-    if (!read(start_lba, 1, boot) || boot[510] != 0x55U || boot[511] != 0xAAU) {
+    if (!read(start_lba, 1, boot)) {
         last_error = 2;
+        return 0;
+    }
+    if (boot[510] != 0x55U || boot[511] != 0xAAU) {
         last_error = 3;
         return 0;
     }

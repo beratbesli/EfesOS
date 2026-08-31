@@ -6,7 +6,7 @@ EfesOS; C ve NASM Assembly ile yazılmış, deneysel bir 32-bit x86 işletim sis
 
 ## Durum
 
-EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Kullanıcı modu izolasyonu, çalıştırma izni denetimi, disk dosya sistemi, kimlik doğrulama, secure boot veya kalıcı depolama içermez. Hassas verilerle ya da bir güvenlik sınırı olarak kullanılmamalıdır.
+EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Temel bir ring-3 demo sınırı, salt-okunur kernel sayfaları ve salt-okunur FAT16 yoklaması vardır; ancak kimlik doğrulama, secure boot, imzalı ikili dosyalar ve üretim seviyesinde kalıcı dosya sistemi henüz yoktur. Hassas verilerle ya da bir güvenlik sınırı olarak kullanılmamalıdır.
 
 ## Özellikler
 
@@ -88,10 +88,10 @@ shell/      Komut satırı shell'i
 
 ## Güvenlik notları
 
-- CPU istisnaları yakalanır ve misafir sistem durdurulur; işlenmemiş üçlü hataya düşülmez.
+- CPU istisnaları ayrıştırılır; ring-3 demo görevinin hatası izole edilip görev sonlandırılır, kurtarılamayan kernel hatası sistemi durdurur.
 - Shell girdisi ve komut geçmişi sabit boyutlu, sınırları belirli tamponlar kullanır.
 - Klavye IRQ girdisi sınırlı tek-üretici/tek-tüketici kuyruğu kullanır ve düşen girdileri raporlar.
-- Projedeki tüm kod henüz ring 0'da çalışır. Kernel metni ve salt-okunur verisi yazmaya karşı korunur, ancak henüz kullanıcı/kernel güvenlik sınırı yoktur.
+- Küçük bir ring-3 görevinde TSS geçiş yığını, kullanıcı sayfaları, kısıtlı syscall ABI'si ve hata sonlandırması bulunur. Bu tam bir süreç modeli değil, güvenlik sınırı gösterimidir.
 - Bildirim yönergeleri için [SECURITY.md](SECURITY.md) dosyasına bak.
 
 ## Lisans
