@@ -11,6 +11,7 @@
 #define VBE_FRAMEBUFFER_VIRTUAL 0xE0000000U
 #define VBE_FRAMEBUFFER_PAGES 768U
 #define USER_ADDRESS_LIMIT 0xC0000000U
+#define USER_MAPPING_MIN 0x00400000U
 
 extern unsigned char __text_start;
 extern unsigned char __rodata_end;
@@ -92,7 +93,9 @@ int paging_map_page(paging_u32_t virtual_address, paging_u32_t physical_address,
 
     if (page_directory == 0 || virtual_address < PAGE_SIZE ||
         (virtual_address & (PAGE_SIZE - 1U)) != 0U ||
-        (physical_address & (PAGE_SIZE - 1U)) != 0U) {
+        (physical_address & (PAGE_SIZE - 1U)) != 0U ||
+        ((flags & PAGE_FLAG_USER) != 0U &&
+         (virtual_address < USER_MAPPING_MIN || virtual_address >= USER_ADDRESS_LIMIT))) {
         return 0;
     }
 
@@ -118,6 +121,8 @@ int paging_protect_page(paging_u32_t virtual_address, paging_u32_t flags)
 
     if (page_directory == 0 || virtual_address < PAGE_SIZE ||
         (virtual_address & (PAGE_SIZE - 1U)) != 0U ||
+        ((flags & PAGE_FLAG_USER) != 0U &&
+         (virtual_address < USER_MAPPING_MIN || virtual_address >= USER_ADDRESS_LIMIT)) ||
         (flags & ~PAGE_ALLOWED_FLAGS) != 0U) {
         return 0;
     }
@@ -408,6 +413,7 @@ int paging_self_test(void)
     paging_u32_t free_before = pmm_free_blocks();
     paging_u32_t frame;
     paging_u32_t unmapped;
+    paging_u32_t user_frame;
     paging_u32_t cr0;
     volatile paging_u32_t *test_pointer;
 
@@ -417,6 +423,19 @@ int paging_self_test(void)
         (cr0 & PAGE_WRITE_PROTECT) == 0U) {
         return 0;
     }
+
+    user_frame = pmm_alloc_block();
+    if (user_frame == 0U || paging_map_page(PAGE_SIZE, user_frame,
+        PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
+        if (user_frame != 0U) {
+            if (paging_is_mapped(PAGE_SIZE)) {
+                paging_unmap_page(PAGE_SIZE);
+            }
+            pmm_free_block(user_frame);
+        }
+        return 0;
+    }
+    pmm_free_block(user_frame);
 
     frame = pmm_alloc_block();
     if (frame == 0U || !paging_map_page(test_virtual, frame, PAGE_FLAG_WRITABLE)) {
