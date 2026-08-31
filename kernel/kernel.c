@@ -30,6 +30,7 @@ static int user_pointer_runtime_verified;
 static int user_reap_runtime_verified;
 static int user_address_space_runtime_verified;
 static int user_ipc_runtime_verified;
+static int user_ipc_reject_runtime_verified;
 static int scheduler_stack_reap_runtime_verified;
 static int scheduler_block_runtime_verified;
 static pit_tick_t last_game_tick;
@@ -114,6 +115,10 @@ static void kernel_process_events(void)
     if (!user_ipc_runtime_verified && syscall_user_ipc_call_count() >= 2U) {
         user_ipc_runtime_verified = 1;
         serial_write("EfesOS: user IPC syscall runtime test passed.\n");
+    }
+    if (!user_ipc_reject_runtime_verified && syscall_user_ipc_reject_count() != 0U) {
+        user_ipc_reject_runtime_verified = 1;
+        serial_write("EfesOS: invalid user IPC pointer rejected.\n");
     }
     if (!scheduler_stack_reap_runtime_verified && scheduler_stack_reap_count() != 0U) {
         scheduler_stack_reap_runtime_verified = 1;
@@ -226,6 +231,7 @@ void kernel_main(const struct boot_info *boot_info)
     user_reap_runtime_verified = 0;
     user_address_space_runtime_verified = 0;
     user_ipc_runtime_verified = 0;
+    user_ipc_reject_runtime_verified = 0;
     scheduler_stack_reap_runtime_verified = 0;
     scheduler_block_runtime_verified = 0;
     programs_init();

@@ -10,6 +10,7 @@ static volatile unsigned int user_call_count;
 static volatile unsigned int user_pointer_reject_count;
 static volatile unsigned int user_address_space_call_count;
 static volatile unsigned int user_ipc_call_count;
+static volatile unsigned int user_ipc_reject_count;
 
 void syscall_init(void)
 {
@@ -17,6 +18,7 @@ void syscall_init(void)
     user_pointer_reject_count = 0;
     user_address_space_call_count = 0;
     user_ipc_call_count = 0;
+    user_ipc_reject_count = 0;
 }
 
 struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
@@ -57,8 +59,14 @@ struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
         unsigned char buffer[SYSCALL_MAX_IPC];
 
         if (frame->edx > SYSCALL_MAX_IPC) {
+            if ((frame->cs & 3U) == 3U) {
+                user_ipc_reject_count++;
+            }
             frame->eax = SYSCALL_E2BIG;
         } else if (!paging_copy_from_user(buffer, frame->ecx, frame->edx)) {
+            if ((frame->cs & 3U) == 3U) {
+                user_ipc_reject_count++;
+            }
             frame->eax = SYSCALL_EFAULT;
         } else if (!ipc_send(frame->ebx, buffer, frame->edx)) {
             frame->eax = SYSCALL_EAGAIN;
@@ -73,6 +81,9 @@ struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
         if (frame->ecx > SYSCALL_MAX_IPC ||
             !paging_validate_user_range(frame->ebx, frame->ecx, 1) ||
             !paging_validate_user_range(frame->edx, sizeof(message_type), 1)) {
+            if ((frame->cs & 3U) == 3U) {
+                user_ipc_reject_count++;
+            }
             frame->eax = frame->ecx > SYSCALL_MAX_IPC ? SYSCALL_E2BIG : SYSCALL_EFAULT;
         } else if (!ipc_receive(&message_type, buffer, frame->ecx, &message_length)) {
             frame->eax = ipc_pending() != 0U ? SYSCALL_E2BIG : SYSCALL_EAGAIN;
@@ -106,4 +117,9 @@ unsigned int syscall_user_address_space_call_count(void)
 unsigned int syscall_user_ipc_call_count(void)
 {
     return user_ipc_call_count;
+}
+
+unsigned int syscall_user_ipc_reject_count(void)
+{
+    return user_ipc_reject_count;
 }

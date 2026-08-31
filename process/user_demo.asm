@@ -22,6 +22,12 @@ user_demo_start:
     mov eax, 4
     int 0x80
     add esp, 8
+    ; Invalid supervisor pointer: IPC must return EFAULT without dereferencing it.
+    mov ebx, 8
+    mov ecx, 0x00010000
+    mov edx, 1
+    mov eax, 3
+    int 0x80
     call .get_pc
 .get_pc:
     pop esi

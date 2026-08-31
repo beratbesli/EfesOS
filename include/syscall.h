@@ -20,5 +20,6 @@ unsigned int syscall_user_call_count(void);
 unsigned int syscall_user_pointer_reject_count(void);
 unsigned int syscall_user_address_space_call_count(void);
 unsigned int syscall_user_ipc_call_count(void);
+unsigned int syscall_user_ipc_reject_count(void);
 
 #endif
