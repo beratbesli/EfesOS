@@ -2,6 +2,7 @@
 #include "pmm.h"
 #include "scheduler.h"
 #include "elf_loader.h"
+#include "panic.h"
 #include "user_process.h"
 
 #define USER_CODE_ADDRESS 0x00400000U
@@ -119,7 +120,7 @@ int user_process_init(void)
         elf_unload_image(loaded_base, loaded_end);
         paging_unmap_page(USER_STACK_ADDRESS);
         pmm_free_block(stack_frame);
-        return 0;
+        kernel_panic("Failed to restore kernel address space.");
     }
     if (!scheduler_add_user_task_in_space("user-demo", entry, USER_STACK_ADDRESS + PAGE_SIZE,
         address_space)) {
@@ -143,7 +144,9 @@ void user_process_reap(void)
     unsigned int physical;
 
     if (process_address_space != 0U && paging_current_directory() != process_address_space) {
-        paging_switch_address_space(process_address_space);
+        if (!paging_switch_address_space(process_address_space)) {
+            kernel_panic("Failed to enter user address space for cleanup.");
+        }
     }
     if (process_loaded_base != 0U && process_loaded_end > process_loaded_base) {
         elf_unload_image(process_loaded_base, process_loaded_end);
@@ -158,8 +161,10 @@ void user_process_reap(void)
     }
     process_stack_frame = 0U;
     if (process_address_space != 0U) {
-        paging_switch_address_space(paging_kernel_directory());
-        paging_destroy_address_space(process_address_space);
+        if (!paging_switch_address_space(paging_kernel_directory()) ||
+            !paging_destroy_address_space(process_address_space)) {
+            kernel_panic("Failed to destroy user address space.");
+        }
         process_address_space = 0U;
     }
     process_reaps++;

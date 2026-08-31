@@ -117,8 +117,8 @@ $(HEAP_OBJ): memory/heap.c memory/heap.h memory/paging.h memory/pmm.h include/bo
 $(SCHEDULER_OBJ): process/scheduler.c process/scheduler.h process/user_process.h cpu/idt.h memory/heap.h memory/paging.h memory/pmm.h kernel/panic.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Imemory -Iprocess -c $< -o $@
 
-$(USER_PROCESS_OBJ): process/user_process.c process/user_process.h process/scheduler.h process/elf_loader.h memory/paging.h memory/pmm.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Imemory -Iprocess -c $< -o $@
+$(USER_PROCESS_OBJ): process/user_process.c process/user_process.h process/scheduler.h process/elf_loader.h memory/paging.h memory/pmm.h kernel/panic.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Ikernel -Imemory -Iprocess -c $< -o $@
 
 $(ELF_LOADER_OBJ): process/elf_loader.c process/elf_loader.h memory/paging.h memory/pmm.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Iprocess -Imemory -c $< -o $@
