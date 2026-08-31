@@ -40,6 +40,7 @@ static int user_address_space_runtime_verified;
 static int user_ipc_runtime_verified;
 static int user_ipc_reject_runtime_verified;
 static int user_ipc_target_runtime_verified;
+static int user_ipc_wait_runtime_verified;
 static int user_pid_runtime_verified;
 static int scheduler_stack_reap_runtime_verified;
 static int scheduler_block_runtime_verified;
@@ -175,6 +176,10 @@ static void kernel_process_events(void)
         user_ipc_target_runtime_verified = 1;
         serial_write("EfesOS: targeted user IPC runtime test passed.\n");
     }
+    if (!user_ipc_wait_runtime_verified && syscall_user_ipc_block_count() != 0U) {
+        user_ipc_wait_runtime_verified = 1;
+        serial_write("EfesOS: blocking user IPC runtime test passed.\n");
+    }
     if (!user_pid_runtime_verified && syscall_user_pid_call_count() >= 2U) {
         user_pid_runtime_verified = 1;
         serial_write("EfesOS: generation-based user PID runtime test passed.\n");
@@ -296,6 +301,7 @@ void kernel_main(const struct boot_info *boot_info)
     user_ipc_runtime_verified = 0;
     user_ipc_reject_runtime_verified = 0;
     user_ipc_target_runtime_verified = 0;
+    user_ipc_wait_runtime_verified = 0;
     user_pid_runtime_verified = 0;
     scheduler_stack_reap_runtime_verified = 0;
     scheduler_block_runtime_verified = 0;

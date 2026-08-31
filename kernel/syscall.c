@@ -12,6 +12,8 @@ static volatile unsigned int user_address_space_call_count;
 static volatile unsigned int user_ipc_call_count;
 static volatile unsigned int user_ipc_reject_count;
 static volatile unsigned int user_ipc_target_count;
+static volatile unsigned int user_ipc_wait_count;
+static volatile unsigned int user_ipc_block_count;
 static volatile unsigned int user_pid_call_count;
 
 void syscall_init(void)
@@ -22,6 +24,8 @@ void syscall_init(void)
     user_ipc_call_count = 0;
     user_ipc_reject_count = 0;
     user_ipc_target_count = 0;
+    user_ipc_wait_count = 0;
+    user_ipc_block_count = 0;
     user_pid_call_count = 0;
 }
 
@@ -34,7 +38,7 @@ struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
     if ((frame->cs & 3U) == 3U) {
         user_call_count++;
         if (frame->eax == SYSCALL_IPC_SEND || frame->eax == SYSCALL_IPC_RECEIVE ||
-            frame->eax == SYSCALL_IPC_SEND_TO) {
+            frame->eax == SYSCALL_IPC_SEND_TO || frame->eax == SYSCALL_IPC_RECEIVE_WAIT) {
             user_ipc_call_count++;
         }
         if (frame->eax == SYSCALL_GET_PID) {
@@ -133,6 +137,43 @@ struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
             }
             frame->eax = frame->edx;
         }
+    } else if (frame->eax == SYSCALL_IPC_RECEIVE_WAIT) {
+        unsigned char buffer[SYSCALL_MAX_IPC];
+        unsigned int message_type;
+        unsigned int message_length;
+
+        user_ipc_wait_count++;
+        if (frame->ecx > SYSCALL_MAX_IPC ||
+            !paging_validate_user_range(frame->ebx, frame->ecx, 1) ||
+            !paging_validate_user_range(frame->edx, sizeof(message_type), 1)) {
+            if ((frame->cs & 3U) == 3U) {
+                user_ipc_reject_count++;
+            }
+            frame->eax = frame->ecx > SYSCALL_MAX_IPC ? SYSCALL_E2BIG : SYSCALL_EFAULT;
+        } else if (ipc_receive_for(scheduler_current_task_id(), &message_type, buffer,
+                   frame->ecx, &message_length)) {
+            if (!paging_copy_to_user(frame->ebx, buffer, message_length) ||
+                !paging_copy_to_user(frame->edx, &message_type, sizeof(message_type))) {
+                frame->eax = SYSCALL_EFAULT;
+            } else {
+                frame->eax = message_length;
+            }
+        } else if (ipc_pending_for(scheduler_current_task_id()) != 0U) {
+            frame->eax = SYSCALL_E2BIG;
+        } else if (scheduler_block_current()) {
+            user_ipc_block_count++;
+            /* A woken task retries the receive in user space. */
+            frame->eax = SYSCALL_EAGAIN;
+            frame = scheduler_on_yield(frame);
+        } else {
+            frame->eax = SYSCALL_EAGAIN;
+        }
+    } else if (frame->eax == SYSCALL_EXIT) {
+        if ((frame->cs & 3U) != 3U) {
+            frame->eax = SYSCALL_EFAULT;
+        } else {
+            frame = scheduler_on_user_exit(frame);
+        }
     } else {
         frame->eax = 0xFFFFFFFFU;
     }
@@ -167,6 +208,16 @@ unsigned int syscall_user_ipc_reject_count(void)
 unsigned int syscall_user_ipc_target_count(void)
 {
     return user_ipc_target_count;
+}
+
+unsigned int syscall_user_ipc_wait_count(void)
+{
+    return user_ipc_wait_count;
+}
+
+unsigned int syscall_user_ipc_block_count(void)
+{
+    return user_ipc_block_count;
 }
 
 unsigned int syscall_user_pid_call_count(void)

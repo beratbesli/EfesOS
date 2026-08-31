@@ -35,20 +35,21 @@
 - Sabit boyutlu, kesme güvenli ve taşma kontrollü kernel IPC mesaj kuyruğu eklendi; FIFO, kapasite ve aşırı uzun mesaj reddi boot self-test’iyle doğrulanıyor. `IPC_SEND`/`IPC_RECEIVE` syscall’leri yalnızca 64 baytlık bounded mesajlar ve doğrulanmış kullanıcı aralıklarıyla sunuluyor.
 - Ring-3 IPC negatif testi, supervisor adresine gönderimi `EFAULT` ile reddediyor; bu reddetme ayrı QEMU smoke marker’ı ve CI kontrolüyle izleniyor.
 - IPC mesajları artık gönderici/hedef generation-PID bilgisi taşıyor; `IPC_SEND_TO` yalnızca aktif bir kullanıcı sürecine yönlendirme yapıyor, alıcı tarafı da yayın veya kendi PID’si olmayan mesajları tüketemiyor. Hedef süreç uyandırma kancası scheduler’a bağlandı ve kuyruk self-test’i hedef izolasyonunu doğruluyor.
+- `IPC_RECEIVE_WAIT` eklendi: eşleşen mesaj yoksa kullanıcı görevi scheduler tarafından bloklanıyor, hedef/yayın gönderimiyle uyandırılıyor ve kullanıcı alanı çağrıyı yeniden deneyebiliyor. Süreç fault/exit olduğunda eski generation-PID’ye ait hedefli mesajlar kuyruktan siliniyor.
 - GitHub Actions; build, imaj doğrulama, FAT host testi ve QEMU ring-3 smoke testini çalıştırıyor.
 
 ## Doğrulama
 
 - `scripts/build.ps1` başarılı.
 - `scripts/fat-self-test.ps1` başarılı.
-- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 31 kritik boot/runtime işaretçisi doğrulanıyor.
+- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 32 kritik boot/runtime işaretçisi doğrulanıyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
-- Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT uçtan uca testi başarılı; mount, kök dizin ve dosya okuması dahil 32 işaretçi doğrulanıyor.
+- Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT uçtan uca testi başarılı; mount, kök dizin ve dosya okuması dahil 33 işaretçi doğrulanıyor.
 - Değişiklikler `codex/core-hardening` dalında checkpoint commit’leriyle kaydedildi.
 
 ## Bilinen sınırlar
 
-ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddi kullanılıyor. Disk yazma ve kalıcı dosya sistemi kullanıcıya hâlâ açılmadı. IPC syscall’leri bounded ve non-blocking’dir; kuyruk boş/dolu olduğunda `EAGAIN` döner. PID hedefleme ve scheduler uyandırma kancası var, ancak bekleyen alıcıyı syscall seviyesinde gerçekten bloklayıp yeniden başlatan akış henüz tamamlanmadı. İki süreçlik bounded sahiplik ve restart akışı doğrulandı; genel amaçlı süreç oluşturma/çıkış API’si ve daha geniş süreç tablosu sonraki aşamalardır. Authentication, secure boot, ağ/USB/SMP ve tam VFS de sonraki aşamalardır.
+ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddi kullanılıyor. Disk yazma ve kalıcı dosya sistemi kullanıcıya hâlâ açılmadı. IPC artık bounded beklemeli receive, PID hedefleme ve scheduler uyandırma desteğine sahip; ancak genel amaçlı süreç oluşturma/çıkış API’si ve daha geniş süreç tablosu sonraki aşamalardır. Authentication, secure boot, ağ/USB/SMP ve tam VFS de sonraki aşamalardır.
 
 ## Öncelikli sonraki geliştirmeler
 

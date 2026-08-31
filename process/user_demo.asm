@@ -15,6 +15,21 @@ user_demo_start:
     mov dword [esp], 0
     mov dword [esp + 4], 0x21435049
     mov [esp + 8], eax
+.wait_or_produce:
+    ; The even-slot demo waits for a message; the odd-slot demo yields so the
+    ; waiter is genuinely asleep before the broadcast wakes it.
+    test byte [esp + 8], 1
+    jnz .producer
+    lea ebx, [esp + 4]
+    mov ecx, 4
+    lea edx, [esp]
+    mov eax, 7
+    int 0x80
+    jmp .send_messages
+.producer:
+    mov eax, 1
+    int 0x80
+.send_messages:
     mov ebx, 7
     lea ecx, [esp + 4]
     mov edx, 4

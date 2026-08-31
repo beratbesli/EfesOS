@@ -40,6 +40,7 @@ $successMarkers = @(
     'EfesOS: user IPC syscall runtime test passed.',
     'EfesOS: invalid user IPC pointer rejected.',
     'EfesOS: targeted user IPC runtime test passed.',
+    'EfesOS: blocking user IPC runtime test passed.',
     'EfesOS: generation-based user PID runtime test passed.',
     'EfesOS: scheduler stack resource cleanup passed.',
     'EfesOS: scheduler block/wake lifecycle self-test passed.',

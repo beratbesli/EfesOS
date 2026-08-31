@@ -63,6 +63,8 @@ int ipc_send_from_to(unsigned int sender_id, unsigned int receiver_id,
     irq_restore(flags);
     if (receiver_id != 0U) {
         scheduler_wake_task_id(receiver_id);
+    } else {
+        scheduler_wake_user_tasks();
     }
     return 1;
 }
@@ -168,6 +170,38 @@ unsigned int ipc_pending_for(unsigned int receiver_id)
     return pending;
 }
 
+unsigned int ipc_purge_receiver(unsigned int receiver_id)
+{
+    unsigned int flags;
+    unsigned int offset;
+    unsigned int removed = 0U;
+
+    if (receiver_id == 0U) {
+        return 0U;
+    }
+    flags = irq_save();
+    offset = 0U;
+    while (offset < count) {
+        unsigned int position = (tail + offset) % IPC_QUEUE_CAPACITY;
+        unsigned int shift;
+
+        if (queue[position].receiver_id != receiver_id) {
+            offset++;
+            continue;
+        }
+        for (shift = offset; shift + 1U < count; shift++) {
+            unsigned int destination = (tail + shift) % IPC_QUEUE_CAPACITY;
+            unsigned int source = (tail + shift + 1U) % IPC_QUEUE_CAPACITY;
+            copy_message(&queue[destination], &queue[source]);
+        }
+        count--;
+        head = (tail + count) % IPC_QUEUE_CAPACITY;
+        removed++;
+    }
+    irq_restore(flags);
+    return removed;
+}
+
 static int bytes_equal(const unsigned char *left, const unsigned char *right, unsigned int length)
 {
     unsigned int i;
@@ -237,6 +271,24 @@ int ipc_self_test(void)
         ipc_pending_for(0x404U) != 1U) {
         return 0;
     }
-    return ipc_receive_for(0x505U, &type, output, sizeof(output), &length) &&
-        type == 9U && length == 0U && ipc_pending() == 0U;
+    ipc_init();
+    if (!ipc_send_from_to(0x505U, 0x606U, 10U, first, sizeof(first)) ||
+        !ipc_send_from_to(0x707U, 0x606U, 11U, second, sizeof(second)) ||
+        !ipc_send_from_to(0x808U, 0x909U, 12U, first, sizeof(first)) ||
+        !ipc_send(9U, 0, 0U) ||
+        ipc_purge_receiver(0x606U) != 2U || ipc_pending_for(0x606U) != 1U ||
+        ipc_pending_for(0x909U) != 2U) {
+        return 0;
+    }
+    if (!ipc_receive_for(0x909U, &type, output, sizeof(output), &length) ||
+        type != 12U || length != sizeof(first) || !bytes_equal(output, first, length)) {
+        return 0;
+    }
+    if (!ipc_receive_for(0x505U, &type, output, sizeof(output), &length)) {
+        return 0;
+    }
+    if (type != 9U || length != 0U || ipc_pending() != 0U) {
+        return 0;
+    }
+    return 1;
 }

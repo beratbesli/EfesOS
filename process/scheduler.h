@@ -3,6 +3,10 @@
 
 struct interrupt_frame;
 
+#define SCHEDULER_TASK_RUNNABLE 0U
+#define SCHEDULER_TASK_TERMINATED 1U
+#define SCHEDULER_TASK_BLOCKED 2U
+
 typedef void (*scheduler_task_t)(void);
 typedef unsigned int scheduler_counter_t;
 
@@ -15,6 +19,7 @@ int scheduler_set_priority(unsigned int index, unsigned int priority);
 int scheduler_block_task(unsigned int index);
 int scheduler_wake_task(unsigned int index);
 int scheduler_wake_task_id(unsigned int task_id);
+unsigned int scheduler_wake_user_tasks(void);
 int scheduler_task_id_is_active_user(unsigned int task_id);
 int scheduler_block_current(void);
 unsigned int scheduler_blocked_count(void);
@@ -22,6 +27,7 @@ void scheduler_start(void);
 struct interrupt_frame *scheduler_on_timer(struct interrupt_frame *frame);
 struct interrupt_frame *scheduler_on_yield(struct interrupt_frame *frame);
 struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame);
+struct interrupt_frame *scheduler_on_user_exit(struct interrupt_frame *frame);
 unsigned int scheduler_task_count(void);
 const char *scheduler_task_name(unsigned int index);
 scheduler_counter_t scheduler_task_runs(unsigned int index);

@@ -1,5 +1,6 @@
 #include "scheduler.h"
 #include "heap.h"
+#include "ipc.h"
 #include "idt.h"
 #include "paging.h"
 #include "panic.h"
@@ -10,9 +11,9 @@
 #define SCHEDULER_STACK_PAGES 4U
 #define SCHEDULER_STACK_STRIDE (PAGE_SIZE * (SCHEDULER_STACK_PAGES + 1U))
 #define SCHEDULER_STACK_BASE 0xC0000000U
-#define TASK_RUNNABLE 0U
-#define TASK_TERMINATED 1U
-#define TASK_BLOCKED 2U
+#define TASK_RUNNABLE SCHEDULER_TASK_RUNNABLE
+#define TASK_TERMINATED SCHEDULER_TASK_TERMINATED
+#define TASK_BLOCKED SCHEDULER_TASK_BLOCKED
 #define TASK_KERNEL 0U
 #define TASK_USER 1U
 #define SCHEDULER_DEFAULT_PRIORITY 1U
@@ -357,6 +358,19 @@ int scheduler_wake_task_id(unsigned int task_id)
     return 0;
 }
 
+unsigned int scheduler_wake_user_tasks(void)
+{
+    unsigned int index;
+    unsigned int woken = 0U;
+
+    for (index = 1U; index < task_count; index++) {
+        if (tasks[index].mode == TASK_USER && scheduler_wake_task(index)) {
+            woken++;
+        }
+    }
+    return woken;
+}
+
 int scheduler_task_id_is_active_user(unsigned int task_id)
 {
     unsigned int index;
@@ -456,10 +470,26 @@ struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame)
     if (!scheduler_started || current_task >= task_count || tasks[current_task].mode != TASK_USER) {
         return frame;
     }
+    ipc_purge_receiver(scheduler_current_task_id());
     tasks[current_task].state = TASK_TERMINATED;
     pending_reap = current_task;
     if (!user_process_reap_task(scheduler_current_task_index())) {
         kernel_panic("Unowned user task faulted.");
+    }
+    return schedule_from_frame(frame, 1);
+}
+
+struct interrupt_frame *scheduler_on_user_exit(struct interrupt_frame *frame)
+{
+    if (!scheduler_started || current_task >= task_count ||
+        tasks[current_task].mode != TASK_USER) {
+        return frame;
+    }
+    ipc_purge_receiver(scheduler_current_task_id());
+    tasks[current_task].state = TASK_TERMINATED;
+    pending_reap = current_task;
+    if (!user_process_reap_task(scheduler_current_task_index())) {
+        kernel_panic("Unowned user task exited.");
     }
     return schedule_from_frame(frame, 1);
 }
