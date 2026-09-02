@@ -223,6 +223,8 @@ void kernel_main(const struct boot_info *boot_info)
         serial_write_hex(features->nx);
         serial_write(" tsc=");
         serial_write_hex(features->tsc);
+        serial_write(" rdrand=");
+        serial_write_hex(features->rdrand);
         serial_write(" (reported; paging mode is selected after capability checks).\n");
     }
     tss_init();

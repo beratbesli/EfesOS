@@ -135,6 +135,8 @@
 - QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 39 kritik boot/runtime işaretçisi doğrulanıyor.
 - QEMU `-cpu qemu64` koşusu PAE backend’i ve hardware NX (`hardware-nx=0x00000001`) ile ELF/runtime akışını başarıyla tamamlıyor; varsayılan profil de NX’siz PAE yolunu doğruluyor.
 - QEMU `-cpu qemu32,pae=off` koşusu legacy sayfalama fallback’ini (`paging mode=legacy hardware-nx=0x00000000`) ve ELF/runtime akışını başarıyla tamamlıyor.
+- CPU yetenek yoklaması RDRAND desteğini de raporluyor; destek varsa ET_DYN load-bias ve kullanıcı stack yerleşim tohumuna donanımsal rastgelelik ekleniyor, desteklenmeyen CPU’larda bounded fallback korunuyor.
+- QEMU `-cpu max` koşusu RDRAND yolunu (`rdrand=0x00000001`) ve PAE/NX ELF/runtime akışını başarıyla doğruluyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
 - Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT/journal uçtan uca testi başarılı; mount, kök dizin, dosya okuması ve persistent replay dahil 39 işaretçi doğrulanıyor.
 - `scripts/run-self-test.ps1` ile etkileşimli `run RUN.ELF` yolu QEMU’da başarılı; diskten yüklenen programın seri çıktısı doğrulandı.

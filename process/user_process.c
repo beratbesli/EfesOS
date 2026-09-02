@@ -6,6 +6,8 @@
 #include "panic.h"
 #include "user_process.h"
 
+extern int cpu_random_u32(unsigned int *value) __attribute__((weak));
+
 #define USER_STACK_REGION_BASE 0x00800000U
 #define USER_STACK_REGION_STRIDE 0x00100000U
 #define USER_STACK_REGION_COUNT 16U
@@ -33,6 +35,13 @@ static unsigned int next_layout_random(void)
 {
     if (layout_random_state == 0U) {
         layout_random_state = pit_ticks() ^ (unsigned int)&layout_random_state ^ 0xA5C39E17U;
+        if (cpu_random_u32 != 0) {
+            unsigned int hardware_random;
+
+            if (cpu_random_u32(&hardware_random)) {
+                layout_random_state ^= hardware_random;
+            }
+        }
         if (layout_random_state == 0U) {
             layout_random_state = 0x1U;
         }

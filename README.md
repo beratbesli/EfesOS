@@ -24,7 +24,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - When a validated journal region exists outside the FAT volume, shell `write`/`rm` operations are committed transactionally to persistent RAMFS; `pformat` explicitly formats an entirely empty journal tail
 - Bounded ELF32 segment loader with BSS initialization, W^X checks and page-permission finalization
 - Software execute metadata for ELF code pages with EIP checks at scheduler/syscall boundaries (not a full replacement for hardware NX in non-PAE mode)
-- Bounded per-boot user-stack layout diversification using a non-cryptographic scheduler-time seed (not full ASLR)
+- Bounded per-boot user-stack and ET_DYN load-layout diversification; CPU RDRAND is mixed into the seed when available, with a non-cryptographic fallback (not full ASLR)
 - Relocation-free position-independent `ET_DYN` images receive a bounded randomized load bias; legacy `ET_EXEC` images remain fixed
 - Bounded user-buffer validation for the data-carrying serial syscall, including overflow and permission checks
 - Faulted demo processes release their user ELF pages and stack frames before scheduling continues

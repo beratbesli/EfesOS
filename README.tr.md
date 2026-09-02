@@ -24,7 +24,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - FAT volume dışında doğrulanmış journal bölgesi varsa shell `write`/`rm` işlemleri kalıcı RAMFS journal’ına transaction olarak yazılır; `pformat` yalnızca tamamen boş journal tail’ini açıkça biçimlendirir
 - BSS sıfırlama, W^X denetimi ve son sayfa izinleriyle sınırlı ELF32 segment yükleyicisi
 - ELF executable sayfaları için yazılım execute biti ve scheduler/syscall sınırlarında EIP doğrulaması (non-PAE donanım NX’in yerine tamamen geçmez)
-- Kriptografik olmayan scheduler/PIT tohumuyla sınırlı per-boot user-stack yerleşim çeşitlendirmesi (tam ASLR değildir)
+- CPU RDRAND varsa tohuma karıştırılan, yoksa scheduler/PIT fallback kullanan sınırlı per-boot user-stack ve ET_DYN yerleşim çeşitlendirmesi (tam ASLR değildir)
 - Relocation içermeyen konumdan bağımsız `ET_DYN` imajları bounded rastgele yükleme tabanı alır; eski `ET_EXEC` imajları sabit kalır
 - Veri taşıyan seri syscall için taşma ve izin kontrolleri yapan sınırlı kullanıcı tamponu doğrulaması
 - Hata alan demo süreçlerinin ELF sayfaları ve yığın çerçeveleri scheduler devam etmeden geri kazanılır

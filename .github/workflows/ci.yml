@@ -109,6 +109,13 @@ jobs:
           grep -F "EfesOS: paging mode=PAE hardware-nx=0x00000001." build/ci-nx-serial.log
           grep -F "EfesOS: ELF loader runtime self-test passed." build/ci-nx-serial.log
           if grep -F "KERNEL PANIC:" build/ci-nx-serial.log; then exit 1; fi
+      - name: QEMU hardware entropy smoke test
+        run: |
+          timeout 20s qemu-system-i386 -cpu max -display none -monitor none -serial file:build/ci-rdrand-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
+          grep -F "rdrand=0x00000001" build/ci-rdrand-serial.log
+          grep -F "EfesOS: paging mode=PAE hardware-nx=0x00000001." build/ci-rdrand-serial.log
+          grep -F "EfesOS: ELF loader runtime self-test passed." build/ci-rdrand-serial.log
+          if grep -F "KERNEL PANIC:" build/ci-rdrand-serial.log; then exit 1; fi
       - name: QEMU legacy paging fallback smoke test
         run: |
           timeout 20s qemu-system-i386 -cpu qemu32,pae=off -display none -monitor none -serial file:build/ci-legacy-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true

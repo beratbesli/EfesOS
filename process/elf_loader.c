@@ -82,6 +82,7 @@ static unsigned char *virtual_pointer(unsigned int address)
    The weak PIT hook is present in the kernel but absent from host parser tests;
    the address/counter fallback still keeps the allocator deterministic there. */
 extern unsigned int pit_ticks(void) __attribute__((weak));
+extern int cpu_random_u32(unsigned int *value) __attribute__((weak));
 static unsigned int load_bias_random_state;
 
 static unsigned int next_load_bias_random(void)
@@ -89,6 +90,13 @@ static unsigned int next_load_bias_random(void)
     if (load_bias_random_state == 0U) {
         load_bias_random_state = (unsigned int)(uintptr_t)&load_bias_random_state ^
             0x7E31A5C9U;
+        if (cpu_random_u32 != 0) {
+            unsigned int hardware_random;
+
+            if (cpu_random_u32(&hardware_random)) {
+                load_bias_random_state ^= hardware_random;
+            }
+        }
         if (pit_ticks != 0) {
             load_bias_random_state ^= pit_ticks();
         }
