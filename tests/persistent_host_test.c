@@ -76,6 +76,16 @@ uint8_t ata_last_status(void)
     return 0U;
 }
 
+unsigned int ata_irq_count(void)
+{
+    return 0U;
+}
+
+unsigned int ata_irq_fallback_count(void)
+{
+    return 0U;
+}
+
 void serial_write(const char *text)
 {
     (void)text;
