@@ -138,7 +138,10 @@ static int user_process_spawn_locked(const char *name, const void *image,
     clear_user_page(stack_address);
     stack_mapped = 1;
     image_loaded = elf_load_image(image, image_size, &entry, &loaded_base, &loaded_end);
-    if (!image_loaded) {
+    /* The guard is intentionally left unmapped. An otherwise valid ELF must
+       not be allowed to claim it and silently disable stack-underflow
+       isolation. The common cleanup path unloads any such image. */
+    if (!image_loaded || paging_is_mapped(stack_guard_address)) {
         goto cleanup;
     }
     if (!paging_switch_address_space(kernel_directory)) {
@@ -224,6 +227,40 @@ static int user_process_init_locked(void)
     set_u32(image, 80U, 1U);
     copy_bytes(image + 116U, &user_demo_start, code_size);
     return user_process_spawn_locked("user-demo", image, image_size);
+}
+
+int user_process_guard_self_test(void)
+{
+    unsigned char image[128];
+    unsigned int index;
+
+    for (index = 0U; index < sizeof(image); index++) {
+        image[index] = 0U;
+    }
+    image[0] = 0x7FU;
+    image[1] = 'E';
+    image[2] = 'L';
+    image[3] = 'F';
+    image[4] = 1U;
+    image[5] = 1U;
+    image[6] = 1U;
+    set_u16(image, 16U, 2U);
+    set_u16(image, 18U, 3U);
+    set_u32(image, 20U, 1U);
+    set_u32(image, 24U, USER_STACK_REGION_BASE);
+    set_u32(image, 28U, 52U);
+    set_u16(image, 40U, 52U);
+    set_u16(image, 42U, 32U);
+    set_u16(image, 44U, 1U);
+    set_u32(image, 52U, 1U);
+    set_u32(image, 56U, 116U);
+    set_u32(image, 60U, USER_STACK_REGION_BASE);
+    set_u32(image, 68U, 1U);
+    set_u32(image, 72U, PAGE_SIZE);
+    set_u32(image, 76U, 1U);
+    set_u32(image, 80U, 1U);
+    image[116] = 0xC3U;
+    return !user_process_spawn("guard-test", image, sizeof(image));
 }
 
 int user_process_reap_task(unsigned int task_index, unsigned int task_id)

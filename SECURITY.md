@@ -46,6 +46,8 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - User-task registration also requires the caller to be in the kernel address space and the user stack top to be page-aligned, preventing malformed context creation through internal APIs.
 - Generation counters are bounded to the PID encoding width; an exhausted slot is never wrapped into an old identity and is rejected instead (fail-closed).
 - Each user address space leaves a page-sized unmapped guard below its user stack; stack underflow therefore terminates the task instead of overwriting another mapping.
+- User-process spawn verifies after ELF loading that the reserved stack-guard page is still unmapped; an ELF segment cannot silently consume the guard and weaken overflow isolation.
+- A boot self-test attempts exactly such a guard-overlapping ELF and requires the spawn to fail with complete resource cleanup.
 - User-process creation scans all bounded stack regions and refuses active-region reuse, so restart timing cannot create duplicate stack metadata or an avoidable spawn failure.
 - Stage-2 verifies a build-generated CRC-32 kernel digest before handoff and the kernel requires the verification bit; this detects accidental/tampering corruption better than a sum but is not a cryptographic secure-boot signature.
 - User `EXIT` follows the same ownership-checked cleanup path as faults, reclaiming user mappings before the scheduler can reuse the task slot.

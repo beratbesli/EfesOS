@@ -78,6 +78,8 @@
 - `IPC_RECEIVE_WAIT` eklendi: eşleşen mesaj yoksa kullanıcı görevi scheduler tarafından bloklanıyor, hedef/yayın gönderimiyle uyandırılıyor ve kullanıcı alanı çağrıyı yeniden deneyebiliyor. Süreç fault/exit olduğunda eski generation-PID’ye ait hedefli mesajlar kuyruktan siliniyor.
 - Süreç fault/exit’inde sender tarafında kalan orphan IPC mesajları da siliniyor; hem alıcı hem gönderici yönündeki kuyruk kaynakları generation-PID ile temizleniyor.
 - Kullanıcı yığını artık ayrılmış bir guard sayfasının üstünde kuruluyor; yığın aşağı taşarsa komşu sayfaya yazmak yerine izole user fault yoluna giriyor.
+- Kullanıcı süreç spawn’ı ELF yüklemesinden sonra ayrılmış stack-guard sayfasının hâlâ unmapped olduğunu zorunlu doğruluyor; guard’ı tüketen imaj fail-closed cleanup ile reddediliyor.
+- Boot self-test’i guard adresini segment olarak kullanan ELF’i bilerek reddettiriyor ve cleanup sonrasında sistemi normal süreç başlatmaya devam ettiriyor.
 - Kullanıcı stack frame’i süreç çalıştırılmadan önce tamamen sıfırlanıyor; fiziksel frame yeniden kullanımı önceki süreç/kernel verisini sızdıramıyor.
 - Scheduler kernel stack sayfaları da ilk frame kurulmadan önce sıfırlanıyor; görev slotu yeniden kullanımında eski kernel local verisi taşınmıyor.
 - Her yeni kullanıcı süreci, on altı bounded stack bölgesinden generation/reap durumuna göre farklı bir stack bölgesi alıyor; stack adresi process kaydında tutulup cleanup sırasında aynı adrese göre doğrulanıyor.

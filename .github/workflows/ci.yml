@@ -56,6 +56,7 @@ jobs:
           grep -F "EfesOS: kernel heap self-test passed." build/ci-serial.log
           grep -F "EfesOS: RAM filesystem self-test passed." build/ci-serial.log
           grep -F "EfesOS: bounded IPC queue self-test passed." build/ci-serial.log
+          grep -F "EfesOS: user stack guard self-test passed." build/ci-serial.log
           grep -F "EfesOS: user address-space isolation self-test passed." build/ci-serial.log
           grep -F "EfesOS: scheduler priority self-test passed." build/ci-serial.log
           grep -F "EfesOS: ring3 syscall runtime test passed." build/ci-serial.log

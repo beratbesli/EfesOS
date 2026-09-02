@@ -341,6 +341,10 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("EfesOS: bounded IPC queue self-test passed.\n");
     scheduler_add_task("counter", counter_program);
     scheduler_add_task("snake", snake_program);
+    if (!user_process_guard_self_test()) {
+        kernel_panic("User stack guard self-test failed.");
+    }
+    serial_write("EfesOS: user stack guard self-test passed.\n");
     if (!user_process_init() || !user_process_init() || !user_process_init() ||
         !user_process_init()) {
         kernel_panic("User process initialization failed.");
