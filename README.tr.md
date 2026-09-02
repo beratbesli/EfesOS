@@ -21,6 +21,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Transactional dosya sistemi hazır olana kadar ATA ham yazmaları boot’ta korumalıdır
 - Sınırlı 8.3 dizin/dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat`); doğrulanmış ELF’i diskten başlatma (`run NAME`)
 - BSS sıfırlama, W^X denetimi ve son sayfa izinleriyle sınırlı ELF32 segment yükleyicisi
+- ELF executable sayfaları için yazılım execute biti ve scheduler/syscall sınırlarında EIP doğrulaması (non-PAE donanım NX’in yerine tamamen geçmez)
 - Veri taşıyan seri syscall için taşma ve izin kontrolleri yapan sınırlı kullanıcı tamponu doğrulaması
 - Hata alan demo süreçlerinin ELF sayfaları ve yığın çerçeveleri scheduler devam etmeden geri kazanılır
 - Sekize kadar bounded kullanıcı süreci özel page directory alır; scheduler adres alanlarını CR3 ile değiştirir ve fault sonrası slotları yeniden kullanır

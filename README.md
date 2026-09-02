@@ -21,6 +21,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - ATA raw writes disabled by default until a transactional filesystem layer is available
 - Read-only FAT16 VFS mount with bounded 8.3 directory and file reads (`diskls`, `diskcat`); validated ELF launch from disk (`run NAME`)
 - Bounded ELF32 segment loader with BSS initialization, W^X checks and page-permission finalization
+- Software execute metadata for ELF code pages with EIP checks at scheduler/syscall boundaries (not a full replacement for hardware NX in non-PAE mode)
 - Bounded user-buffer validation for the data-carrying serial syscall, including overflow and permission checks
 - Faulted demo processes release their user ELF pages and stack frames before scheduling continues
 - Up to eight bounded user processes get private page directories; the scheduler switches address spaces with CR3 and reuses slots after faults
