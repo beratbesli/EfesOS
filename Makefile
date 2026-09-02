@@ -69,7 +69,7 @@ $(ENTRY_OBJ): kernel/kernel_entry.asm | $(BUILD_DIR)
 	$(NASM) -w+error -f elf32 $< -o $@
 
 $(KERNEL_MAIN_OBJ): kernel/kernel.c include/ata.h include/boot_info.h cpu/features.h cpu/idt.h cpu/tss.h games/games.h include/keyboard.h include/pci.h kernel/panic.h kernel/splash.h kernel/ipc.h memory/heap.h memory/paging.h memory/pmm.h process/elf_loader.h process/scheduler.h process/user_process.h fs/ramfs.h fs/journal.h fs/persistent.h fs/vfs.h include/serial.h include/syscall.h shell/shell.h include/vga.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Icpu -Igames -Ikernel -Imemory -Iprocess -Ishell -c $< -o $@
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Ifs -Igames -Ikernel -Imemory -Iprocess -Ishell -c $< -o $@
 
 $(PANIC_OBJ): kernel/panic.c kernel/panic.h include/serial.h include/vga.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Ikernel -c $< -o $@
