@@ -13,6 +13,7 @@
 #include "system.h"
 #include "vga.h"
 #include "vfs.h"
+#include "user_process.h"
 
 #define SHELL_INPUT_MAX 128
 #define SHELL_HISTORY_MAX 8
@@ -21,6 +22,7 @@ static char input[SHELL_INPUT_MAX];
 static char history[SHELL_HISTORY_MAX][SHELL_INPUT_MAX];
 static unsigned int input_length;
 static unsigned int history_count;
+static unsigned char process_image[USER_PROCESS_IMAGE_MAX_SIZE];
 
 static int string_equals(const char *left, const char *right)
 {
@@ -66,10 +68,10 @@ static void print_prompt(void)
 static void print_help(void)
 {
     if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
-        vga_write("Komutlar: help clear about mem heap input uptime ps demo pci disk diskls diskcat counter snake slot\n");
+        vga_write("Komutlar: help clear about mem heap input uptime ps demo pci disk diskls diskcat run counter snake slot\n");
         vga_write("echo history color ls cat write rm reboot shutdown tr en\n");
     } else {
-        vga_write("Commands: help clear about mem heap input uptime ps demo pci disk diskls diskcat counter snake slot\n");
+        vga_write("Commands: help clear about mem heap input uptime ps demo pci disk diskls diskcat run counter snake slot\n");
         vga_write("echo history color ls cat write rm reboot shutdown tr en\n");
     }
 }
@@ -181,6 +183,19 @@ static void print_disk_file(const char *name)
     }
     contents[size] = '\0';
     vga_write(contents);
+}
+
+static void run_disk_file_command(void)
+{
+    const char *name = input + 4;
+    unsigned int size;
+
+    if (!vfs_read_file(name, process_image, sizeof(process_image), &size) ||
+        !user_process_spawn(name, process_image, size)) {
+        vga_write("Process rejected (missing, invalid ELF, or process capacity full).\n");
+        return;
+    }
+    vga_write("User process started.\n");
 }
 
 static void print_history(void)
@@ -326,6 +341,8 @@ static void execute_command(void)
         print_disk_files();
     } else if (string_starts_with(input, "diskcat ")) {
         print_disk_file(input + 8);
+    } else if (string_starts_with(input, "run ")) {
+        run_disk_file_command();
     } else if (string_equals(input, "counter")) {
         vga_write("counter=");
         vga_write_unsigned(counter_program_runs());

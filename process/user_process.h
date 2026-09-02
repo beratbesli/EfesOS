@@ -1,6 +1,8 @@
 #ifndef EFESOS_USER_PROCESS_H
 #define EFESOS_USER_PROCESS_H
 
+#define USER_PROCESS_IMAGE_MAX_SIZE (64U * 1024U)
+
 int user_process_init(void);
 /* Kernel-only bounded ELF spawn; image must remain readable for the call. */
 int user_process_spawn(const char *name, const void *image, unsigned int image_size);

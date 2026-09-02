@@ -10,7 +10,6 @@
 #define USER_STACK_REGION_STRIDE 0x00100000U
 #define USER_STACK_REGION_COUNT 8U
 #define USER_PROCESS_MAX 4U
-#define USER_IMAGE_MAX_SIZE (64U * 1024U)
 
 extern unsigned char user_demo_start;
 extern unsigned char user_demo_end;
@@ -92,7 +91,7 @@ static int user_process_spawn_locked(const char *name, const void *image,
     int image_loaded = 0;
     int stack_mapped = 0;
 
-    if (name == 0 || image == 0 || image_size == 0U || image_size > USER_IMAGE_MAX_SIZE ||
+    if (name == 0 || image == 0 || image_size == 0U || image_size > USER_PROCESS_IMAGE_MAX_SIZE ||
         paging_current_directory() != kernel_directory) {
         return 0;
     }

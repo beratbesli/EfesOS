@@ -19,7 +19,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - PCI configuration-space enumeration with a bounded `pci` diagnostic command
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
 - ATA raw writes disabled by default until a transactional filesystem layer is available
-- Read-only FAT16 VFS mount with bounded 8.3 directory and file reads (`diskls`, `diskcat`)
+- Read-only FAT16 VFS mount with bounded 8.3 directory and file reads (`diskls`, `diskcat`); validated ELF launch from disk (`run NAME`)
 - Bounded ELF32 segment loader with BSS initialization, W^X checks and page-permission finalization
 - Bounded user-buffer validation for the data-carrying serial syscall, including overflow and permission checks
 - Faulted demo processes release their user ELF pages and stack frames before scheduling continues
@@ -96,7 +96,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Di
 | Command | Description |
 | --- | --- |
 | `help`, `clear`, `about`, `mem`, `heap`, `input` | Basic kernel and queue information |
-| `uptime`, `ps`, `demo`, `pci`, `disk`, `diskls`, `diskcat NAME`, `counter` | Kernel, PCI, disk and scheduler status |
+| `uptime`, `ps`, `demo`, `pci`, `disk`, `diskls`, `diskcat NAME`, `run NAME`, `counter` | Kernel, PCI, disk, scheduler and validated user-process launch |
 | `echo`, `history`, `color` | Shell utilities |
 | `ls`, `cat README`, `cat MOTD`, `cat EFES`, `write NAME CONTENT`, `rm NAME` | Bounded RAM filesystem |
 | `snake`, `slot` | Mini games |
