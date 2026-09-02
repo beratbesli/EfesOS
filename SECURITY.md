@@ -13,7 +13,8 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 ## Current security boundary
 
 - Kernel text/rodata are write-protected after paging is enabled; the null page is unmapped and the heap has guard pages and canaries.
-- E820 ranges are rounded to pages without 64-bit addition wraparound before entering the physical allocator.
+- Boot metadata rejects non-byte BIOS drive identifiers, unknown handoff flags, non-canonical font metadata, zero E820 types, reserved E820 attribute bits, empty ranges and 64-bit range wraparound before PMM consumes it.
+- Active E820 usable ranges are applied before every active non-usable range, independent of firmware record order; reserved/ACPI/unknown records therefore win overlaps and cannot be re-exposed to the physical allocator.
 - The fixed 3 MiB BGA framebuffer window is reserved in PMM before paging maps it, preventing high-memory E820 pages from being allocated underneath MMIO graphics memory.
 - PMM initialization rejects an invalid or empty linker-reported kernel range before releasing E820 pages, so malformed kernel metadata cannot leave the kernel image allocatable.
 - VGA PCI configuration writes are limited to a verified Bochs/BGA display device; the BGA ID is read back before any BAR or command-register write, and mismatches are skipped.
@@ -54,6 +55,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - GitHub Actions dependencies are pinned to a verified commit and checkout credentials are not persisted in the worktree, reducing CI supply-chain and token-leakage risk.
 - Dependabot is configured to propose weekly GitHub Actions updates so pinned workflow dependencies receive security fixes without reverting to mutable tags.
 - CI runs Clang’s static analyzer across kernel C sources (excluding intentional fixed-address hardware accesses) so new pointer and memory diagnostics fail before merge.
+- Deterministic parser security tests exhaustively mutate every byte of a valid ELF and boot handoff, add 16,384 reproducible multi-byte boot mutations and 2,048 FAT image mutations, and execute boot/E820/ELF/FAT paths under ASan/UBSan in Linux CI.
 - PowerShell build and self-test scripts accept PATH-resolved tools only when `Get-Command` reports a real `Application` with a non-empty source; profile functions and aliases cannot silently replace compiler or QEMU binaries.
 - Boot self-test invokes the raw write API while protection is active and requires the call to fail, guarding the write-protected invariant against future call-path regressions.
 - IPC uses a fixed 16-message, 64-byte-per-message queue with interrupt-safe FIFO operations. `IPC_SEND_TO` binds delivery to an active user generation-PID (while legacy `IPC_SEND` remains broadcast), `IPC_RECEIVE_WAIT` blocks safely until a sender wakes the task, and exited-task messages are purged; ring-3 calls validate all user buffers and return bounded `E2BIG`/`EFAULT`/`EAGAIN` errors.
@@ -84,4 +86,4 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 
 This remains a learning kernel. It has no authentication, secure boot, signed modules, full ASLR, SMP isolation, comprehensive validation for every future syscall ABI, or a fully validated persistent filesystem. Hardware NX is available only on PAE/NX-capable CPUs; legacy fallback mode is not equivalent. Do not treat it as a production security boundary until those items are implemented and audited.
 
-Every pull request should pass the LLVM/GCC build, deterministic FAT host test and QEMU ring-3 fault-isolation smoke test defined in `.github/workflows/ci.yml`.
+Every pull request should pass the LLVM/GCC build, deterministic parser/property tests, sanitizer tests and QEMU ring-3 fault-isolation smoke tests defined in `.github/workflows/ci.yml`.

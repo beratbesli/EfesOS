@@ -11,7 +11,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 ## Features
 
 - Retried two-stage BIOS bootloader with A20 verification and a 1.44 MiB floppy image
-- BIOS E820 memory map handoff and deterministic `.bss` initialization
+- BIOS E820 memory map handoff, deterministic `.bss` initialization, strict metadata validation and reserved-over-usable overlap normalization
 - Early CPUID capability probe reports PAE/NX/TSC support; PAE paging and hardware NX are enabled when supported, with a legacy fallback
 - 32-bit protected mode, GDT, vector-aware IDT, PIC, PIT and buffered hardware keyboard input
 - Preemptive kernel-thread scheduler with guarded per-task stacks and timer-driven context switching
@@ -88,6 +88,12 @@ Run the standalone block-device boundary and capability test when changing stora
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\block-device-self-test.ps1
+```
+
+Run the deterministic boot metadata, E820, ELF and FAT property-fuzz suite after changing any boot or parser boundary:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\parser-fuzz-self-test.ps1
 ```
 
 Run the standalone FAT parser test when changing filesystem code:

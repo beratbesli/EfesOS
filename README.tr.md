@@ -11,7 +11,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 ## Özellikler
 
 - A20 doğrulamalı, yeniden deneyen iki aşamalı BIOS bootloader ve 1.44 MiB floppy imajı
-- BIOS E820 bellek haritası aktarımı ve deterministik `.bss` başlangıcı
+- BIOS E820 bellek haritası aktarımı, deterministik `.bss` başlangıcı, sıkı metadata doğrulaması ve reserved-over-usable çakışma normalizasyonu
 - Erken CPUID yetenek yoklaması PAE/NX/TSC desteğini raporlar; destek varsa PAE sayfalama ve donanımsal NX etkinleşir, yoksa legacy fallback kullanılır
 - 32-bit protected mode, GDT, vektör duyarlı IDT, PIC, PIT ve tamponlanmış donanım klavye girişi
 - Koruma sayfalı görev yığınları ve PIT tabanlı bağlam değişimi olan öncelikli kernel-thread scheduler
@@ -88,6 +88,12 @@ Depolama sürücüsü değişikliklerinde bağımsız blok aygıt sınır/yetene
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\block-device-self-test.ps1
+```
+
+Boot veya parser sınırı değişikliklerinden sonra deterministik boot metadata, E820, ELF ve FAT property-fuzz paketini çalıştır:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\parser-fuzz-self-test.ps1
 ```
 
 Dosya sistemi değişikliklerinde bağımsız FAT ayrıştırıcı testini çalıştır:

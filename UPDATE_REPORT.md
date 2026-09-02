@@ -5,7 +5,7 @@
 - BIOS boot zinciri, A20 doğrulaması, E820 bellek haritası, deterministik `.bss` ve seri tanılama sertleştirildi.
 - Erken boot aşamasında CPUID yetenek yoklaması eklendi; PAE, NX ve TSC durumu seri tanıda raporlanıyor. PAE destekleniyorsa sayfalama PAE backend’ine geçiyor; NX destekleniyorsa EFER.NXE ve donanımsal NX etkinleştiriliyor, desteklenmeyen CPU’larda legacy fallback korunuyor.
 - ELF yükleyici, dynamic-linker gerektiren imajları reddeden relocation-free `ET_DYN` desteği kazandı; bu imajlara stack ile çakışmayan bounded per-load load bias uygulanıyor. `ET_EXEC` geriye dönük uyum için sabit kalıyor; bu tam ASLR değildir.
-- E820 tabanlı PMM, null-page koruması, salt-okunur kernel sayfaları, dinamik VMM ve canary/guard-page heap eklendi.
+- E820 tabanlı PMM, null-page koruması, salt-okunur kernel sayfaları, dinamik VMM ve canary/guard-page heap eklendi. Boot metadata bilinmeyen handoff bayraklarını, sıfır E820 türünü, ayrılmış attribute bitlerini ve canonical olmayan BIOS alanlarını fail-closed reddediyor; usable kayıtlar önce, reserved/ACPI/unknown kayıtlar sonra uygulanarak firmware sırasından bağımsız reserved-over-usable önceliği sağlanıyor.
 - Vektör duyarlı IDT/PIC/PIT, kuyruklu klavye sürücüsü ve IRQ dışında çalışan olay döngüsü eklendi.
 - Koruma sayfalı preemptive kernel-thread scheduler ve TSS tabanlı gerçek ring-3 geçişi eklendi.
 - `int 0x80` syscall ABI’si, geçersiz çağrı reddi ve ring-3 istisna izolasyonu eklendi.
@@ -139,6 +139,7 @@
 - `scripts/journal-self-test.ps1` ayrıca terminal torn-append sonrasında önceki commit’li kayıtların replay edilebildiğini ve 32-bit LBA taşmasında hiçbir I/O callback’inin çağrılmadığını doğruluyor.
 - `scripts/sha256-self-test.ps1` ve `scripts/sha256_self_test.py`, build digest’inin bağımsız SHA-256 hesaplamasıyla eşleştiğini ve tek baytlık kernel bozulmasının farklı özet ürettiğini doğruluyor; CI’da `make sha256-self-test` kapısı etkin.
 - `scripts/sha256-boot-negative-test.ps1` ve `scripts/sha256_boot_negative_test.py`, bozulmuş imajı QEMU’da boot edip stage-2’nin kernel girişinden önce seri `!` fail-closed işaretiyle durduğunu doğruluyor; CI’da `make sha256-boot-negative-test` kapısı etkin.
+- `scripts/parser-fuzz-self-test.ps1`; boot metadata üzerinde her bayt/değer kombinasyonunu ve 16.384 sabit tohumlu çoklu mutasyonu (toplam 219.136 mutasyon), ELF üzerinde her bayt/değer kombinasyonunu ve tüm truncation boylarını, FAT üzerinde 2.048 deterministik bozuk imajı çalıştırıyor. E820 host testi ayrıca ters kayıt sırası, çakışan reserved/usable aralıklar, devre dışı kayıtlar ve bilinmeyen bellek türleri için fail-closed normalizasyonu doğruluyor; aynı yollar Linux CI’da ASan/UBSan altında çalışıyor.
 - QEMU smoke testi başarılı; varsayılan profilde 41 kritik boot/runtime işaretçisi, deterministik ATA/FAT fixture’ında ek disk/journal işaretçileri doğrulanıyor.
 - QEMU `-cpu qemu64` koşusu PAE backend’i ve hardware NX (`hardware-nx=0x00000001`) ile ELF/runtime akışını başarıyla tamamlıyor; varsayılan profil de NX’siz PAE yolunu doğruluyor.
 - QEMU `-cpu qemu32,pae=off` koşusu legacy sayfalama fallback’ini (`paging mode=legacy hardware-nx=0x00000000`) ve ELF/runtime akışını başarıyla tamamlıyor.
@@ -163,6 +164,6 @@ ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; 48-bit destekli aygıtlarda 
 1. **Depolama (P1):** ATA sürücüsünü IRQ/DMA ve gerçek donanım matrisiyle doğrula; yazmayı ancak hata kurtarma, journaling ve FAT bütünlük kontrollerinden sonra aç.
 2. **Donanım kapsamı (P2):** Yeni blok aygıt sözleşmesini kullanarak USB depolama/HID, ağ ve zamanlayıcı sürücülerini ekle; her biri için QEMU/host fixture testi yaz.
 3. **Güvenlik (P2):** imzalı boot zinciri, kimlik doğrulama, tam ASLR, modül imzalama ve SMP kilitlemesini tasarla.
-4. **Test kapsamı (P2):** ELF/FAT/boot fixture’larını property/fuzz testleriyle genişlet; gerçek donanım matrisi için sürekli regresyon kayıtları tut.
+4. **Test kapsamı (P2):** Boot/E820/ELF/FAT property-fuzz ve sanitizer kapıları tamamlandı; gerçek donanım matrisi için sürekli regresyon kayıtları tut.
 
-Checkpoint commit’leri `origin/main` dalına gönderildi; GitHub Actions sonucu ayrıca doğrulanıyor.
+Checkpoint commit’leri `origin/main` dalına gönderiliyor; her checkpoint GitHub Actions build/analyzer/sanitizer/QEMU kapılarıyla doğrulanıyor.
