@@ -80,6 +80,7 @@
 - Scheduler’ın görev durumu, PID sahipliği ve wake/block geçişleri artık IRQ-korumalı kritik bölümlerde yürütülüyor; IPC gönderimi ile timer preemption arasındaki yarış penceresi kapatıldı.
 - Ring-3 task oluşturma API’si entry ve user stack-top adreslerini 4 MiB–3 GiB kullanıcı aralığına sınırlandırıyor; kernel adresleri için negatif boot self-test’i eklendi.
 - ATA kapasitesi 28-bit PIO adresleme sınırına bağlandı; daha büyük veya taşmış IDENTIFY kapasitesi aygıtı sessiz LBA sarmalaması yerine güvenli biçimde reddediyor. Doğrudan ATA okuma çağrıları da sınırlı kanal reseti sonrası üç denemeye kadar retry yapıyor; kısmi yazmayı çoğaltmamak için yazma retry edilmiyor.
+- Sabit BGA framebuffer penceresi PMM’de paging öncesi rezerve edildi; yüksek RAM’li makinelerde MMIO sayfalarının kernel/user tahsisleriyle alias olması engellendi.
 - VFS, FAT BPB volume geometrisini gerçek ATA sektör kapasitesiyle mount sırasında karşılaştırıyor; fiziksel aygıtı aşan volume artık sonradan hata vermek yerine fail-closed reddediliyor.
 - Sabit boyutlu, kesme güvenli ve taşma kontrollü kernel IPC mesaj kuyruğu eklendi; FIFO, kapasite ve aşırı uzun mesaj reddi boot self-test’iyle doğrulanıyor. `IPC_SEND`/`IPC_RECEIVE` syscall’leri yalnızca 64 baytlık bounded mesajlar ve doğrulanmış kullanıcı aralıklarıyla sunuluyor.
 - Ring-3 IPC negatif testi, supervisor adresine gönderimi `EFAULT` ile reddediyor; bu reddetme ayrı QEMU smoke marker’ı ve CI kontrolüyle izleniyor.

@@ -6,6 +6,8 @@ typedef unsigned long long pmm_u64_t;
 #define PMM_BITMAP_WORDS (PMM_MAX_BLOCKS / 32U)
 #define PMM_LOW_MEMORY_END 0x00100000U
 #define PMM_BOOTSTRAP_RESERVED_END 0x00100000U
+#define PMM_FRAMEBUFFER_BASE 0xE0000000U
+#define PMM_FRAMEBUFFER_PAGES 768U
 #define PMM_USER_MIN_ADDRESS 0x00400000U
 #define PMM_USER_MAX_ADDRESS 0x10000000U
 #define PMM_USER_MAX_BLOCKS (PMM_USER_MAX_ADDRESS / PMM_BLOCK_SIZE)
@@ -194,6 +196,11 @@ int pmm_init(const struct boot_info *boot_info)
 
     pmm_reserve_range(0, PMM_BOOTSTRAP_RESERVED_END);
     pmm_reserve_range(kernel_start, kernel_end - kernel_start);
+    /* paging_init may map the fixed BGA framebuffer before a device-specific
+       allocator exists. Reserve it unconditionally so high-RAM E820 maps can
+       never hand the same physical pages to the kernel or a user process. */
+    pmm_reserve_range(PMM_FRAMEBUFFER_BASE,
+        PMM_FRAMEBUFFER_PAGES * PMM_BLOCK_SIZE);
 
     if (detected_blocks == 0U || managed_blocks == 0U) {
         return 0;
