@@ -89,12 +89,12 @@ static void build_fixture(void)
     disk[515] = 0xFF;
     disk[516] = 0xF8;
     disk[517] = 0xFF;
-    disk[33U * SECTOR_SIZE + 512U] = 0xF8;
-    disk[33U * SECTOR_SIZE + 513U] = 0xFF;
-    disk[33U * SECTOR_SIZE + 514U] = 0xFF;
-    disk[33U * SECTOR_SIZE + 515U] = 0xFF;
-    disk[33U * SECTOR_SIZE + 516U] = 0xF8;
-    disk[33U * SECTOR_SIZE + 517U] = 0xFF;
+    disk[33U * SECTOR_SIZE] = 0xF8;
+    disk[33U * SECTOR_SIZE + 1U] = 0xFF;
+    disk[33U * SECTOR_SIZE + 2U] = 0xFF;
+    disk[33U * SECTOR_SIZE + 3U] = 0xFF;
+    disk[33U * SECTOR_SIZE + 4U] = 0xF8;
+    disk[33U * SECTOR_SIZE + 5U] = 0xFF;
     for (index = 0; index < 14U; index++) {
         disk[(67U * SECTOR_SIZE) + index] = (unsigned char)contents[index];
     }
@@ -132,6 +132,11 @@ int main(void)
     }
     build_fixture();
     disk[SECTOR_SIZE] = 0x00;
+    if (fat_mount(&volume, read_fixture, 0) || fat_last_error() != 8U) {
+        return 1;
+    }
+    build_fixture();
+    disk[33U * SECTOR_SIZE] = 0x00;
     if (fat_mount(&volume, read_fixture, 0) || fat_last_error() != 8U) {
         return 1;
     }

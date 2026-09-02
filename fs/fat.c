@@ -176,6 +176,7 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
     fat_u16_t sectors_per_fat;
     fat_u32_t cluster_count;
     fat_u32_t fat_entry_capacity;
+    fat_u8_t fat_index;
 
     last_error = 0;
     if (volume == 0 || read == 0) {
@@ -229,11 +230,14 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
         last_error = 7;
         return 0;
     }
-    if (!read(start_lba + reserved, 1, fat_header) ||
-        fat_header[0] != media_descriptor ||
-        fat_header[1] != 0xFFU || fat_header[2] != 0xFFU) {
-        last_error = 8;
-        return 0;
+    for (fat_index = 0U; fat_index < fats; fat_index++) {
+        fat_u32_t fat_lba = start_lba + reserved +
+            ((fat_u32_t)fat_index * sectors_per_fat);
+        if (!read(fat_lba, 1, fat_header) || fat_header[0] != media_descriptor ||
+            fat_header[1] != 0xFFU || fat_header[2] != 0xFFU) {
+            last_error = 8;
+            return 0;
+        }
     }
     volume->total_sectors = total_sectors;
     volume->fat_start = start_lba + reserved;
