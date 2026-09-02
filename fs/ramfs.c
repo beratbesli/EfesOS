@@ -1,4 +1,5 @@
 #include "ramfs.h"
+#include "journal.h"
 
 struct ramfs_file {
     char name[RAMFS_NAME_MAX];
@@ -155,6 +156,29 @@ int ramfs_remove_file(const char *name)
         return 1;
     }
     return 0;
+}
+
+int ramfs_apply_journal_entry(const struct journal_entry *entry)
+{
+    char content[RAMFS_CONTENT_MAX];
+    unsigned int index;
+
+    if (entry == 0 || entry->name_length == 0U ||
+        entry->name_length >= RAMFS_NAME_MAX ||
+        entry->content_length >= RAMFS_CONTENT_MAX) {
+        return 0;
+    }
+    if (entry->operation == JOURNAL_OPERATION_REMOVE) {
+        return entry->content_length == 0U && ramfs_remove_file(entry->name);
+    }
+    if (entry->operation != JOURNAL_OPERATION_WRITE) {
+        return 0;
+    }
+    for (index = 0U; index < entry->content_length; index++) {
+        content[index] = (char)entry->content[index];
+    }
+    content[entry->content_length] = '\0';
+    return ramfs_write_file(entry->name, content);
 }
 
 int ramfs_self_test(void)

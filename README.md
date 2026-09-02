@@ -104,6 +104,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\create-test-disk.p
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DiskImage .\build\test-disk.img
 ```
 
+The fixture also replays one journal record from a region outside the FAT volume; disk writes remain protected.
+
 Exercise the interactive shell-to-ring-3 disk ELF path as well:
 
 ```powershell

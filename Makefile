@@ -135,7 +135,7 @@ $(USER_DEMO_OBJ): process/user_demo.asm | $(BUILD_DIR)
 $(PROGRAMS_OBJ): process/programs.c process/programs.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iprocess -c $< -o $@
 
-$(RAMFS_OBJ): fs/ramfs.c fs/ramfs.h | $(BUILD_DIR)
+$(RAMFS_OBJ): fs/ramfs.c fs/ramfs.h fs/journal.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Ifs -c $< -o $@
 
 $(JOURNAL_OBJ): fs/journal.c fs/journal.h | $(BUILD_DIR)

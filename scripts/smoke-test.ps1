@@ -88,6 +88,7 @@ if ($DiskImage -ne '' -and !(Test-Path -LiteralPath $DiskImage)) {
 }
 if ($DiskImage -ne '') {
     $successMarkers += 'EfesOS: FAT directory/file read self-test passed'
+    $successMarkers += 'EfesOS: persistent journal replay passed records=0x00000001.'
 }
 
 New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null

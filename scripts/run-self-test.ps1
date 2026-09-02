@@ -65,9 +65,20 @@ $passed = $false
 
 function Read-Serial {
     if (Test-Path -LiteralPath $serialLog) {
-        $serialText = Get-Content -LiteralPath $serialLog -Raw -ErrorAction SilentlyContinue
-        if ($null -ne $serialText) {
-            return $serialText
+        $fileStream = $null
+        $reader = $null
+        try {
+            # QEMU keeps the serial file open. FileShare.ReadWrite prevents a
+            # transient sharing violation from hiding a marker already flushed.
+            $fileStream = [IO.File]::Open($serialLog, [IO.FileMode]::Open,
+                [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+            $reader = New-Object IO.StreamReader($fileStream)
+            return $reader.ReadToEnd()
+        } catch [IO.IOException] {
+            return ''
+        } finally {
+            if ($null -ne $reader) { $reader.Dispose() }
+            elseif ($null -ne $fileStream) { $fileStream.Dispose() }
         }
     }
     return ''
@@ -82,7 +93,8 @@ function Send-Key([System.Net.Sockets.NetworkStream]$targetStream, [string]$key)
 try {
     while ([DateTime]::UtcNow -lt $deadline) {
         $serial = Read-Serial
-        if ($serial.IndexOf('EfesOS: deferred event loop ready.') -ge 0) {
+        if ($serial.IndexOf('EfesOS: deferred event loop ready.') -ge 0 -and
+            $serial.IndexOf('EfesOS: persistent journal replay passed records=0x00000001.') -ge 0) {
             break
         }
         if ($process.HasExited) {
@@ -91,8 +103,12 @@ try {
         Start-Sleep -Milliseconds 100
         $process.Refresh()
     }
-    if ((Read-Serial).IndexOf('EfesOS: deferred event loop ready.') -lt 0) {
+    $serial = Read-Serial
+    if ($serial.IndexOf('EfesOS: deferred event loop ready.') -lt 0) {
         throw 'Shell hazirlik isareti zamaninda gorulmedi.'
+    }
+    if ($serial.IndexOf('EfesOS: persistent journal replay passed records=0x00000001.') -lt 0) {
+        throw 'Persistent journal replay isareti zamaninda gorulmedi.'
     }
 
     while ($null -eq $monitor -and [DateTime]::UtcNow -lt $deadline) {

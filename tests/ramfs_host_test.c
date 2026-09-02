@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "journal.h"
 #include "ramfs.h"
 
 int main(void)
@@ -25,6 +26,30 @@ int main(void)
         ramfs_write_file("bad/name", "rejected") ||
         ramfs_write_file("HOST", 0)) {
         return 1;
+    }
+    {
+        struct journal_entry entry = {0};
+        entry.operation = JOURNAL_OPERATION_WRITE;
+        entry.sequence = 1U;
+        entry.name_length = 7U;
+        entry.content_length = 5U;
+        entry.name[0] = 'P';
+        entry.name[1] = 'R';
+        entry.name[2] = 'E';
+        entry.name[3] = 'F';
+        entry.name[4] = 'S';
+        entry.name[5] = 'E';
+        entry.name[6] = 'T';
+        entry.content[0] = 'r';
+        entry.content[1] = 'e';
+        entry.content[2] = 'p';
+        entry.content[3] = 'l';
+        entry.content[4] = 'y';
+        if (!ramfs_apply_journal_entry(&entry) ||
+            ramfs_file_contents("PREFSET") == 0 ||
+            ramfs_remove_file("PREFSET") == 0) {
+            return 1;
+        }
     }
     puts("RAMFS host self-test passed.");
     return 0;
