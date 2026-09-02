@@ -287,7 +287,18 @@ void kernel_main(const struct boot_info *boot_info)
         serial_write(" write-protected=");
     serial_write_hex(ata_write_protected());
     serial_write("\n");
-    vfs_init();
+    {
+        const struct block_device *boot_device = ata_block_device();
+
+        if ((ata_present() && (!block_device_is_ready(boot_device) ||
+                block_device_sector_count(boot_device) != ata_sector_count() ||
+                block_device_can_write(boot_device))) ||
+            (!ata_present() && boot_device != 0)) {
+            kernel_panic("ATA block device contract failed.");
+        }
+        serial_write("EfesOS: block device abstraction passed.\n");
+        vfs_init(boot_device);
+    }
     serial_write("EfesOS: FAT volume mounted=");
     serial_write_hex(vfs_is_mounted());
     serial_write(" error=");

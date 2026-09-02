@@ -2,6 +2,7 @@
 #define EFESOS_ATA_H
 
 #include "../cpu/io.h"
+#include "block_device.h"
 
 #define ATA_SECTOR_SIZE 512U
 
@@ -16,5 +17,6 @@ int ata_write_protected(void);
 uint8_t ata_last_status(void);
 uint16_t ata_identify_type(void);
 int ata_lba48_supported(void);
+const struct block_device *ata_block_device(void);
 
 #endif

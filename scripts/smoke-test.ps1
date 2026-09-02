@@ -22,6 +22,7 @@ $successMarkers = @(
     'EfesOS: PCI devices discovered=',
     'EfesOS: ATA primary-master present=',
     'EfesOS: ATA write path fail-closed self-test passed.',
+    'EfesOS: block device abstraction passed.',
     'EfesOS: FAT volume mounted=',
     'EfesOS: syscall ABI self-test passed.',
     'EfesOS: interrupt self-tests passed.',

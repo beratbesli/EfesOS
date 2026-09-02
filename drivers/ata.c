@@ -36,6 +36,14 @@ static int lba48_supported;
 static int writes_protected;
 static uint32_t write_window_start;
 static uint32_t write_window_sectors;
+static struct block_device primary_block_device;
+
+static int ata_block_read(void *context, unsigned int lba,
+    unsigned char count, void *buffer)
+{
+    (void)context;
+    return ata_read_sectors(lba, count, buffer);
+}
 
 static unsigned int irq_save(void)
 {
@@ -165,6 +173,7 @@ void ata_init(void)
     writes_protected = ATA_WRITES_PROTECTED_BY_DEFAULT;
     write_window_start = 0U;
     write_window_sectors = 0U;
+    block_device_reset(&primary_block_device);
     /* Polling mode: disable ATA IRQ delivery while commands are in flight. */
     outb(ATA_CONTROL, 0x02U);
     outb(ATA_DRIVE, 0xA0U);
@@ -209,6 +218,11 @@ void ata_init(void)
         ata_400ns_delay();
         outb(ATA_CONTROL, 0x02U);
         wait_status(0, ATA_STATUS_BSY);
+    }
+    if (!block_device_configure(&primary_block_device, sectors,
+        ATA_SECTOR_SIZE, 128U, ata_block_read, 0, 0)) {
+        device_present = 0;
+        sectors = 0U;
     }
 }
 
@@ -367,4 +381,10 @@ uint16_t ata_identify_type(void)
 int ata_lba48_supported(void)
 {
     return lba48_supported;
+}
+
+const struct block_device *ata_block_device(void)
+{
+    return block_device_is_ready(&primary_block_device) ?
+        &primary_block_device : 0;
 }

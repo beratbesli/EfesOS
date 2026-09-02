@@ -1,7 +1,9 @@
 #ifndef EFESOS_VFS_H
 #define EFESOS_VFS_H
 
-void vfs_init(void);
+#include "block_device.h"
+
+void vfs_init(const struct block_device *device);
 int vfs_is_mounted(void);
 unsigned int vfs_file_count(void);
 int vfs_file_name(unsigned int index, char *name, unsigned int capacity);
