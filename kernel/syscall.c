@@ -39,6 +39,10 @@ struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
         return 0;
     }
 
+    if ((frame->cs & 3U) == 3U && !paging_validate_user_execute(frame->eip)) {
+        return scheduler_on_user_fault(frame);
+    }
+
     if ((frame->cs & 3U) == 3U) {
         user_call_count++;
         if (frame->eax == SYSCALL_IPC_SEND || frame->eax == SYSCALL_IPC_RECEIVE ||
