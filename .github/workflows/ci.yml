@@ -17,6 +17,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y clang lld nasm qemu-system-x86 make python3
       - name: Build and verify image
         run: make verify
+      - name: Reproducible image build
+        run: |
+          sha256sum build/efesos.img > /tmp/efesos-first.sha256
+          make clean
+          make verify
+          sha256sum build/efesos.img > /tmp/efesos-second.sha256
+          cmp /tmp/efesos-first.sha256 /tmp/efesos-second.sha256
       - name: FAT parser host test
         run: clang -std=c11 -Wall -Wextra -Werror -Ifs tests/fat_host_test.c fs/fat.c -o build/fat-host-test && build/fat-host-test
       - name: Boot metadata host test
