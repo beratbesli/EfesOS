@@ -24,6 +24,8 @@ struct interrupt_frame {
 };
 
 void idt_init(void);
+int idt_enable_irq_line(interrupt_u32_t irq);
+int idt_irq_line_enabled(interrupt_u32_t irq);
 struct interrupt_frame *interrupt_dispatch(struct interrupt_frame *frame);
 
 #endif

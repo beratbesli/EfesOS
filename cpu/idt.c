@@ -1,4 +1,5 @@
 #include "idt.h"
+#include "ata.h"
 #include "io.h"
 #include "keyboard.h"
 #include "panic.h"
@@ -37,6 +38,9 @@ extern void (*interrupt_stub_table[])(void);
 
 static struct idt_entry idt_entries[IDT_ENTRY_COUNT];
 static struct idt_descriptor idt_descriptor;
+static uint8_t pic_master_mask = 0xFFU;
+static uint8_t pic_slave_mask = 0xFFU;
+static int idt_ready;
 
 static const char *const exception_names[32] = {
     "Divide error", "Debug", "Non-maskable interrupt", "Breakpoint",
@@ -72,8 +76,26 @@ static void pic_remap(void)
     io_wait();
     outb(PIC_SLAVE_DATA, 0x01);
     io_wait();
-    outb(PIC_MASTER_DATA, 0xFC);
-    outb(PIC_SLAVE_DATA, 0xFF);
+    /* Keep every hardware line masked until its driver has completed
+       initialization. This prevents an early timer/device interrupt from
+       entering scheduler or driver state that is not ready yet. */
+    pic_master_mask = 0xFFU;
+    pic_slave_mask = 0xFFU;
+    outb(PIC_MASTER_DATA, pic_master_mask);
+    outb(PIC_SLAVE_DATA, pic_slave_mask);
+}
+
+static interrupt_u32_t interrupt_save(void)
+{
+    interrupt_u32_t flags;
+
+    __asm__ volatile ("pushfl; popl %0; cli" : "=r"(flags) : : "memory");
+    return flags;
+}
+
+static void interrupt_restore(interrupt_u32_t flags)
+{
+    __asm__ volatile ("pushl %0; popfl" : : "r"(flags) : "memory", "cc");
 }
 
 static uint8_t pic_read_isr(unsigned short command_port)
@@ -121,6 +143,7 @@ void idt_init(void)
 {
     interrupt_u32_t vector;
 
+    idt_ready = 0;
     for (vector = 0; vector < IDT_ENTRY_COUNT; vector++) {
         idt_entries[vector].offset_low = 0;
         idt_entries[vector].selector = 0;
@@ -137,6 +160,40 @@ void idt_init(void)
     idt_descriptor.base = (interrupt_u32_t)idt_entries;
     pic_remap();
     __asm__ volatile ("lidtl %0" : : "m"(idt_descriptor));
+    idt_ready = 1;
+}
+
+int idt_enable_irq_line(interrupt_u32_t irq)
+{
+    interrupt_u32_t flags;
+
+    if (!idt_ready || (irq != 0U && irq != 1U && irq != 14U)) {
+        return 0;
+    }
+    flags = interrupt_save();
+    if (irq >= 8U) {
+        pic_slave_mask &= (uint8_t)~(1U << (irq - 8U));
+        outb(PIC_SLAVE_DATA, pic_slave_mask);
+        pic_master_mask &= (uint8_t)~(1U << 2U);
+        outb(PIC_MASTER_DATA, pic_master_mask);
+    } else {
+        pic_master_mask &= (uint8_t)~(1U << irq);
+        outb(PIC_MASTER_DATA, pic_master_mask);
+    }
+    interrupt_restore(flags);
+    return 1;
+}
+
+int idt_irq_line_enabled(interrupt_u32_t irq)
+{
+    if (!idt_ready || irq >= 16U) {
+        return 0;
+    }
+    if (irq >= 8U) {
+        return (pic_master_mask & (1U << 2U)) == 0U &&
+            (pic_slave_mask & (1U << (irq - 8U))) == 0U;
+    }
+    return (pic_master_mask & (1U << irq)) == 0U;
 }
 
 static struct interrupt_frame *handle_exception(struct interrupt_frame *frame)
@@ -193,6 +250,8 @@ static struct interrupt_frame *handle_irq(struct interrupt_frame *frame)
         pit_irq_handler();
     } else if (irq == 1U) {
         keyboard_irq_handler();
+    } else if (irq == 14U) {
+        ata_irq_handler();
     }
     pic_acknowledge(irq);
     if (irq == 0U) {

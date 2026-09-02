@@ -99,11 +99,13 @@ int persistent_ramfs_format(void)
 
     if (persistent_enabled || !ramfs_is_pristine() || !ata_present() ||
         ata_sector_count() <= PERSISTENT_JOURNAL_REGION_SECTORS) {
+        serial_write("EfesOS: persistent format rejected by initial state guard.\n");
         return 0;
     }
     persistent_region_start = ata_sector_count() - PERSISTENT_JOURNAL_REGION_SECTORS;
     if (!vfs_journal_region_available(persistent_region_start,
         PERSISTENT_JOURNAL_REGION_SECTORS)) {
+        serial_write("EfesOS: persistent format rejected journal geometry.\n");
         return 0;
     }
     /* Never overwrite an existing or partially-used tail. */
@@ -112,6 +114,13 @@ int persistent_ramfs_format(void)
     if (format_buffer == 0 || !ata_read_sectors(persistent_region_start,
         (unsigned char)PERSISTENT_JOURNAL_REGION_SECTORS,
         format_buffer)) {
+        serial_write("EfesOS: persistent format preflight read failed status=");
+        serial_write_hex(ata_last_status());
+        serial_write(" irq-count=");
+        serial_write_hex(ata_irq_count());
+        serial_write(" fallbacks=");
+        serial_write_hex(ata_irq_fallback_count());
+        serial_write(".\n");
         if (format_buffer != 0) {
             kfree(format_buffer);
         }
@@ -123,6 +132,7 @@ int persistent_ramfs_format(void)
                 index * JOURNAL_SECTOR_SIZE + data_sectors];
         }
         if (!sector_is_empty(sector)) {
+            serial_write("EfesOS: persistent format rejected non-empty journal tail.\n");
             kfree(format_buffer);
             return 0;
         }
@@ -135,12 +145,20 @@ int persistent_ramfs_format(void)
         !ata_write_sectors(persistent_region_start, 1U, sector) ||
         !ata_read_sectors(persistent_region_start, 1U, sector) ||
         !journal_superblock_decode(sector, &data_sectors)) {
+        serial_write("EfesOS: persistent format commit verification failed status=");
+        serial_write_hex(ata_last_status());
+        serial_write(" irq-count=");
+        serial_write_hex(ata_irq_count());
+        serial_write(" fallbacks=");
+        serial_write_hex(ata_irq_fallback_count());
+        serial_write(".\n");
         ata_disable_transactional_writes();
         return 0;
     }
     persistent_enabled = 1;
     persistent_next_sequence = 1U;
     persistent_replay_records = 0U;
+    serial_write("EfesOS: persistent RAMFS journal formatted.\n");
     return 1;
 }
 

@@ -76,6 +76,7 @@ static void kernel_process_events(void);
 
 static void kernel_event_task(void)
 {
+    serial_write("EfesOS: deferred event loop ready.\n");
     for (;;) {
         kernel_wait_for_work();
         kernel_process_events();
@@ -307,6 +308,34 @@ void kernel_main(const struct boot_info *boot_info)
     verify_mounted_disk_read();
 
     idt_init();
+    if (idt_enable_irq_line(7U)) {
+        kernel_panic("Unhandled PIC line was enabled.");
+    }
+    if (ata_present()) {
+        unsigned char irq_probe[ATA_SECTOR_SIZE];
+        unsigned int irq_before;
+        int irq_read_ok;
+
+        if (!idt_enable_irq_line(14U) || !idt_irq_line_enabled(14U) ||
+            !ata_enable_irq_mode()) {
+            kernel_panic("ATA IRQ14 setup failed.");
+        }
+        irq_before = ata_irq_count();
+        __asm__ volatile ("sti" : : : "memory");
+        irq_read_ok = ata_read_sectors(0U, 1U, irq_probe);
+        __asm__ volatile ("cli" : : : "memory");
+        if (!irq_read_ok || ata_irq_count() == irq_before) {
+            kernel_panic("ATA IRQ completion self-test failed.");
+        }
+        serial_write("EfesOS: ATA IRQ completion self-test passed.\n");
+    }
+    serial_write("EfesOS: ATA IRQ mode enabled=");
+    serial_write_hex((unsigned int)ata_irq_mode_enabled());
+    serial_write(" irq-count=");
+    serial_write_hex(ata_irq_count());
+    serial_write(" polling-fallbacks=");
+    serial_write_hex(ata_irq_fallback_count());
+    serial_write(".\n");
     syscall_init();
     __asm__ volatile ("int $0x03");
     __asm__ volatile ("int $0x30");
@@ -461,10 +490,15 @@ void kernel_main(const struct boot_info *boot_info)
     last_game_tick = 0;
 
     keyboard_init();
+    if (!idt_enable_irq_line(1U)) {
+        kernel_panic("Keyboard IRQ1 enable failed.");
+    }
     vga_write("EfesOS: scheduler and game loop running.\n");
     shell_init();
     pit_init();
-    serial_write("EfesOS: deferred event loop ready.\n");
+    if (!idt_enable_irq_line(0U)) {
+        kernel_panic("PIT IRQ0 enable failed.");
+    }
     scheduler_start();
 
     for (;;) {

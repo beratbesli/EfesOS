@@ -21,6 +21,7 @@ $successMarkers = @(
     'EfesOS: stage-2 kernel integrity check passed.',
     'EfesOS: PCI devices discovered=',
     'EfesOS: ATA primary-master present=',
+    'EfesOS: ATA IRQ mode enabled=',
     'EfesOS: ATA write path fail-closed self-test passed.',
     'EfesOS: block device abstraction passed.',
     'EfesOS: FAT volume mounted=',
@@ -92,6 +93,7 @@ if ($DiskImage -ne '' -and !(Test-Path -LiteralPath $DiskImage)) {
     throw "Disk imaji bulunamadi: $DiskImage"
 }
 if ($DiskImage -ne '') {
+    $successMarkers += 'EfesOS: ATA IRQ completion self-test passed.'
     $successMarkers += 'EfesOS: FAT directory/file read self-test passed'
     $successMarkers += 'EfesOS: persistent journal replay passed records=0x00000001.'
 }

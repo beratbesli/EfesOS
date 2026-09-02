@@ -7,6 +7,11 @@
 #define ATA_SECTOR_SIZE 512U
 
 void ata_init(void);
+void ata_irq_handler(void);
+int ata_enable_irq_mode(void);
+int ata_irq_mode_enabled(void);
+unsigned int ata_irq_count(void);
+unsigned int ata_irq_fallback_count(void);
 int ata_present(void);
 unsigned int ata_sector_count(void);
 int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer);

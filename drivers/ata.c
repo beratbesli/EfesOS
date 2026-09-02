@@ -1,4 +1,5 @@
 #include "ata.h"
+#include "ata_irq_state.h"
 
 #define ATA_DATA 0x1F0U
 #define ATA_ERROR 0x1F1U
@@ -25,6 +26,7 @@
 #define ATA_STATUS_RDY 0x40U
 #define ATA_STATUS_BSY 0x80U
 #define ATA_TIMEOUT 100000U
+#define ATA_IRQ_WAIT_TIMEOUT 10000U
 #define ATA_LBA28_LIMIT 0x10000000U
 #define ATA_WRITES_PROTECTED_BY_DEFAULT 1
 
@@ -37,6 +39,8 @@ static int writes_protected;
 static uint32_t write_window_start;
 static uint32_t write_window_sectors;
 static struct block_device primary_block_device;
+static struct ata_irq_state irq_state;
+static volatile int request_active;
 
 static int ata_block_read(void *context, unsigned int lba,
     unsigned char count, void *buffer)
@@ -73,6 +77,35 @@ static void ata_poll_delay(void)
     inb(ATA_CONTROL);
 }
 
+static int cpu_interrupts_enabled(void)
+{
+    unsigned int flags;
+
+    __asm__ volatile ("pushfl; popl %0" : "=r"(flags) : : "memory");
+    return (flags & (1U << 9U)) != 0U;
+}
+
+static int begin_request(void)
+{
+    unsigned int flags = irq_save();
+
+    if (request_active) {
+        irq_restore(flags);
+        return 0;
+    }
+    request_active = 1;
+    irq_restore(flags);
+    return 1;
+}
+
+static void end_request(void)
+{
+    unsigned int flags = irq_save();
+
+    request_active = 0;
+    irq_restore(flags);
+}
+
 static int wait_status(uint8_t required, uint8_t forbidden)
 {
     unsigned int attempt;
@@ -96,12 +129,51 @@ static int wait_status(uint8_t required, uint8_t forbidden)
     return 0;
 }
 
+static int wait_status_with_irq(uint8_t required, uint8_t forbidden,
+    unsigned int snapshot)
+{
+    unsigned int attempt;
+
+    if (ata_irq_state_is_enabled(&irq_state) && cpu_interrupts_enabled()) {
+        for (attempt = 0U; attempt < ATA_IRQ_WAIT_TIMEOUT; attempt++) {
+            int observation = ata_irq_state_observe(&irq_state, snapshot,
+                required, (uint8_t)(forbidden & (uint8_t)~ATA_STATUS_BSY),
+                ATA_STATUS_BSY);
+
+            if (observation == ATA_IRQ_OBSERVE_READY) {
+                uint8_t current_status = inb(ATA_CONTROL);
+
+                last_status = current_status;
+                if ((current_status & (forbidden & (uint8_t)~ATA_STATUS_BSY)) != 0U) {
+                    return 0;
+                }
+                if ((current_status & ATA_STATUS_BSY) == 0U &&
+                    (current_status & required) == required) {
+                    return 1;
+                }
+                break;
+            }
+            if (observation == ATA_IRQ_OBSERVE_ERROR) {
+                last_status = (uint8_t)ata_irq_state_status(&irq_state);
+                return 0;
+            }
+            if (observation == ATA_IRQ_OBSERVE_PENDING) {
+                break;
+            }
+            __asm__ volatile ("pause" : : : "memory");
+        }
+        ata_irq_state_record_fallback(&irq_state);
+    }
+    return wait_status(required, forbidden);
+}
+
 static void ata_soft_reset(void)
 {
-    /* Keep IRQ delivery disabled while resetting the polling-mode channel. */
-    outb(ATA_CONTROL, 0x02U | ATA_CONTROL_SOFT_RESET);
+    uint8_t control = ata_irq_state_is_enabled(&irq_state) ? 0U : 0x02U;
+
+    outb(ATA_CONTROL, control | ATA_CONTROL_SOFT_RESET);
     ata_400ns_delay();
-    outb(ATA_CONTROL, 0x02U);
+    outb(ATA_CONTROL, control);
     ata_400ns_delay();
     wait_status(0, ATA_STATUS_BSY);
 }
@@ -174,6 +246,8 @@ void ata_init(void)
     write_window_start = 0U;
     write_window_sectors = 0U;
     block_device_reset(&primary_block_device);
+    ata_irq_state_reset(&irq_state);
+    request_active = 0;
     /* Polling mode: disable ATA IRQ delivery while commands are in flight. */
     outb(ATA_CONTROL, 0x02U);
     outb(ATA_DRIVE, 0xA0U);
@@ -240,6 +314,7 @@ static int ata_read_sectors_once(uint32_t lba, uint8_t count, void *buffer)
 {
     uint8_t *destination = (uint8_t *)buffer;
     unsigned int sector;
+    unsigned int irq_snapshot;
 
     if (!wait_status(0, ATA_STATUS_BSY)) {
         return 0;
@@ -250,12 +325,15 @@ static int ata_read_sectors_once(uint32_t lba, uint8_t count, void *buffer)
     if (!select_request(lba, count)) {
         return 0;
     }
+    irq_snapshot = ata_irq_state_snapshot(&irq_state);
     outb(ATA_COMMAND, request_needs_lba48(lba, count) ? ATA_CMD_READ_EXT : ATA_CMD_READ);
     ata_400ns_delay();
     for (sector = 0; sector < count; sector++) {
-        if (!wait_status(ATA_STATUS_DRQ, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
+        if (!wait_status_with_irq(ATA_STATUS_DRQ,
+            ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF, irq_snapshot)) {
             return 0;
         }
+        irq_snapshot = ata_irq_state_snapshot(&irq_state);
         {
             unsigned int word;
             for (word = 0; word < ATA_SECTOR_SIZE / 2U; word++) {
@@ -273,23 +351,24 @@ static int ata_read_sectors_once(uint32_t lba, uint8_t count, void *buffer)
 
 int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer)
 {
-    unsigned int flags;
     unsigned int attempt;
 
     if (!valid_request(lba, count, buffer)) {
         return 0;
     }
-    flags = irq_save();
+    if (!begin_request()) {
+        return 0;
+    }
     for (attempt = 0U; attempt < 3U; attempt++) {
         if (ata_read_sectors_once(lba, count, buffer)) {
-            irq_restore(flags);
+            end_request();
             return 1;
         }
         if (attempt + 1U < 3U) {
             ata_soft_reset();
         }
     }
-    irq_restore(flags);
+    end_request();
     return 0;
 }
 
@@ -321,7 +400,8 @@ int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
 {
     const uint8_t *source = (const uint8_t *)buffer;
     unsigned int sector;
-    unsigned int flags;
+    unsigned int irq_snapshot;
+    int success = 0;
 
     if (writes_protected || !valid_request(lba, count, buffer) ||
         lba < write_window_start ||
@@ -329,23 +409,25 @@ int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
         (uint32_t)count > write_window_sectors - (lba - write_window_start)) {
         return 0;
     }
-    flags = irq_save();
-    if (!wait_status(0, ATA_STATUS_BSY)) {
-        irq_restore(flags);
+    if (!begin_request()) {
         return 0;
+    }
+    if (!wait_status(0, ATA_STATUS_BSY)) {
+        goto done;
     }
     for (sector = 0; sector < count; sector++) {
         if (!select_request(lba + sector, 1)) {
-            irq_restore(flags);
-            return 0;
+            goto done;
         }
+        irq_snapshot = ata_irq_state_snapshot(&irq_state);
         outb(ATA_COMMAND, request_needs_lba48(lba + sector, 1) ?
             ATA_CMD_WRITE_EXT : ATA_CMD_WRITE);
         ata_400ns_delay();
-        if (!wait_status(ATA_STATUS_DRQ, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
-            irq_restore(flags);
-            return 0;
+        if (!wait_status_with_irq(ATA_STATUS_DRQ,
+            ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF, irq_snapshot)) {
+            goto done;
         }
+        irq_snapshot = ata_irq_state_snapshot(&irq_state);
         {
             unsigned int word;
             for (word = 0; word < ATA_SECTOR_SIZE / 2U; word++) {
@@ -354,18 +436,64 @@ int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
                 outw(ATA_DATA, value);
             }
         }
-        if (!wait_status(0, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
-            irq_restore(flags);
-            return 0;
+        if (!wait_status_with_irq(0,
+            ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF, irq_snapshot)) {
+            goto done;
         }
     }
+    irq_snapshot = ata_irq_state_snapshot(&irq_state);
     outb(ATA_COMMAND, lba48_supported ? ATA_CMD_FLUSH_EXT : ATA_CMD_FLUSH);
-    if (!wait_status(0, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
+    if (!wait_status_with_irq(0,
+        ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF, irq_snapshot)) {
+        goto done;
+    }
+    success = 1;
+done:
+    end_request();
+    return success;
+}
+
+void ata_irq_handler(void)
+{
+    uint8_t status = inb(ATA_STATUS);
+
+    last_status = status;
+    ata_irq_state_record(&irq_state, status);
+}
+
+int ata_enable_irq_mode(void)
+{
+    unsigned int flags;
+
+    if (!device_present) {
+        return 0;
+    }
+    flags = irq_save();
+    if (request_active) {
         irq_restore(flags);
         return 0;
     }
+    (void)inb(ATA_STATUS);
+    ata_irq_state_enable(&irq_state);
+    outb(ATA_CONTROL, 0U);
+    ata_400ns_delay();
     irq_restore(flags);
     return 1;
+}
+
+int ata_irq_mode_enabled(void)
+{
+    return ata_irq_state_is_enabled(&irq_state);
+}
+
+unsigned int ata_irq_count(void)
+{
+    return ata_irq_state_count(&irq_state);
+}
+
+unsigned int ata_irq_fallback_count(void)
+{
+    return ata_irq_state_fallback_count(&irq_state);
 }
 
 uint8_t ata_last_status(void)

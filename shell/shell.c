@@ -404,6 +404,7 @@ static void execute_command(void)
             vga_write("Persistent remove committed.\n");
         }
     } else if (string_equals(input, "pformat")) {
+        serial_write("EfesOS: persistent format command received.\n");
         if (persistent_ramfs_format()) {
             vga_write("Persistent RAMFS journal formatted.\n");
         } else {
