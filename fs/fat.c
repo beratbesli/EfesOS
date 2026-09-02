@@ -61,7 +61,7 @@ static int short_name_from_text(const char *text, fat_u8_t *short_name)
         }
         index++;
     }
-    if (dot > 8U || length - dot - 1U > 3U) {
+    if (dot > 8U || (dot != length && length - dot - 1U > 3U)) {
         return 0;
     }
     for (index = 0; index < 11U; index++) {
