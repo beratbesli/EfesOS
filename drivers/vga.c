@@ -214,9 +214,11 @@ static void draw_graphics_char(char character)
 
 void vga_init(const struct boot_info *boot_info)
 {
+    graphics_active = 0;
     if (boot_info == 0 ||
         (boot_info->video_flags & BOOT_VIDEO_FONT_AVAILABLE) == 0U ||
-        boot_info->vga_font_address < 0x1000U) {
+        boot_info->vga_font_address < 0x1000U ||
+        boot_info->vga_font_address >= 0x003FF000U) {
         return;
     }
 

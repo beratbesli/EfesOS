@@ -85,7 +85,9 @@ collect_e820_map:
     mov eax, 0xE820
     mov edx, 0x534D4150
     mov ecx, E820_ENTRY_SIZE
+    push di
     int 0x15
+    pop di
     jc .done
     cmp eax, 0x534D4150
     jne .failed
