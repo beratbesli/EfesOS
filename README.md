@@ -77,6 +77,12 @@ Run the standalone ELF validation test when changing process loading code:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\elf-self-test.ps1
 ```
 
+Run the E820 and VGA-font validation test when changing boot metadata:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\boot-info-self-test.ps1
+```
+
 Exercise the complete QEMU ATA/FAT read path with the deterministic fixture:
 
 ```powershell

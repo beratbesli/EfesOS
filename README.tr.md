@@ -77,6 +77,12 @@ Süreç yükleyici değişikliklerinde bağımsız ELF doğrulama testini çalı
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\elf-self-test.ps1
 ```
 
+Boot metadata değişikliklerinde E820 ve VGA font doğrulamasını çalıştır:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\boot-info-self-test.ps1
+```
+
 QEMU üzerindeki ATA/FAT okuma yolunun tamamını deterministik test diskiyle sına:
 
 ```powershell
