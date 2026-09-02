@@ -207,6 +207,21 @@ int main(void)
     if (fat_mount(&volume, read_fixed_boot, 0xFFFFFFF0U) || fat_last_error() != 7U) {
         return 1;
     }
+    build_fixture();
+    put32((65U * SECTOR_SIZE) + 28U, 0U);
+    put16((65U * SECTOR_SIZE) + 26U, 2U);
+    if (!fat_mount(&volume, read_fixture, 0) ||
+        fat_read_file(&volume, "hello.txt", contents, sizeof(contents), &size)) {
+        return 1;
+    }
+    build_fixture();
+    put32((65U * SECTOR_SIZE) + 28U, 0U);
+    put16((65U * SECTOR_SIZE) + 26U, 0U);
+    if (!fat_mount(&volume, read_fixture, 0) ||
+        !fat_read_file(&volume, "hello.txt", contents, sizeof(contents), &size) ||
+        size != 0U) {
+        return 1;
+    }
     {
         unsigned int state = 0xEF05A55AU;
         unsigned int iteration;

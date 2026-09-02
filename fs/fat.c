@@ -346,6 +346,18 @@ int fat_read_file(const struct fat_volume *volume, const char *name, void *buffe
         return 0;
     }
     cluster = read_u16(entry, 26);
+    if (remaining == 0U) {
+        /* FAT16 empty files must not carry a dangling cluster chain. Accept
+           only the canonical zero start cluster so corrupted metadata is not
+           silently hidden by a successful zero-byte read. */
+        if (cluster != 0U) {
+            return 0;
+        }
+        if (size != 0) {
+            *size = 0U;
+        }
+        return 1;
+    }
     while (remaining != 0U) {
         fat_u32_t sector_index;
         fat_u32_t cluster_offset;
