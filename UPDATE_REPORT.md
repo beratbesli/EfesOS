@@ -97,13 +97,13 @@
 
 ## Bilinen sınırlar
 
-ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddi kullanılıyor. Disk yazma ve kalıcı dosya sistemi kullanıcıya hâlâ açılmadı. IPC bounded beklemeli receive, generation-PID hedefleme ve scheduler uyandırma desteğine sahip; en fazla sekiz bounded kullanıcı süreci destekleniyor. Authentication, secure boot, ağ/USB/SMP ve tam VFS sonraki aşamalardır.
+ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddi kullanılıyor. Disk yazma ve kalıcı dosya sistemi kullanıcıya hâlâ açılmadı. IPC bounded beklemeli receive, generation-PID hedefleme ve scheduler uyandırma desteğine sahip; en fazla sekiz bounded kullanıcı süreci destekleniyor. Authentication, secure boot, imzalı modüller, ASLR, PAE/NX, ağ/USB/SMP ve tam VFS sonraki aşamalardır.
 
 ## Öncelikli sonraki geliştirmeler
 
 1. **Depolama (P1):** ATA sürücüsünü IRQ/DMA ve gerçek donanım matrisiyle doğrula; yazmayı ancak hata kurtarma, journaling ve FAT bütünlük kontrollerinden sonra aç.
 2. **Donanım kapsamı (P2):** PCI BAR ayrıştırma, blok aygıt soyutlaması, USB/HID, ağ ve zamanlayıcı sürücülerini ekle; her biri için QEMU/host fixture testi yaz.
-3. **Güvenlik (P2):** imzalı boot zinciri, kimlik doğrulama, ASLR, modül imzalama ve SMP kilitlemesini tasarla.
+3. **Güvenlik (P2):** imzalı boot zinciri, kimlik doğrulama, ASLR, PAE/NX, modül imzalama ve SMP kilitlemesini tasarla.
 4. **Test kapsamı (P2):** ELF/FAT/boot fixture’larını property/fuzz testleriyle genişlet; gerçek donanım matrisi için sürekli regresyon kayıtları tut.
 
 GitHub’a otomatik push yapılmadı; `origin/main` değiştirilmedi.
