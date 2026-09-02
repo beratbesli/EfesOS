@@ -417,7 +417,7 @@ int elf_loader_runtime_self_test(void)
     paging_u32_t kernel_directory;
     paging_u32_t test_directory;
     unsigned char *loaded;
-    int image_loaded;
+    int image_loaded = 0;
     int result = 0;
 
     kernel_directory = paging_kernel_directory();
@@ -427,6 +427,11 @@ int elf_loader_runtime_self_test(void)
             paging_destroy_address_space(test_directory);
         }
         return 0;
+    }
+
+    if (paging_protect_page(PAGE_SIZE, PAGE_FLAG_USER | PAGE_FLAG_WRITABLE) ||
+        paging_unmap_page(PAGE_SIZE) != 0U) {
+        goto cleanup;
     }
 
     for (index = 0; index < sizeof(image); index++) {

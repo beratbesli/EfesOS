@@ -63,6 +63,24 @@ static int address_space_is_registered(paging_u32_t directory)
     return 0;
 }
 
+static int uses_shared_kernel_table(paging_u32_t virtual_address)
+{
+    paging_u32_t directory_index;
+    paging_u32_t kernel_entry;
+    paging_u32_t current_entry;
+
+    if (page_directory == 0 || kernel_page_directory == 0 ||
+        page_directory == kernel_page_directory) {
+        return 0;
+    }
+    directory_index = virtual_address >> 22U;
+    kernel_entry = kernel_page_directory[directory_index];
+    current_entry = page_directory[directory_index];
+    return (kernel_entry & PAGE_PRESENT) != 0U &&
+        (current_entry & PAGE_PRESENT) != 0U &&
+        (kernel_entry & PAGE_ADDRESS_MASK) == (current_entry & PAGE_ADDRESS_MASK);
+}
+
 static paging_u32_t *get_page_table(paging_u32_t virtual_address)
 {
     paging_u32_t entry;
@@ -86,13 +104,10 @@ static paging_u32_t *ensure_page_table(paging_u32_t virtual_address, paging_u32_
     paging_u32_t *table;
 
     if ((entry & PAGE_PRESENT) != 0U) {
+        if (uses_shared_kernel_table(virtual_address)) {
+            return 0;
+        }
         if ((flags & PAGE_FLAG_USER) != 0U) {
-            if (kernel_page_directory != 0 &&
-                (kernel_page_directory[directory_index] & PAGE_PRESENT) != 0U &&
-                (entry & PAGE_ADDRESS_MASK) ==
-                    (kernel_page_directory[directory_index] & PAGE_ADDRESS_MASK)) {
-                return 0;
-            }
             page_directory[directory_index] |= PAGE_FLAG_USER;
         }
         return (paging_u32_t *)(entry & PAGE_ADDRESS_MASK);
@@ -120,6 +135,7 @@ int paging_map_page(paging_u32_t virtual_address, paging_u32_t physical_address,
         (physical_address & (PAGE_SIZE - 1U)) != 0U ||
         (flags & ~PAGE_ALLOWED_FLAGS) != 0U ||
         (page_directory == kernel_page_directory && (flags & PAGE_FLAG_USER) != 0U) ||
+        uses_shared_kernel_table(virtual_address) ||
         ((flags & PAGE_FLAG_USER) != 0U &&
          (virtual_address < USER_MAPPING_MIN || virtual_address >= USER_ADDRESS_LIMIT))) {
         return 0;
@@ -148,6 +164,7 @@ int paging_protect_page(paging_u32_t virtual_address, paging_u32_t flags)
     if (page_directory == 0 || virtual_address < PAGE_SIZE ||
         (virtual_address & (PAGE_SIZE - 1U)) != 0U ||
         (page_directory == kernel_page_directory && (flags & PAGE_FLAG_USER) != 0U) ||
+        uses_shared_kernel_table(virtual_address) ||
         ((flags & PAGE_FLAG_USER) != 0U &&
          (virtual_address < USER_MAPPING_MIN || virtual_address >= USER_ADDRESS_LIMIT)) ||
         (flags & ~PAGE_ALLOWED_FLAGS) != 0U) {
@@ -179,7 +196,8 @@ paging_u32_t paging_unmap_page(paging_u32_t virtual_address)
     paging_u32_t index;
 
     if (virtual_address < PAGE_SIZE || (virtual_address & (PAGE_SIZE - 1U)) != 0U ||
-        (page_directory == kernel_page_directory && virtual_address < USER_MAPPING_MIN)) {
+        (page_directory == kernel_page_directory && virtual_address < USER_MAPPING_MIN) ||
+        uses_shared_kernel_table(virtual_address)) {
         return 0;
     }
 

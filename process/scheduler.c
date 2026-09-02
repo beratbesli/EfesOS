@@ -141,12 +141,31 @@ static void reap_task_stack(struct scheduler_task *task)
 static void reap_pending_stacks(void)
 {
     unsigned int index;
+    unsigned int current_directory = paging_current_directory();
+    unsigned int kernel_directory = paging_kernel_directory();
+    int switched_to_kernel = 0;
+
+    for (index = 1U; index < task_count; index++) {
+        if ((pending_reap_mask & (1U << index)) != 0U && index != current_task) {
+            if (current_directory != kernel_directory) {
+                if (!paging_switch_address_space(kernel_directory)) {
+                    kernel_panic("Failed to enter kernel address space for stack cleanup.");
+                }
+                switched_to_kernel = 1;
+            }
+            break;
+        }
+    }
 
     for (index = 1U; index < task_count; index++) {
         if ((pending_reap_mask & (1U << index)) != 0U && index != current_task) {
             reap_task_stack(&tasks[index]);
             pending_reap_mask &= ~(1U << index);
         }
+    }
+
+    if (switched_to_kernel && !paging_switch_address_space(current_directory)) {
+        kernel_panic("Failed to restore address space after stack cleanup.");
     }
 }
 
