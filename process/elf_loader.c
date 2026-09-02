@@ -279,15 +279,21 @@ int elf_unload_image(unsigned int loaded_base, unsigned int loaded_end)
         loaded_end > USER_MAX_ADDRESS || (loaded_end & (PAGE_SIZE - 1U)) != 0U) {
         return 0;
     }
+    /* Preflight the complete range so a missing mapping cannot be silently
+       treated as a successful cleanup. This also avoids partially reclaiming
+       an image before reporting corrupted ownership metadata. */
+    for (page = loaded_base; page < loaded_end; page += PAGE_SIZE) {
+        if (!paging_is_mapped(page)) {
+            return 0;
+        }
+    }
     for (page = loaded_base; page < loaded_end; page += PAGE_SIZE) {
         unsigned int physical;
-        if (!paging_is_mapped(page)) {
-            continue;
-        }
         physical = paging_unmap_page(page);
-        if (physical != 0U) {
-            pmm_free_block(physical);
+        if (physical == 0U) {
+            return 0;
         }
+        pmm_free_block(physical);
     }
     return 1;
 }
@@ -476,7 +482,7 @@ int elf_loader_runtime_self_test(void)
     loaded = virtual_pointer(entry);
     if (loaded[0] != 0xC3 || loaded[1] != 0xEF || loaded[2] != 0x05 || loaded[3] != 0xA5 ||
         loaded[4] != 0U || !elf_unload_image(loaded_base, loaded_end) ||
-        paging_is_mapped(loaded_base)) {
+        paging_is_mapped(loaded_base) || elf_unload_image(loaded_base, loaded_end)) {
         image_loaded = 0;
         goto cleanup;
     }
