@@ -24,6 +24,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Bounded user-buffer validation for the data-carrying serial syscall, including overflow and permission checks
 - Faulted demo processes release their user ELF pages and stack frames before scheduling continues
 - Four bounded user processes get private page directories; the scheduler switches address spaces with CR3 and reuses slots after faults
+- Kernel-only bounded `user_process_spawn` API loads validated ELF images into owned address spaces with automatic stack/cleanup ownership
 - User stacks include an unmapped guard page so downward stack overflow faults before reaching adjacent mappings
 - New user processes use one of eight bounded stack regions, reducing assumptions about a single fixed user-stack address
 - IPC syscalls (`IPC_SEND`, `IPC_RECEIVE`, `IPC_SEND_TO`, `IPC_RECEIVE_WAIT`, `EXIT`) with 16-message/64-byte bounds, generation-PID routing, scheduler wakeups, and validated user copies

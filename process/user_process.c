@@ -10,6 +10,7 @@
 #define USER_STACK_REGION_STRIDE 0x00100000U
 #define USER_STACK_REGION_COUNT 8U
 #define USER_PROCESS_MAX 4U
+#define USER_IMAGE_MAX_SIZE (64U * 1024U)
 
 extern unsigned char user_demo_start;
 extern unsigned char user_demo_end;
@@ -51,23 +52,26 @@ static void set_u32(unsigned char *data, unsigned int offset, unsigned int value
     data[offset + 3U] = (unsigned char)(value >> 24U);
 }
 
-static int user_process_init_locked(void)
+static int user_process_spawn_locked(const char *name, const void *image,
+    unsigned int image_size)
 {
-    unsigned int code_size = (unsigned int)(&user_demo_end - &user_demo_start);
-    unsigned int stack_frame;
-    unsigned char image[4096];
-    unsigned int image_size = 116U + code_size;
-    unsigned int entry;
-    unsigned int loaded_base = 0;
-    unsigned int loaded_end = 0;
-    int image_loaded = 0;
-    unsigned int address_space;
-    unsigned int kernel_directory = paging_kernel_directory();
-    unsigned int index;
-    unsigned int process_index;
-    unsigned int stack_address;
+    unsigned int entry = 0U;
+    unsigned int loaded_base = 0U;
+    unsigned int loaded_end = 0U;
+    unsigned int address_space = 0U;
+    unsigned int stack_frame = 0U;
+    unsigned int stack_address = 0U;
     unsigned int stack_guard_address;
+    unsigned int process_index;
+    unsigned int kernel_directory = paging_kernel_directory();
+    unsigned int physical;
+    int image_loaded = 0;
+    int stack_mapped = 0;
 
+    if (name == 0 || image == 0 || image_size == 0U || image_size > USER_IMAGE_MAX_SIZE ||
+        paging_current_directory() != kernel_directory) {
+        return 0;
+    }
     for (process_index = 0U; process_index < USER_PROCESS_MAX; process_index++) {
         if (!processes[process_index].active) {
             break;
@@ -81,14 +85,12 @@ static int user_process_init_locked(void)
         (((process_reaps + process_index) % USER_STACK_REGION_COUNT) * USER_STACK_REGION_STRIDE);
     stack_address = stack_guard_address + PAGE_SIZE;
 
-    if (code_size == 0U || code_size > PAGE_SIZE || paging_is_mapped(USER_CODE_ADDRESS) ||
-        paging_is_mapped(stack_guard_address) || paging_is_mapped(stack_address) ||
-        image_size > sizeof(image)) {
+    if (paging_is_mapped(stack_guard_address) || paging_is_mapped(stack_address)) {
         return 0;
     }
     address_space = paging_create_address_space();
     if (address_space == 0U || !paging_switch_address_space(address_space)) {
-        if (address_space != 0U) {
+        if (address_space != 0U && paging_current_directory() == kernel_directory) {
             paging_destroy_address_space(address_space);
         }
         return 0;
@@ -96,18 +98,71 @@ static int user_process_init_locked(void)
     stack_frame = pmm_alloc_block();
     if (stack_frame == 0U ||
         !paging_map_page(stack_address, stack_frame, PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
-        if (paging_is_mapped(stack_address)) {
-            paging_unmap_page(stack_address);
+        goto cleanup;
+    }
+    stack_mapped = 1;
+    image_loaded = elf_load_image(image, image_size, &entry, &loaded_base, &loaded_end);
+    if (!image_loaded) {
+        goto cleanup;
+    }
+    if (!paging_switch_address_space(kernel_directory)) {
+        kernel_panic("Failed to restore kernel address space.");
+    }
+    if (!scheduler_add_user_task_in_space(name, entry, stack_address + PAGE_SIZE,
+        address_space)) {
+        goto cleanup;
+    }
+    processes[process_index].loaded_base = loaded_base;
+    processes[process_index].loaded_end = loaded_end;
+    processes[process_index].stack_frame = stack_frame;
+    processes[process_index].stack_address = stack_address;
+    processes[process_index].address_space = address_space;
+    processes[process_index].task_index = scheduler_last_added_task();
+    processes[process_index].task_id = scheduler_task_id(processes[process_index].task_index);
+    processes[process_index].active = 1;
+    return 1;
+
+cleanup:
+    if (address_space != 0U && (image_loaded || stack_mapped) &&
+        paging_current_directory() != address_space && !paging_switch_address_space(address_space)) {
+        kernel_panic("Failed to enter user address space during spawn cleanup.");
+    }
+    if (image_loaded && !elf_unload_image(loaded_base, loaded_end)) {
+        kernel_panic("Failed to unload user ELF image during spawn cleanup.");
+    }
+    if (stack_mapped) {
+        physical = paging_unmap_page(stack_address);
+        if (physical == 0U) {
+            kernel_panic("Failed to unmap user stack during spawn cleanup.");
         }
-        if (stack_frame != 0U) {
-            pmm_free_block(stack_frame);
+        pmm_free_block(physical);
+    } else if (stack_frame != 0U) {
+        pmm_free_block(stack_frame);
+    }
+    if (address_space != 0U) {
+        if (paging_current_directory() != kernel_directory &&
+            !paging_switch_address_space(kernel_directory)) {
+            kernel_panic("Failed to restore kernel address space during spawn cleanup.");
         }
-        paging_switch_address_space(kernel_directory);
-        paging_destroy_address_space(address_space);
+        if (!paging_destroy_address_space(address_space)) {
+            kernel_panic("Failed to destroy user address space during spawn cleanup.");
+        }
+    }
+    return 0;
+}
+
+static int user_process_init_locked(void)
+{
+    unsigned int code_size = (unsigned int)(&user_demo_end - &user_demo_start);
+    unsigned char image[4096];
+    unsigned int image_size = 116U + code_size;
+    unsigned int index;
+
+    if (code_size == 0U || code_size > PAGE_SIZE || image_size > sizeof(image)) {
         return 0;
     }
-    for (index = 0; index < sizeof(image); index++) {
-        image[index] = 0;
+    for (index = 0U; index < sizeof(image); index++) {
+        image[index] = 0U;
     }
     image[0] = 0x7F;
     image[1] = 'E';
@@ -131,44 +186,7 @@ static int user_process_init_locked(void)
     set_u32(image, 76U, 1U);
     set_u32(image, 80U, 1U);
     copy_bytes(image + 116U, &user_demo_start, code_size);
-    image_loaded = elf_load_image(image, image_size, &entry, &loaded_base, &loaded_end);
-    if (!image_loaded || entry != USER_CODE_ADDRESS || loaded_base != USER_CODE_ADDRESS ||
-        loaded_end != USER_CODE_ADDRESS + PAGE_SIZE) {
-        if (image_loaded) {
-            elf_unload_image(loaded_base, loaded_end);
-        }
-        paging_unmap_page(stack_address);
-        pmm_free_block(stack_frame);
-        paging_switch_address_space(kernel_directory);
-        paging_destroy_address_space(address_space);
-        return 0;
-    }
-    if (!paging_switch_address_space(kernel_directory)) {
-        paging_switch_address_space(address_space);
-        elf_unload_image(loaded_base, loaded_end);
-        paging_unmap_page(stack_address);
-        pmm_free_block(stack_frame);
-        kernel_panic("Failed to restore kernel address space.");
-    }
-    if (!scheduler_add_user_task_in_space("user-demo", entry, stack_address + PAGE_SIZE,
-        address_space)) {
-        paging_switch_address_space(address_space);
-        elf_unload_image(loaded_base, loaded_end);
-        paging_unmap_page(stack_address);
-        pmm_free_block(stack_frame);
-        paging_switch_address_space(kernel_directory);
-        paging_destroy_address_space(address_space);
-        return 0;
-    }
-    processes[process_index].loaded_base = loaded_base;
-    processes[process_index].loaded_end = loaded_end;
-    processes[process_index].stack_frame = stack_frame;
-    processes[process_index].stack_address = stack_address;
-    processes[process_index].address_space = address_space;
-    processes[process_index].task_index = scheduler_last_added_task();
-    processes[process_index].task_id = scheduler_task_id(processes[process_index].task_index);
-    processes[process_index].active = 1;
-    return 1;
+    return user_process_spawn_locked("user-demo", image, image_size);
 }
 
 int user_process_reap_task(unsigned int task_index, unsigned int task_id)
@@ -243,6 +261,17 @@ int user_process_init(void)
 
     __asm__ volatile ("pushfl\n\tpopl %0\n\tcli" : "=r"(flags) : : "memory");
     result = user_process_init_locked();
+    __asm__ volatile ("pushl %0\n\tpopfl" : : "r"(flags) : "memory");
+    return result;
+}
+
+int user_process_spawn(const char *name, const void *image, unsigned int image_size)
+{
+    unsigned int flags;
+    int result;
+
+    __asm__ volatile ("pushfl\n\tpopl %0\n\tcli" : "=r"(flags) : : "memory");
+    result = user_process_spawn_locked(name, image, image_size);
     __asm__ volatile ("pushl %0\n\tpopfl" : : "r"(flags) : "memory");
     return result;
 }

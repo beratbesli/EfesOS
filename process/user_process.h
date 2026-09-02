@@ -2,6 +2,8 @@
 #define EFESOS_USER_PROCESS_H
 
 int user_process_init(void);
+/* Kernel-only bounded ELF spawn; image must remain readable for the call. */
+int user_process_spawn(const char *name, const void *image, unsigned int image_size);
 void user_process_reap(void);
 int user_process_reap_task(unsigned int task_index, unsigned int task_id);
 unsigned int user_process_reap_count(void);
