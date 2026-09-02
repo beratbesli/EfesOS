@@ -32,12 +32,16 @@ jobs:
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude tests/boot_info_host_test.c -o build/boot-info-host-test && build/boot-info-host-test
       - name: ELF loader host test
         run: clang -std=c11 -Wall -Wextra -Werror -Iprocess -Imemory -Ikernel -Iinclude tests/elf_host_test.c process/elf_loader.c -o build/elf-host-test && build/elf-host-test
-      - name: Sanitized FAT and ELF host tests
+      - name: RAMFS host test
+        run: clang -std=c11 -Wall -Wextra -Werror -Ifs tests/ramfs_host_test.c fs/ramfs.c -o build/ramfs-host-test && build/ramfs-host-test
+      - name: Sanitized filesystem and ELF host tests
         run: |
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Ifs tests/fat_host_test.c fs/fat.c -o build/fat-host-sanitize
           build/fat-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iprocess -Imemory -Ikernel -Iinclude tests/elf_host_test.c process/elf_loader.c -o build/elf-host-sanitize
           build/elf-host-sanitize
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Ifs tests/ramfs_host_test.c fs/ramfs.c -o build/ramfs-host-sanitize
+          build/ramfs-host-sanitize
       - name: QEMU boot smoke test
         run: |
           timeout 20s qemu-system-i386 -display none -monitor none -serial stdio -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a > build/ci-serial.log 2> build/ci-qemu-error.log || true

@@ -104,6 +104,7 @@
 
 - `scripts/build.ps1` başarılı.
 - `scripts/fat-self-test.ps1` başarılı.
+- `scripts/ramfs-self-test.ps1` başarılı; null, geçersiz ve sonlandırılmamış RAMFS isimleri bounded olarak reddediliyor.
 - `scripts/boot-info-self-test.ps1` başarılı.
 - QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 36 kritik boot/runtime işaretçisi doğrulanıyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
