@@ -161,7 +161,7 @@ static struct interrupt_frame *handle_exception(struct interrupt_frame *frame)
     }
     serial_write("\n");
 
-    if (frame->vector == 3U) {
+    if (frame->vector == 3U && (frame->cs & 3U) != 3U) {
         serial_write("EfesOS: breakpoint exception self-test passed.\n");
         return frame;
     }
