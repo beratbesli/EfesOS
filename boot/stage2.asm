@@ -273,15 +273,27 @@ capture_vga_font:
     mov ax, 0x1130
     mov bh, 0x06
     int 0x10
+    jc .unavailable
     xor eax, eax
     mov ax, es
     shl eax, 4
     movzx edx, bp
     add eax, edx
+    jc .unavailable
+    cmp eax, 0x1000
+    jb .unavailable
+    cmp eax, 0x003FF000
+    jae .unavailable
     xor dx, dx
     mov ds, dx
     mov [BOOT_INFO_ADDRESS + 16], eax
     mov dword [BOOT_INFO_ADDRESS + 20], 1
+    ret
+.unavailable:
+    xor dx, dx
+    mov ds, dx
+    mov dword [BOOT_INFO_ADDRESS + 16], 0
+    mov dword [BOOT_INFO_ADDRESS + 20], 0
     ret
 
 load_kernel:

@@ -31,6 +31,7 @@
 - FAT host testi 2.048 deterministik bozuk-imaj mutasyonunda mount/directory/file API’lerini çalıştırarak parser’ın bounded ret davranışını tarıyor.
 - ELF loader self-test’i artık bozuk program-header/segment offset, boyut, adres, flag, alignment ve entry fixture’larını da reddediyor; malformed image kabulü regresyon kapsamına alındı.
 - Stage-2, kernel yüklemesi sonrası build tarafından üretilen bounded byte-checksum’u doğruluyor; doğrulama başarısızsa protected mode’a geçmiyor ve başarı biti boot metadata üzerinden kernel tarafından zorunlu tutuluyor. Bu bütünlük kontrolüdür, kriptografik imza/kimlik doğrulaması değildir.
+- Stage-2 VGA font BIOS çağrısının CF ve fiziksel adres aralığını doğruluyor; geçersiz/eksik font artık grafik donanımı varmış gibi işaretlenmiyor.
 - ATA ham yazma yolu her boot’ta write-protected başlıyor ve kernel bunu zorunlu kontrol ediyor; journaling/transaction katmanı olmadan fiziksel disk değişikliği gerçekleşmiyor.
 - FAT kök dizini taraması artık BPB’de belirtilen gerçek entry sayısının dışına çıkmıyor; son sektör artıkları dosya gibi kabul edilmiyor ve host fixture ile doğrulanıyor.
 - FAT dosya zinciri cycle testi strict bounded guard ile doğrulanıyor; döngülü cluster zinciri dosya okumasını fail-closed durduruyor.
