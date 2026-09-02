@@ -99,6 +99,9 @@ const char *ramfs_file_contents(const char *name)
 {
     unsigned int index;
 
+    if (!valid_name(name)) {
+        return 0;
+    }
     for (index = 0; index < file_count; index++) {
         if (string_equals(name, files[index].name)) {
             return files[index].contents;
@@ -165,6 +168,7 @@ int ramfs_self_test(void)
     if (contents == 0 || !string_equals(contents, "safe write\n") ||
         ramfs_write_file("bad/name", "rejected") ||
         ramfs_write_file("TOO_LONG_NAME_THAT_EXCEEDS_THE_LIMIT", "rejected") ||
+        ramfs_file_contents("TOO_LONG_NAME_THAT_EXCEEDS_THE_LIMIT") != 0 ||
         !ramfs_remove_file("TEST") || ramfs_file_contents("TEST") != 0) {
         return 0;
     }

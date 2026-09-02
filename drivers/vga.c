@@ -322,6 +322,9 @@ void vga_clear(void)
 
 void vga_write(const char *text)
 {
+    if (text == 0) {
+        return;
+    }
     while (*text != '\0') {
         vga_write_char(*text);
         text++;
