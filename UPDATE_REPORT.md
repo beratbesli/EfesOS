@@ -9,6 +9,7 @@
 - `int 0x80` syscall ABI’si, geçersiz çağrı reddi ve ring-3 istisna izolasyonu eklendi.
 - PCI taraması, zaman aşımı kontrollü ve aygıt-hazırlık yeniden denemeli ATA PIO arayüzü ile MBR FAT16/VFS parser’ı eklendi.
 - RAMFS için sınırlı `write`/`rm` işlemleri eklendi; yol ayraçları ve taşan girdiler reddediliyor.
+- RAMFS okuma isimleri de aynı bounded isim doğrulamasından geçiyor; VGA metin çıktısı null pointer’ı fail-closed yutuyor.
 - ELF32 başlık/segment doğrulaması ve gerçek kullanıcı sayfası yüklemesi W^X, adres aralığı, taşma, BSS sıfırlama ve son izin kontrolleriyle eklendi.
 - ELF doğrulaması artık `e_ehsize` alanını ve sanal adresin üst sınırını açıkça denetliyor; yüksek adres unsigned taşması malformed image olarak reddediliyor.
 - ELF segment sayfası hesabı artık unsigned kapasite taşmasına karşı açıkça sınırlandırılıyor; 1024 sayfadan büyük BSS istekleri doğrulama aşamasında reddediliyor.
