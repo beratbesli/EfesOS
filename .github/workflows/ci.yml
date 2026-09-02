@@ -45,3 +45,4 @@ jobs:
           grep -F "EfesOS: scheduler block/wake lifecycle self-test passed." build/ci-serial.log
           grep -F "EfesOS: user exception isolated." build/ci-serial.log
           grep -F "EfesOS: preemptive scheduler runtime test passed." build/ci-serial.log
+          if grep -F "KERNEL PANIC:" build/ci-serial.log; then exit 1; fi

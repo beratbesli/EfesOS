@@ -267,6 +267,10 @@ Assert-FileSize -Path $kernelBinary -ExpectedBytes ($kernelSectors * 512)
 
 [byte[]]$bootBytes = [System.IO.File]::ReadAllBytes($bootBinary)
 [byte[]]$stage2Bytes = [System.IO.File]::ReadAllBytes($stage2Binary)
+[int]$bootSignatureOffset = 510
+if ($bootBytes[$bootSignatureOffset] -ne 0x55 -or $bootBytes[$bootSignatureOffset + 1] -ne 0xAA) {
+    throw 'Stage-1 boot imzası 0x55AA değil.'
+}
 [byte[]]$imageBytes = New-Object byte[] $floppySize
 [System.Array]::Copy($bootBytes, 0, $imageBytes, 0, $bootBytes.Length)
 [System.Array]::Copy($stage2Bytes, 0, $imageBytes, $bootBytes.Length, $stage2Bytes.Length)

@@ -125,7 +125,7 @@ try {
                     break
                 }
             }
-            if ($allMarkersFound) {
+            if ($allMarkersFound -and $output.IndexOf('KERNEL PANIC:') -lt 0) {
                 $passed = $true
                 break
             }

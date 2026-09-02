@@ -174,6 +174,7 @@ verify: $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN) $(IMAGE)
 	test $$(wc -c < $(STAGE2_BIN)) -eq $(STAGE2_BYTES)
 	test $$(($$(wc -c < $(KERNEL_BIN)) % 512)) -eq 0
 	test $$(wc -c < $(IMAGE)) -eq $(FLOPPY_BYTES)
+	test "$$(od -An -tx1 -j510 -N2 $(BOOT_BIN) | tr -d ' \\n')" = "55aa"
 
 run: $(IMAGE)
 	$(QEMU) -vga std -drive file=$(IMAGE),format=raw,if=floppy -boot a -no-reboot -no-shutdown
