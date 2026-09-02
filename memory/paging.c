@@ -81,6 +81,25 @@ static int uses_shared_kernel_table(paging_u32_t virtual_address)
         (kernel_entry & PAGE_ADDRESS_MASK) == (current_entry & PAGE_ADDRESS_MASK);
 }
 
+static int page_table_allows_user_mappings(const paging_u32_t *table)
+{
+    unsigned int index;
+
+    if (table == 0) {
+        return 0;
+    }
+    /* A PDE user bit applies to every PTE in the table. Keep the table
+       homogeneous so a later user mapping can never change the effective
+       privilege boundary of an existing supervisor PTE. */
+    for (index = 0U; index < PAGE_TABLE_ENTRIES; index++) {
+        if ((table[index] & PAGE_PRESENT) != 0U &&
+            (table[index] & PAGE_FLAG_USER) == 0U) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static paging_u32_t *get_page_table(paging_u32_t virtual_address)
 {
     paging_u32_t entry;
@@ -108,6 +127,9 @@ static paging_u32_t *ensure_page_table(paging_u32_t virtual_address, paging_u32_
             return 0;
         }
         if ((flags & PAGE_FLAG_USER) != 0U) {
+            if (!page_table_allows_user_mappings((paging_u32_t *)(entry & PAGE_ADDRESS_MASK))) {
+                return 0;
+            }
             page_directory[directory_index] |= PAGE_FLAG_USER;
         }
         return (paging_u32_t *)(entry & PAGE_ADDRESS_MASK);
@@ -567,6 +589,58 @@ int paging_init(const struct boot_info *boot_info)
     return 1;
 }
 
+static int mixed_user_table_self_test(void)
+{
+    const paging_u32_t supervisor_virtual = 0x01000000U;
+    const paging_u32_t user_virtual = supervisor_virtual + PAGE_SIZE;
+    paging_u32_t kernel_directory = paging_kernel_directory();
+    paging_u32_t directory = paging_create_address_space();
+    paging_u32_t supervisor_frame = 0U;
+    paging_u32_t user_frame = 0U;
+    int supervisor_mapped = 0;
+    int user_mapped = 0;
+    int result = 0;
+
+    if (directory == 0U || !paging_switch_address_space(directory)) {
+        return 0;
+    }
+    supervisor_frame = pmm_alloc_block();
+    user_frame = pmm_alloc_user_block();
+    if (supervisor_frame == 0U || user_frame == 0U ||
+        !paging_map_page(supervisor_virtual, supervisor_frame, PAGE_FLAG_WRITABLE)) {
+        goto cleanup;
+    }
+    supervisor_mapped = 1;
+    if (paging_map_page(user_virtual, user_frame, PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
+        user_mapped = 1;
+        goto cleanup;
+    }
+    result = 1;
+
+cleanup:
+    if (user_mapped) {
+        if (paging_unmap_page(user_virtual) != user_frame) {
+            result = 0;
+        }
+    }
+    if (supervisor_mapped) {
+        if (paging_unmap_page(supervisor_virtual) != supervisor_frame) {
+            result = 0;
+        }
+    }
+    if (supervisor_frame != 0U) {
+        pmm_free_block(supervisor_frame);
+    }
+    if (user_frame != 0U) {
+        pmm_free_block(user_frame);
+    }
+    if (!paging_switch_address_space(kernel_directory) ||
+        !paging_destroy_address_space(directory)) {
+        return 0;
+    }
+    return result;
+}
+
 int paging_self_test(void)
 {
     const paging_u32_t test_virtual = 0xCFF00000U;
@@ -664,5 +738,6 @@ int paging_self_test(void)
 
     unmapped = paging_unmap_page(test_virtual);
     pmm_free_block(frame);
-    return unmapped == frame && !paging_is_mapped(test_virtual) && pmm_free_blocks() == free_before;
+    return unmapped == frame && !paging_is_mapped(test_virtual) &&
+        mixed_user_table_self_test() && pmm_free_blocks() == free_before;
 }
