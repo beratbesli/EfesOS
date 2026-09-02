@@ -9,6 +9,8 @@ typedef unsigned int boot_u32_t;
 #define BOOT_MEMORY_AVAILABLE 1U
 #define BOOT_VIDEO_FONT_AVAILABLE 1U
 #define BOOT_KERNEL_INTEGRITY_VERIFIED 2U
+#define BOOT_INFO_KNOWN_FLAGS (BOOT_VIDEO_FONT_AVAILABLE | BOOT_KERNEL_INTEGRITY_VERIFIED)
+#define BOOT_MEMORY_KNOWN_ATTRIBUTES 3U
 /* Compatibility name for older callers; stage-2 now uses SHA-256. */
 #define BOOT_KERNEL_CHECKSUM_VERIFIED BOOT_KERNEL_INTEGRITY_VERIFIED
 
@@ -36,11 +38,15 @@ static inline int boot_info_is_valid(const struct boot_info *info)
     boot_u32_t index;
 
     if (info == 0 || info->magic != BOOT_INFO_MAGIC ||
+        info->boot_drive > 0xFFU ||
         info->memory_map_entry_size != sizeof(struct boot_memory_map_entry) ||
         info->memory_map_entry_count == 0 ||
         info->memory_map_entry_count > BOOT_INFO_MAX_MEMORY_MAP_ENTRIES ||
+        (info->video_flags & ~BOOT_INFO_KNOWN_FLAGS) != 0U ||
         ((info->video_flags & BOOT_VIDEO_FONT_AVAILABLE) != 0U &&
-         (info->vga_font_address < 0x1000U || info->vga_font_address >= 0x003FF000U))) {
+         (info->vga_font_address < 0x1000U || info->vga_font_address >= 0x003FF000U)) ||
+        ((info->video_flags & BOOT_VIDEO_FONT_AVAILABLE) == 0U &&
+         info->vga_font_address != 0U)) {
         return 0;
     }
     for (index = 0; index < info->memory_map_entry_count; index++) {
@@ -51,7 +57,8 @@ static inline int boot_info_is_valid(const struct boot_info *info)
             entry->length_low;
         unsigned long long end = base + length;
 
-        if (length == 0U || end < base) {
+        if (length == 0U || end < base || entry->type == 0U ||
+            (entry->attributes & ~BOOT_MEMORY_KNOWN_ATTRIBUTES) != 0U) {
             return 0;
         }
     }

@@ -64,8 +64,10 @@ jobs:
         run: clang -std=c11 -Wall -Wextra -Werror -Ifs tests/journal_host_test.c fs/journal.c -o build/journal-host-test && build/journal-host-test
       - name: Persistent RAMFS host test
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude -Ifs -Ikernel -Imemory tests/persistent_host_test.c fs/persistent.c fs/journal.c fs/ramfs.c -o build/persistent-host-test && build/persistent-host-test
-      - name: Sanitized filesystem and ELF host tests
+      - name: Sanitized parser, filesystem and ELF host tests
         run: |
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iinclude tests/boot_info_host_test.c -o build/boot-info-host-sanitize
+          build/boot-info-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iinclude tests/block_device_host_test.c drivers/block_device.c -o build/block-device-host-sanitize
           build/block-device-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Ifs tests/fat_host_test.c fs/fat.c -o build/fat-host-sanitize
