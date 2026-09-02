@@ -238,7 +238,7 @@ static unsigned int find_next_runnable(void)
             return index;
         }
     }
-    return current_task;
+    return SCHEDULER_MAX_TASKS;
 }
 
 static int has_other_runnable(void)
@@ -292,6 +292,9 @@ static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame
         }
     }
     next = find_next_runnable();
+    if (next == SCHEDULER_MAX_TASKS) {
+        kernel_panic("Scheduler has no runnable task.");
+    }
     if (next == current_task) {
         return frame;
     }
