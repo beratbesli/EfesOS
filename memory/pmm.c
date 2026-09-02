@@ -93,7 +93,12 @@ static void release_e820_entry(const struct boot_memory_map_entry *entry)
         return;
     }
 
-    first_block_64 = (base + PMM_BLOCK_SIZE - 1U) >> 12U;
+    /* Round the base up without adding to a near-2^64 value; the latter
+       could wrap a hostile, otherwise valid E820 entry into low memory. */
+    first_block_64 = base >> 12U;
+    if ((base & (PMM_BLOCK_SIZE - 1U)) != 0U) {
+        first_block_64++;
+    }
     end_block_64 = end >> 12U;
     first_block = clamp_block_index(first_block_64);
     end_block = clamp_block_index(end_block_64);
