@@ -15,6 +15,8 @@
 
 On Linux CI, the FAT and ELF host tests also run with AddressSanitizer and
 UndefinedBehaviorSanitizer; new parser code should remain clean under both.
+The ELF host test additionally performs deterministic byte-mutation and
+truncation scans of a valid fixture.
 
 ## Scope
 

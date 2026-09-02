@@ -81,6 +81,7 @@
 - `EXIT` syscall’i gerçek demo akışında doğrulandı; normal çıkan user task’ın adres alanı/yığını fault yolu ile aynı fail-closed cleanup’tan geçiyor ve slot güvenle yeniden kullanılıyor.
 - GitHub Actions; build, imaj doğrulama, FAT/boot/ELF host testleri ve QEMU ring-3 smoke testini çalıştırıyor.
 - ELF yükleyici doğrulaması artık paging/PMM stub’larıyla bağımsız host testinde ve CI’da da çalıştırılıyor; host derlemesi integer-pointer uyarısı bastırmadan tam `-Werror` kapısını kullanıyor.
+- ELF host testi, geçerli fixture’ın her byte’ını ve tüm truncated boyutlarını deterministik olarak tarayarak parser’ın offset/count/size taşmalarında bounded kalmasını da doğruluyor.
 - FAT ve ELF host testleri CI’da AddressSanitizer/UndefinedBehaviorSanitizer ile ikinci bir bellek güvenliği kapısından da geçiriliyor.
 - Linux Makefile imaj üretimi artık hedef floppy alanını her derlemede sıfırlıyor; daha kısa yeni kernel derlemelerinde eski sektör verisi artefakta taşınmıyor.
 - Ardışık iki build’in SHA-256 imaj özetini karşılaştıran reproducible-build self-test’i eklendi; build pipeline değişikliklerinde gizli/non-deterministic çıktı farkı yakalanıyor.
