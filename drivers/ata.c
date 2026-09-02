@@ -179,10 +179,13 @@ static int ata_read_sectors_once(uint32_t lba, uint8_t count, void *buffer)
     if (!wait_status(0, ATA_STATUS_BSY)) {
         return 0;
     }
+    /* Use one bounded multi-sector PIO command. Re-selecting the device for
+       every sector is needlessly slow and makes journal validation depend on
+       hundreds of controller state transitions. */
+    select_lba(lba, count);
+    outb(ATA_COMMAND, ATA_CMD_READ);
+    ata_400ns_delay();
     for (sector = 0; sector < count; sector++) {
-        select_lba(lba + sector, 1);
-        outb(ATA_COMMAND, ATA_CMD_READ);
-        ata_400ns_delay();
         if (!wait_status(ATA_STATUS_DRQ, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
             return 0;
         }
@@ -194,9 +197,9 @@ static int ata_read_sectors_once(uint32_t lba, uint8_t count, void *buffer)
                 destination[(sector * ATA_SECTOR_SIZE) + (word * 2U) + 1U] = (uint8_t)(value >> 8U);
             }
         }
-        if (!wait_status(0, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
-            return 0;
-        }
+    }
+    if (!wait_status(0, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
+        return 0;
     }
     return 1;
 }

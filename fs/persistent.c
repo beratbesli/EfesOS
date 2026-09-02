@@ -1,6 +1,7 @@
 #include "persistent.h"
 #include "ata.h"
 #include "journal.h"
+#include "heap.h"
 #include "panic.h"
 #include "ramfs.h"
 #include "serial.h"
@@ -92,6 +93,7 @@ int persistent_ramfs_init(void)
 int persistent_ramfs_format(void)
 {
     unsigned char sector[JOURNAL_SECTOR_SIZE];
+    unsigned char *format_buffer;
     unsigned int index;
     unsigned int data_sectors;
 
@@ -105,12 +107,27 @@ int persistent_ramfs_format(void)
         return 0;
     }
     /* Never overwrite an existing or partially-used tail. */
+    format_buffer = (unsigned char *)kmalloc(
+        PERSISTENT_JOURNAL_REGION_SECTORS * JOURNAL_SECTOR_SIZE);
+    if (format_buffer == 0 || !ata_read_sectors(persistent_region_start,
+        (unsigned char)PERSISTENT_JOURNAL_REGION_SECTORS,
+        format_buffer)) {
+        if (format_buffer != 0) {
+            kfree(format_buffer);
+        }
+        return 0;
+    }
     for (index = 0U; index < PERSISTENT_JOURNAL_REGION_SECTORS; index++) {
-        if (!ata_read_sectors(persistent_region_start + index, 1U, sector) ||
-            !sector_is_empty(sector)) {
+        for (data_sectors = 0U; data_sectors < JOURNAL_SECTOR_SIZE; data_sectors++) {
+            sector[data_sectors] = format_buffer[
+                index * JOURNAL_SECTOR_SIZE + data_sectors];
+        }
+        if (!sector_is_empty(sector)) {
+            kfree(format_buffer);
             return 0;
         }
     }
+    kfree(format_buffer);
     if (!journal_superblock_encode(sector,
         PERSISTENT_JOURNAL_REGION_SECTORS - 1U) ||
         !ata_enable_transactional_writes(persistent_region_start,

@@ -142,8 +142,8 @@ $(RAMFS_OBJ): fs/ramfs.c fs/ramfs.h fs/journal.h | $(BUILD_DIR)
 $(JOURNAL_OBJ): fs/journal.c fs/journal.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Ifs -c $< -o $@
 
-$(PERSISTENT_OBJ): fs/persistent.c fs/persistent.h fs/journal.h fs/ramfs.h fs/vfs.h include/ata.h include/serial.h kernel/panic.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Ifs -Ikernel -Icpu -c $< -o $@
+$(PERSISTENT_OBJ): fs/persistent.c fs/persistent.h fs/journal.h fs/ramfs.h fs/vfs.h include/ata.h include/serial.h kernel/panic.h memory/heap.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Ifs -Ikernel -Icpu -Imemory -c $< -o $@
 
 $(FAT_OBJ): fs/fat.c fs/fat.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Ifs -c $< -o $@

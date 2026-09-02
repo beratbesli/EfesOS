@@ -130,6 +130,7 @@
 - Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT/journal uçtan uca testi başarılı; mount, kök dizin, dosya okuması ve persistent replay dahil 39 işaretçi doğrulanıyor.
 - `scripts/run-self-test.ps1` ile etkileşimli `run RUN.ELF` yolu QEMU’da başarılı; diskten yüklenen programın seri çıktısı doğrulandı.
 - `scripts/run-self-test.ps1 -TestPersistentWrite` ile QEMU IDE diski üzerinde yalnızca ayrılmış journal-window’a gerçek `write`/flush yolu çalıştırıldı; QEMU kapandıktan sonra sektör kaydı magic/op/name/content/commit alanlarıyla doğrulandı.
+- Aynı QEMU akışının `-TestPersistentFormat` varyantı boş tail üzerinde `pformat` + `write` çalıştırıyor ve ilk journal kaydını kapanış sonrası doğruluyor.
 - Tam seri doğrulama koşusu (build, journal/RAMFS/FAT/ELF/boot-info host testleri, iki QEMU bellek profili, journal fixture ve disk ELF yolu) başarılı; iki ardışık imaj SHA-256 değeri eşleşti.
 - Kernel C kaynaklarının Clang static analyzer taraması yeni değişikliklerle uyarısız tamamlandı. Windows ortamında ASan/UBSan runtime DLL’si bulunmadığından yerel sanitizer çalıştırması yapılmadı; Linux CI sanitizer kapısı etkin kalıyor.
 - Değişiklikler `codex/core-hardening` dalında checkpoint commit’leriyle kaydedildi.

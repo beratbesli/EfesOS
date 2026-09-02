@@ -238,7 +238,7 @@ Invoke-Tool -Path $nasm -Arguments @('-w+error', '-f', 'elf32', $userDemoSource,
 Invoke-CCompile -Source $programsSource -Output $programsObject -Includes @((Join-Path $projectRoot 'process')) -FailureMessage 'Demo programlari derlenemedi.'
 Invoke-CCompile -Source $ramfsSource -Output $ramfsObject -Includes @((Join-Path $projectRoot 'fs')) -FailureMessage 'RAM dosya sistemi derlenemedi.'
 Invoke-CCompile -Source $journalSource -Output $journalObject -Includes @((Join-Path $projectRoot 'fs')) -FailureMessage 'Journal katmani derlenemedi.'
-Invoke-CCompile -Source $persistentSource -Output $persistentObject -Includes @($includeDirectory, (Join-Path $projectRoot 'fs'), (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'cpu')) -FailureMessage 'Kalici RAM dosya sistemi derlenemedi.'
+Invoke-CCompile -Source $persistentSource -Output $persistentObject -Includes @($includeDirectory, (Join-Path $projectRoot 'fs'), (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'memory')) -FailureMessage 'Kalici RAM dosya sistemi derlenemedi.'
 Invoke-CCompile -Source $fatSource -Output $fatObject -Includes @((Join-Path $projectRoot 'fs')) -FailureMessage 'FAT katmani derlenemedi.'
 Invoke-CCompile -Source $vfsSource -Output $vfsObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'fs')) -FailureMessage 'VFS katmani derlenemedi.'
 Invoke-CCompile -Source $gamesSource -Output $gamesObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'games')) -FailureMessage 'Oyunlar derlenemedi.'

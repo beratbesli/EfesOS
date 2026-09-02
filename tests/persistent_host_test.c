@@ -86,6 +86,16 @@ void serial_write_hex(unsigned int value)
     (void)value;
 }
 
+void *kmalloc(unsigned int size)
+{
+    return malloc(size);
+}
+
+void kfree(void *pointer)
+{
+    free(pointer);
+}
+
 int vfs_journal_region_available(unsigned int start_lba, unsigned int sector_count)
 {
     return start_lba == JOURNAL_START && sector_count == 65U;

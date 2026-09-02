@@ -125,6 +125,12 @@ To additionally exercise an actual journal-window write on the QEMU test disk:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1 -TestPersistentWrite
 ```
 
+To exercise the explicit format path on a blank journal tail as well:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1 -TestPersistentFormat
+```
+
 On a deliberately empty, non-overlapping disk tail, type `pformat` in the shell
 to initialize persistent RAMFS. Formatting refuses non-empty disk tails,
 already formatted regions, and a RAMFS changed beyond its built-in defaults.

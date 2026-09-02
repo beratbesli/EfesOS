@@ -18,7 +18,7 @@ if ($null -eq $compiler -or $compiler.CommandType -ne 'Application' -or
 New-Item -ItemType Directory -Force -Path $build | Out-Null
 $output = Join-Path $build 'persistent-host-test.exe'
 $arguments = @('-std=c11', '-Wall', '-Wextra', '-Werror', '-Iinclude', '-Ifs',
-    '-Ikernel', '-Icpu', (Join-Path $root 'tests\persistent_host_test.c'),
+    '-Ikernel', '-Icpu', '-Imemory', (Join-Path $root 'tests\persistent_host_test.c'),
     (Join-Path $root 'fs\persistent.c'), (Join-Path $root 'fs\journal.c'),
     (Join-Path $root 'fs\ramfs.c'), '-o', $output)
 & $compilerPath @arguments

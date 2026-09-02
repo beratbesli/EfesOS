@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$OutputPath = ''
+    [string]$OutputPath = '',
+    [switch]$BlankJournal
 )
 
 $ErrorActionPreference = 'Stop'
@@ -132,43 +133,45 @@ function Get-Crc32([byte[]]$bytes, [int]$offset, [int]$length) {
 }
 
 $journalStartSector = $sectorCount - $journalRegionSectors
-$journalSuperblockOffset = $journalStartSector * $sectorSize
-Set-Dword $journalSuperblockOffset 0x314A5346
-Set-Word ($journalSuperblockOffset + 4) 1
-Set-Word ($journalSuperblockOffset + 6) ($journalRegionSectors - 1)
-Set-Dword ($journalSuperblockOffset + 8) 0
-Set-Dword ($journalSuperblockOffset + 12) (Get-Crc32 $image $journalSuperblockOffset 12)
-Set-Dword ($journalSuperblockOffset + 508) 0xC0DE17ED
+if (!$BlankJournal) {
+    $journalSuperblockOffset = $journalStartSector * $sectorSize
+    Set-Dword $journalSuperblockOffset 0x314A5346
+    Set-Word ($journalSuperblockOffset + 4) 1
+    Set-Word ($journalSuperblockOffset + 6) ($journalRegionSectors - 1)
+    Set-Dword ($journalSuperblockOffset + 8) 0
+    Set-Dword ($journalSuperblockOffset + 12) (Get-Crc32 $image $journalSuperblockOffset 12)
+    Set-Dword ($journalSuperblockOffset + 508) 0xC0DE17ED
 
-$journalRecordOffset = ($journalStartSector + 1) * $sectorSize
-Set-Dword $journalRecordOffset 0x314A5346
-Set-Word ($journalRecordOffset + 4) 1
-Set-Word ($journalRecordOffset + 6) 1
-Set-Dword ($journalRecordOffset + 8) 1
-$journalName = [Text.Encoding]::ASCII.GetBytes('PERSIST')
-$journalContent = [Text.Encoding]::ASCII.GetBytes("Journal replay!`r`n")
-Set-Word ($journalRecordOffset + 12) $journalName.Length
-Set-Word ($journalRecordOffset + 14) $journalContent.Length
-Set-Bytes ($journalRecordOffset + 20) $journalName
-Set-Bytes ($journalRecordOffset + 52) $journalContent
-# The record CRC covers bytes 0..15 and the fixed 288-byte name/content area.
-[uint32]$recordCrc = [uint32]::MaxValue
-for ($part = 0; $part -lt 2; $part++) {
-    $crcOffset = if ($part -eq 0) { $journalRecordOffset } else { $journalRecordOffset + 20 }
-    $crcLength = if ($part -eq 0) { 16 } else { 288 }
-    for ($index = 0; $index -lt $crcLength; $index++) {
-        $recordCrc = $recordCrc -bxor $image[$crcOffset + $index]
-        for ($bit = 0; $bit -lt 8; $bit++) {
-            if (($recordCrc -band 1) -ne 0) {
-                $recordCrc = ($recordCrc -shr 1) -bxor 0xEDB88320
-            } else {
-                $recordCrc = $recordCrc -shr 1
+    $journalRecordOffset = ($journalStartSector + 1) * $sectorSize
+    Set-Dword $journalRecordOffset 0x314A5346
+    Set-Word ($journalRecordOffset + 4) 1
+    Set-Word ($journalRecordOffset + 6) 1
+    Set-Dword ($journalRecordOffset + 8) 1
+    $journalName = [Text.Encoding]::ASCII.GetBytes('PERSIST')
+    $journalContent = [Text.Encoding]::ASCII.GetBytes("Journal replay!`r`n")
+    Set-Word ($journalRecordOffset + 12) $journalName.Length
+    Set-Word ($journalRecordOffset + 14) $journalContent.Length
+    Set-Bytes ($journalRecordOffset + 20) $journalName
+    Set-Bytes ($journalRecordOffset + 52) $journalContent
+    # The record CRC covers bytes 0..15 and the fixed 288-byte name/content area.
+    [uint32]$recordCrc = [uint32]::MaxValue
+    for ($part = 0; $part -lt 2; $part++) {
+        $crcOffset = if ($part -eq 0) { $journalRecordOffset } else { $journalRecordOffset + 20 }
+        $crcLength = if ($part -eq 0) { 16 } else { 288 }
+        for ($index = 0; $index -lt $crcLength; $index++) {
+            $recordCrc = $recordCrc -bxor $image[$crcOffset + $index]
+            for ($bit = 0; $bit -lt 8; $bit++) {
+                if (($recordCrc -band 1) -ne 0) {
+                    $recordCrc = ($recordCrc -shr 1) -bxor 0xEDB88320
+                } else {
+                    $recordCrc = $recordCrc -shr 1
+                }
             }
         }
     }
+    Set-Dword ($journalRecordOffset + 16) ([uint32]($recordCrc -bxor 0xFFFFFFFF))
+    Set-Dword ($journalRecordOffset + 508) 0xC0DE17ED
 }
-Set-Dword ($journalRecordOffset + 16) ([uint32]($recordCrc -bxor 0xFFFFFFFF))
-Set-Dword ($journalRecordOffset + 508) 0xC0DE17ED
 
 $parent = Split-Path -Parent $OutputPath
 New-Item -ItemType Directory -Force -Path $parent | Out-Null

@@ -125,6 +125,12 @@ QEMU test diskinde gerçek journal-window yazmasını da denemek için:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1 -TestPersistentWrite
 ```
 
+Boş journal tail’inde açık biçimlendirme yolunu da sınamak için:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1 -TestPersistentFormat
+```
+
 Kasten boş ve FAT ile çakışmayan disk tail’inde shell’e `pformat` yazarak
 kalıcı RAMFS’i başlatabilirsin. Dolu/zaten biçimli bölgeler veya yerleşik
 varsayılanların dışında dosya içeren RAMFS biçimlendirmeyi reddeder.

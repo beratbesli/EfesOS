@@ -1,9 +1,10 @@
 [CmdletBinding()]
 param(
-    [ValidateRange(1, 120)][int]$TimeoutSeconds = 30,
+    [ValidateRange(1, 120)][int]$TimeoutSeconds = 90,
     [ValidateRange(1024, 65535)][int]$MonitorPort = 4555,
     [switch]$SkipBuild,
-    [switch]$TestPersistentWrite
+    [switch]$TestPersistentWrite,
+    [switch]$TestPersistentFormat
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,7 +42,11 @@ if (!$SkipBuild) {
 if (!(Test-Path -LiteralPath $imagePath)) {
     throw "Disk imaji bulunamadi: $imagePath"
 }
-& (Join-Path $PSScriptRoot 'create-test-disk.ps1') -OutputPath $testDiskPath
+if ($TestPersistentFormat) {
+    & (Join-Path $PSScriptRoot 'create-test-disk.ps1') -OutputPath $testDiskPath -BlankJournal
+} else {
+    & (Join-Path $PSScriptRoot 'create-test-disk.ps1') -OutputPath $testDiskPath
+}
 
 New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null
 Remove-Item -LiteralPath $serialLog, $qemuErrorLog -Force -ErrorAction SilentlyContinue
@@ -55,7 +60,7 @@ $qemuArgs = @(
     '-m', '128',
     '-drive', "file=$imagePath,format=raw,if=floppy",
     '-boot', 'a',
-    '-drive', "file=$testDiskPath,format=raw,if=ide"
+    '-drive', "file=$testDiskPath,format=raw,if=ide,cache=directsync"
 )
 $qemu = Get-QemuPath
 $process = Start-Process -FilePath $qemu -ArgumentList $qemuArgs -RedirectStandardError $qemuErrorLog -WindowStyle Hidden -PassThru
@@ -95,7 +100,8 @@ try {
     while ([DateTime]::UtcNow -lt $deadline) {
         $serial = Read-Serial
         if ($serial.IndexOf('EfesOS: deferred event loop ready.') -ge 0 -and
-            $serial.IndexOf('EfesOS: persistent journal replay passed records=0x00000001.') -ge 0) {
+            ($TestPersistentFormat -or
+             $serial.IndexOf('EfesOS: persistent journal replay passed records=0x00000001.') -ge 0)) {
             break
         }
         if ($process.HasExited) {
@@ -108,7 +114,8 @@ try {
     if ($serial.IndexOf('EfesOS: deferred event loop ready.') -lt 0) {
         throw 'Shell hazirlik isareti zamaninda gorulmedi.'
     }
-    if ($serial.IndexOf('EfesOS: persistent journal replay passed records=0x00000001.') -lt 0) {
+    if (!$TestPersistentFormat -and
+        $serial.IndexOf('EfesOS: persistent journal replay passed records=0x00000001.') -lt 0) {
         throw 'Persistent journal replay isareti zamaninda gorulmedi.'
     }
 
@@ -127,7 +134,23 @@ try {
         throw "QEMU monitor baglantisi kurulamadi: $MonitorPort"
     }
 
-    if ($TestPersistentWrite) {
+    if ($TestPersistentWrite -or $TestPersistentFormat) {
+        if ($TestPersistentFormat) {
+            foreach ($key in @('p','f','o','r','m','a','t','ret')) {
+                Send-Key $stream $key
+            }
+            while ([DateTime]::UtcNow -lt $deadline) {
+                $serial = Read-Serial
+                if ($serial.IndexOf('EfesOS: persistent RAMFS journal formatted.') -ge 0) {
+                    break
+                }
+                if ($serial.IndexOf('KERNEL PANIC:') -ge 0 -or $process.HasExited) {
+                    break
+                }
+                Start-Sleep -Milliseconds 100
+                $process.Refresh()
+            }
+        }
         foreach ($key in @('w','r','i','t','e','spc','p','e','r','s','i','s','t','2','spc','d','u','r','a','b','l','e','ret')) {
             Send-Key $stream $key
         }
@@ -147,22 +170,26 @@ try {
         Start-Sleep -Milliseconds 500
     }
 
-    foreach ($key in @('r','u','n','spc','r','u','n','dot','e','l','f','ret')) {
-        Send-Key $stream $key
-    }
+    if ($TestPersistentFormat) {
+        $passed = (Read-Serial).IndexOf('EfesOS: persistent RAMFS write committed.') -ge 0
+    } else {
+        foreach ($key in @('r','u','n','spc','r','u','n','dot','e','l','f','ret')) {
+            Send-Key $stream $key
+        }
 
-    while ([DateTime]::UtcNow -lt $deadline) {
-        $serial = Read-Serial
-        if ($serial.IndexOf('EfesOS: disk ELF run passed.') -ge 0 -and
-            $serial.IndexOf('KERNEL PANIC:') -lt 0) {
-            $passed = $true
-            break
+        while ([DateTime]::UtcNow -lt $deadline) {
+            $serial = Read-Serial
+            if ($serial.IndexOf('EfesOS: disk ELF run passed.') -ge 0 -and
+                $serial.IndexOf('KERNEL PANIC:') -lt 0) {
+                $passed = $true
+                break
+            }
+            if ($process.HasExited) {
+                break
+            }
+            Start-Sleep -Milliseconds 100
+            $process.Refresh()
         }
-        if ($process.HasExited) {
-            break
-        }
-        Start-Sleep -Milliseconds 100
-        $process.Refresh()
     }
 } finally {
     if ($null -ne $stream -and !$process.HasExited) {
@@ -192,15 +219,17 @@ if (!$passed) {
     throw "Disk ELF run self-test basarisiz oldu.`nSerial:`n$serialOutput`nQEMU:`n$qemuError"
 }
 
-if ($TestPersistentWrite) {
+if ($TestPersistentWrite -or $TestPersistentFormat) {
     [byte[]]$diskBytes = [IO.File]::ReadAllBytes($testDiskPath)
     $sectorSize = 512
     $journalSectors = 65
     $journalStart = ($diskBytes.Length / $sectorSize) - $journalSectors
-    $recordOffset = ($journalStart + 2) * $sectorSize
+    $recordIndex = if ($TestPersistentFormat) { 1 } else { 2 }
+    $recordOffset = ($journalStart + $recordIndex) * $sectorSize
     if ($recordOffset + $sectorSize -gt $diskBytes.Length -or
         [BitConverter]::ToUInt32($diskBytes, $recordOffset) -ne 0x314A5346 -or
         [BitConverter]::ToUInt16($diskBytes, $recordOffset + 6) -ne 1 -or
+        [BitConverter]::ToUInt32($diskBytes, $recordOffset + 8) -ne $recordIndex -or
         [BitConverter]::ToUInt16($diskBytes, $recordOffset + 12) -ne 8 -or
         [BitConverter]::ToUInt16($diskBytes, $recordOffset + 14) -ne 7 -or
         [Text.Encoding]::ASCII.GetString($diskBytes, $recordOffset + 20, 8) -ne 'persist2' -or
@@ -210,4 +239,8 @@ if ($TestPersistentWrite) {
     }
 }
 
-Write-Host 'Disk ELF run self-test passed.'
+if ($TestPersistentFormat) {
+    Write-Host 'Persistent format and write self-test passed.'
+} else {
+    Write-Host 'Disk ELF run self-test passed.'
+}
