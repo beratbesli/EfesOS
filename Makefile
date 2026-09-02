@@ -58,7 +58,7 @@ KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 KERNEL_BIN := $(BUILD_DIR)/kernel.bin
 IMAGE := $(BUILD_DIR)/efesos.img
 
-.PHONY: all run clean verify sha256-self-test
+.PHONY: all run clean verify sha256-self-test sha256-boot-negative-test
 
 all: $(IMAGE)
 
@@ -192,6 +192,9 @@ verify: $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN) $(IMAGE)
 
 sha256-self-test: $(KERNEL_BIN)
 	$(PYTHON) scripts/sha256_self_test.py $(KERNEL_BIN)
+
+sha256-boot-negative-test: $(IMAGE)
+	$(PYTHON) scripts/sha256_boot_negative_test.py
 
 run: $(IMAGE)
 	$(QEMU) -vga std -drive file=$(IMAGE),format=raw,if=floppy -boot a -no-reboot -no-shutdown

@@ -14,6 +14,11 @@ BOOT_INFO_HEADER_SIZE equ 24
 BOOT_KERNEL_INTEGRITY_VERIFIED equ 2
 E820_ENTRY_SIZE       equ 24
 E820_MAX_ENTRIES      equ 32
+STAGE2_SERIAL_DATA    equ 0x03F8
+STAGE2_SERIAL_LCR     equ 0x03FB
+STAGE2_SERIAL_FCR     equ 0x03FA
+STAGE2_SERIAL_MCR     equ 0x03FC
+STAGE2_SERIAL_IER     equ 0x03F9
 
 %ifndef STAGE2_SECTORS
 %define STAGE2_SECTORS 12
@@ -46,10 +51,11 @@ stage2_start:
     mov es, ax
     mov ss, ax
     mov sp, 0x7C00
-    sti
     cld
 
     mov [boot_drive], dl
+    call initialize_stage2_serial
+    sti
     call initialize_boot_info
     call collect_e820_map
     call enable_a20
@@ -79,6 +85,33 @@ initialize_boot_info:
     mov dword [BOOT_INFO_ADDRESS + 12], E820_ENTRY_SIZE
     mov dword [BOOT_INFO_ADDRESS + 16], 0
     mov dword [BOOT_INFO_ADDRESS + 20], 0
+    ret
+
+initialize_stage2_serial:
+    ; 8 data bits, no parity, one stop bit; interrupts remain disabled.
+    mov dx, STAGE2_SERIAL_IER
+    xor al, al
+    out dx, al
+    mov dx, STAGE2_SERIAL_LCR
+    mov al, 0x80
+    out dx, al
+    mov dx, STAGE2_SERIAL_DATA
+    mov al, 0x03
+    out dx, al
+    mov dx, STAGE2_SERIAL_LCR
+    mov al, 0x03
+    out dx, al
+    mov dx, STAGE2_SERIAL_FCR
+    mov al, 0xC7
+    out dx, al
+    mov dx, STAGE2_SERIAL_MCR
+    mov al, 0x0B
+    out dx, al
+    ret
+
+stage2_serial_putc:
+    mov dx, STAGE2_SERIAL_DATA
+    out dx, al
     ret
 
 collect_e820_map:
@@ -609,6 +642,8 @@ a20_error:
     jmp halt
 
 checksum_error:
+    mov al, '!'
+    call stage2_serial_putc
     mov si, checksum_error_message
     call print_string
     jmp halt

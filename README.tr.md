@@ -53,7 +53,7 @@ Windows derleme betiği varsa GNU cross-toolchain'i, yoksa Clang'in `i686-none-e
 
 Tedarik zinciri güvenliği için derleme betiği depo içindeki `tools` dizinini varsayılan olarak taramaz. Doğrulanmış ikilileri bilerek buraya koyduysanız `-AllowLocalTools` ile açıkça izin verin ve önce hash değerlerini kontrol edin.
 
-Host bütünlük regresyonunu (tek bayt bozulma negatif testi dahil) derlemeden sonra `make sha256-self-test` komutuyla çalıştırabilirsin.
+Host bütünlük regresyonunu (tek bayt bozulma negatif testi dahil) derlemeden sonra `make sha256-self-test` komutuyla çalıştırabilirsin. `make sha256-boot-negative-test` ayrıca bozuk imajı boot edip stage-2’nin kernel girişinden önce reddettiğini kontrol eder.
 
 ## Windows'ta derleme ve çalıştırma
 

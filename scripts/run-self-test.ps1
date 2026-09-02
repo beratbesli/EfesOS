@@ -46,6 +46,10 @@ if (!(Test-Path -LiteralPath $imagePath)) {
 if (!$?) {
     throw 'SHA-256 self-test basarisiz oldu.'
 }
+& (Join-Path $PSScriptRoot 'sha256-boot-negative-test.ps1')
+if (!$?) {
+    throw 'SHA-256 boot negative test basarisiz oldu.'
+}
 if ($TestPersistentFormat) {
     & (Join-Path $PSScriptRoot 'create-test-disk.ps1') -OutputPath $testDiskPath -BlankJournal
 } else {

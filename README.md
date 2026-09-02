@@ -53,7 +53,7 @@ The Windows build script prefers the GNU cross-toolchain when it is available an
 
 For supply-chain safety, the build script does not search the repository's `tools` directory by default. If you intentionally place verified binaries there, opt in with `-AllowLocalTools` and verify their hashes first.
 
-To run the host-side integrity regression (including a one-byte corruption negative case), run `make sha256-self-test` after building.
+To run the host-side integrity regression (including a one-byte corruption negative case), run `make sha256-self-test` after building. `make sha256-boot-negative-test` additionally boots a corrupted image and checks that stage-2 rejects it before kernel entry.
 
 ## Build and run on Windows
 
