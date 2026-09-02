@@ -17,6 +17,7 @@ struct interrupt_frame;
 #define SYSCALL_EFAULT 0xFFFFFFF2U
 #define SYSCALL_E2BIG 0xFFFFFFFBU
 #define SYSCALL_EAGAIN 0xFFFFFFF5U
+#define SYSCALL_ENOSYS 0xFFFFFFDAU
 
 void syscall_init(void);
 struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame);
@@ -30,5 +31,6 @@ unsigned int syscall_user_ipc_wait_count(void);
 unsigned int syscall_user_ipc_block_count(void);
 unsigned int syscall_user_exit_count(void);
 unsigned int syscall_user_pid_call_count(void);
+unsigned int syscall_user_invalid_call_count(void);
 
 #endif

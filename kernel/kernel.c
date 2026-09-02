@@ -279,7 +279,7 @@ void kernel_main(const struct boot_info *boot_info)
 
         __asm__ volatile ("xor %%eax, %%eax\n\tint $0x80" : "=a"(syscall_ticks) : : "memory");
         __asm__ volatile ("mov $0xFFFFFFFF, %%eax\n\tint $0x80" : "=a"(invalid_syscall) : : "memory");
-        if (syscall_ticks != pit_ticks() || invalid_syscall != 0xFFFFFFFFU) {
+        if (syscall_ticks != pit_ticks() || invalid_syscall != SYSCALL_ENOSYS) {
             kernel_panic("Syscall ABI self-test failed.");
         }
         serial_write("EfesOS: syscall ABI self-test passed.\n");
