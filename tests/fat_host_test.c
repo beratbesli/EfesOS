@@ -25,6 +25,15 @@ static void put32(unsigned int offset, unsigned int value)
     put16(offset + 2U, value >> 16U);
 }
 
+static void copy_sector(unsigned int destination, unsigned int source)
+{
+    unsigned int index;
+
+    for (index = 0U; index < SECTOR_SIZE; index++) {
+        disk[(destination * SECTOR_SIZE) + index] = disk[(source * SECTOR_SIZE) + index];
+    }
+}
+
 static int read_fixture(unsigned int lba, unsigned char count, void *buffer)
 {
     unsigned int index;
@@ -175,6 +184,21 @@ int main(void)
     put16(516U, 3U);
     put16(518U, 0xFFF8U);
     disk[33U * SECTOR_SIZE + 4U] = 0x00;
+    if (!fat_mount(&volume, read_fixture, 0) ||
+        fat_read_file(&volume, "hello.txt", large_contents, sizeof(large_contents), &size)) {
+        return 1;
+    }
+    build_fixture();
+    copy_sector(97U, 65U);
+    copy_sector(99U, 67U);
+    copy_sector(65U, 1U);
+    disk[16] = 3U;
+    put32((97U * SECTOR_SIZE) + 28U, 1024U);
+    put16(516U, 3U);
+    put16(518U, 0xFFF8U);
+    put16((33U * SECTOR_SIZE) + 4U, 3U);
+    put16((33U * SECTOR_SIZE) + 6U, 0xFFF8U);
+    disk[65U * SECTOR_SIZE + 4U] = 0x00;
     if (!fat_mount(&volume, read_fixture, 0) ||
         fat_read_file(&volume, "hello.txt", large_contents, sizeof(large_contents), &size)) {
         return 1;
