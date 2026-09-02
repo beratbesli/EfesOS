@@ -97,6 +97,12 @@ Exercise the interactive shell-to-ring-3 disk ELF path as well:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1
 ```
 
+Check that two consecutive image builds are byte-for-byte reproducible:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\reproducible-build-self-test.ps1
+```
+
 ## Shell commands
 
 | Command | Description |

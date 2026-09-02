@@ -97,6 +97,12 @@ Etkileşimli shell → ring-3 disk ELF yolunu da sınamak için:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1
 ```
 
+Ardışık iki imaj derlemesinin byte düzeyinde aynı olduğunu doğrulamak için:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\reproducible-build-self-test.ps1
+```
+
 ## Shell komutları
 
 | Komut | Açıklama |
