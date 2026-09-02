@@ -14,6 +14,7 @@
 #define ATA_CMD_READ 0x20U
 #define ATA_CMD_WRITE 0x30U
 #define ATA_CMD_FLUSH 0xE7U
+#define ATA_CONTROL_SOFT_RESET 0x04U
 #define ATA_STATUS_ERR 0x01U
 #define ATA_STATUS_DRQ 0x08U
 #define ATA_STATUS_SRV 0x10U
@@ -79,6 +80,16 @@ static int wait_status(uint8_t required, uint8_t forbidden)
         ata_poll_delay();
     }
     return 0;
+}
+
+static void ata_soft_reset(void)
+{
+    /* Keep IRQ delivery disabled while resetting the polling-mode channel. */
+    outb(ATA_CONTROL, 0x02U | ATA_CONTROL_SOFT_RESET);
+    ata_400ns_delay();
+    outb(ATA_CONTROL, 0x02U);
+    ata_400ns_delay();
+    wait_status(0, ATA_STATUS_BSY);
 }
 
 static void select_lba(uint32_t lba, uint8_t count)
@@ -156,18 +167,12 @@ unsigned int ata_sector_count(void)
     return sectors;
 }
 
-int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer)
+static int ata_read_sectors_once(uint32_t lba, uint8_t count, void *buffer)
 {
     uint8_t *destination = (uint8_t *)buffer;
     unsigned int sector;
-    unsigned int flags;
 
-    if (!valid_request(lba, count, buffer)) {
-        return 0;
-    }
-    flags = irq_save();
     if (!wait_status(0, ATA_STATUS_BSY)) {
-        irq_restore(flags);
         return 0;
     }
     for (sector = 0; sector < count; sector++) {
@@ -175,7 +180,6 @@ int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer)
         outb(ATA_COMMAND, ATA_CMD_READ);
         ata_400ns_delay();
         if (!wait_status(ATA_STATUS_DRQ, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
-            irq_restore(flags);
             return 0;
         }
         {
@@ -187,12 +191,32 @@ int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer)
             }
         }
         if (!wait_status(0, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
-            irq_restore(flags);
             return 0;
         }
     }
-    irq_restore(flags);
     return 1;
+}
+
+int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer)
+{
+    unsigned int flags;
+    unsigned int attempt;
+
+    if (!valid_request(lba, count, buffer)) {
+        return 0;
+    }
+    flags = irq_save();
+    for (attempt = 0U; attempt < 3U; attempt++) {
+        if (ata_read_sectors_once(lba, count, buffer)) {
+            irq_restore(flags);
+            return 1;
+        }
+        if (attempt + 1U < 3U) {
+            ata_soft_reset();
+        }
+    }
+    irq_restore(flags);
+    return 0;
 }
 
 int ata_write_protected(void)
