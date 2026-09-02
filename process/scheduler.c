@@ -20,6 +20,7 @@
 #define SCHEDULER_USER_ADDRESS_LIMIT 0xC0000000U
 #define SCHEDULER_DEFAULT_PRIORITY 1U
 #define SCHEDULER_MAX_PRIORITY 8U
+#define SCHEDULER_MAX_GENERATION 0x00FFFFFFU
 
 struct scheduler_task {
     const char *name;
@@ -290,6 +291,10 @@ int scheduler_add_task(const char *name, scheduler_task_t task)
         return 0;
     }
     new_task = &tasks[slot];
+    if (slot_generation[slot] >= SCHEDULER_MAX_GENERATION) {
+        scheduler_irq_restore(flags);
+        return 0;
+    }
     clear_task(new_task);
     new_task->name = name;
     new_task->entry = task;
@@ -457,6 +462,10 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
         return 0;
     }
     new_task = &tasks[slot];
+    if (slot_generation[slot] >= SCHEDULER_MAX_GENERATION) {
+        scheduler_irq_restore(flags);
+        return 0;
+    }
     clear_task(new_task);
     new_task->name = name;
     new_task->user_entry = entry;
