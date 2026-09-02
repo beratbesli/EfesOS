@@ -4,7 +4,7 @@
 #define PAGE_TABLE_ENTRIES 1024U
 #define PAGE_PRESENT 0x001U
 #define PAGE_ADDRESS_MASK 0xFFFFF000U
-#define PAGE_ALLOWED_FLAGS (PAGE_FLAG_WRITABLE | PAGE_FLAG_USER)
+#define PAGE_ALLOWED_FLAGS (PAGE_FLAG_WRITABLE | PAGE_FLAG_USER | PAGE_FLAG_EXECUTABLE)
 #define PAGE_ENABLE 0x80000000U
 #define PAGE_WRITE_PROTECT 0x00010000U
 #define LOW_IDENTITY_LIMIT 0x00400000U
@@ -281,6 +281,23 @@ int paging_validate_user_range(paging_u32_t virtual_address, paging_u32_t length
         page += PAGE_SIZE;
     }
     return 1;
+}
+
+int paging_validate_user_execute(paging_u32_t virtual_address)
+{
+    paging_u32_t *table;
+    paging_u32_t entry;
+
+    if (virtual_address < PAGE_SIZE || virtual_address >= USER_ADDRESS_LIMIT) {
+        return 0;
+    }
+    table = get_page_table(virtual_address);
+    if (table == 0) {
+        return 0;
+    }
+    entry = table[(virtual_address >> 12U) & 0x3FFU];
+    return (entry & (PAGE_PRESENT | PAGE_FLAG_USER | PAGE_FLAG_EXECUTABLE)) ==
+        (PAGE_PRESENT | PAGE_FLAG_USER | PAGE_FLAG_EXECUTABLE);
 }
 
 int paging_copy_from_user(void *destination, paging_u32_t source, paging_u32_t length)

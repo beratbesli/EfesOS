@@ -28,6 +28,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - ELF32 validation and loading reject malformed ranges, integer-overflowable sizes, unsupported machines and writable/executable segments before mapping user pages; loaded pages are zero-initialized and finalized with segment permissions.
 - ELF validation also requires the canonical 32-bit header size and rejects virtual addresses at or above the user ceiling before unsigned range arithmetic, preventing high-address wraparound during loading.
 - ELF segment page accounting rejects requests exceeding the bounded 1024-page image budget before subtraction, preventing unsigned-capacity wraparound and avoidable allocator exhaustion.
+- ELF executable pages carry a software execute bit, and scheduler/syscall return boundaries reject a ring-3 EIP that is not on a user executable page; this narrows data/stack execution even though hardware NX is unavailable in non-PAE mode.
 - ATA access is bounded, timeout-controlled and rejects capacities beyond the driver’s 28-bit PIO addressing limit. FAT16 support is read-only; no shell command can write arbitrary disk sectors.
 - FAT16 mount validates the reserved entries in every mirrored FAT copy before exposing directory/file reads.
 - FAT cluster-chain reads compare each consumed FAT entry with every mirrored copy and fail closed on divergence.

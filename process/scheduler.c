@@ -299,6 +299,10 @@ static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame
         return frame;
     }
     reap_pending_stacks();
+    if (tasks[current_task].mode == TASK_USER && tasks[current_task].state == TASK_RUNNABLE &&
+        (frame->cs & 3U) == 3U && !paging_validate_user_execute(frame->eip)) {
+        return scheduler_on_user_fault(frame);
+    }
     if (tasks[current_task].mode == TASK_USER) {
         save_user_frame(&tasks[current_task], frame);
     } else {

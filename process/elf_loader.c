@@ -249,6 +249,9 @@ int elf_load_image(const void *image, unsigned int size, unsigned int *entry,
             if ((flags & ELF_FLAG_WRITABLE) != 0U) {
                 page_flags |= PAGE_FLAG_WRITABLE;
             }
+            if ((flags & ELF_FLAG_EXECUTABLE) != 0U) {
+                page_flags |= PAGE_FLAG_EXECUTABLE;
+            }
             if (!paging_protect_page(page, page_flags)) {
                 release_pages(mapped_pages, mapped_count);
                 return 0;
@@ -466,7 +469,8 @@ int elf_loader_runtime_self_test(void)
     image_loaded = elf_load_image(image, sizeof(image), &entry, &loaded_base, &loaded_end);
     if (!image_loaded ||
         entry != 0x01000000U || loaded_base != 0x01000000U ||
-        loaded_end != 0x01001000U || !paging_is_mapped(loaded_base)) {
+        loaded_end != 0x01001000U || !paging_is_mapped(loaded_base) ||
+        !paging_validate_user_execute(entry)) {
         goto cleanup;
     }
     loaded = virtual_pointer(entry);

@@ -44,6 +44,12 @@ int paging_protect_page(paging_u32_t virtual_address, paging_u32_t flags)
     return 0;
 }
 
+int paging_validate_user_execute(paging_u32_t virtual_address)
+{
+    (void)virtual_address;
+    return 0;
+}
+
 paging_u32_t paging_kernel_directory(void)
 {
     return 0U;
