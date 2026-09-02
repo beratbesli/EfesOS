@@ -165,7 +165,8 @@ int ramfs_apply_journal_entry(const struct journal_entry *entry)
 
     if (entry == 0 || entry->name_length == 0U ||
         entry->name_length >= RAMFS_NAME_MAX ||
-        entry->content_length >= RAMFS_CONTENT_MAX) {
+        entry->content_length >= RAMFS_CONTENT_MAX ||
+        entry->name[entry->name_length] != '\0' || !valid_name(entry->name)) {
         return 0;
     }
     if (entry->operation == JOURNAL_OPERATION_REMOVE) {
@@ -185,6 +186,11 @@ int ramfs_apply_journal_entry(const struct journal_entry *entry)
         return 0;
     }
     for (index = 0U; index < entry->content_length; index++) {
+        if (entry->content[index] == 0U) {
+            /* RAMFS is a text filesystem; do not silently truncate a binary
+               journal payload at the first embedded NUL byte. */
+            return 0;
+        }
         content[index] = (char)entry->content[index];
     }
     content[entry->content_length] = '\0';

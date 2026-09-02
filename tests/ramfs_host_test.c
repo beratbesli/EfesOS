@@ -55,6 +55,17 @@ int main(void)
         if (!ramfs_apply_journal_entry(&entry)) {
             return 1;
         }
+        entry.operation = JOURNAL_OPERATION_WRITE;
+        entry.content_length = 1U;
+        entry.content[0] = 0U;
+        if (ramfs_apply_journal_entry(&entry)) {
+            return 1;
+        }
+        entry.content_length = 0U;
+        entry.name[entry.name_length] = 'X';
+        if (ramfs_apply_journal_entry(&entry)) {
+            return 1;
+        }
     }
     puts("RAMFS host self-test passed.");
     return 0;
