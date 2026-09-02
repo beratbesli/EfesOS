@@ -20,7 +20,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - PCI configuration-space enumeration with a bounded `pci` diagnostic command
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
 - ATA raw writes remain disabled by default; only a validated journal window can be transactionally enabled
-- Read-only FAT16 VFS mount with bounded 8.3 directory and file reads (`diskls`, `diskcat`); validated ELF launch from disk (`run NAME`)
+- Read-only FAT16 VFS mount with bounded 8.3 root/subdirectory file reads (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); validated ELF launch from disk (`run NAME`)
 - When a validated journal region exists outside the FAT volume, shell `write`/`rm` operations are committed transactionally to persistent RAMFS; `pformat` explicitly formats an entirely empty journal tail
 - Bounded ELF32 segment loader with BSS initialization, W^X checks and page-permission finalization
 - Software execute metadata for ELF code pages with EIP checks at scheduler/syscall boundaries (not a full replacement for hardware NX in non-PAE mode)
@@ -151,7 +151,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\reproducible-build
 | Command | Description |
 | --- | --- |
 | `help`, `clear`, `about`, `mem`, `heap`, `input` | Basic kernel and queue information |
-| `uptime`, `ps`, `demo`, `pci`, `disk`, `diskls`, `diskcat NAME`, `run NAME`, `counter` | Kernel, PCI, disk, scheduler and validated user-process launch |
+| `uptime`, `ps`, `demo`, `pci`, `disk`, `diskls`, `diskcat NAME`, `diskcat DIR/NAME`, `run NAME`, `counter` | Kernel, PCI, disk, scheduler and validated user-process launch |
 | `echo`, `history`, `color` | Shell utilities |
 | `ls`, `cat README`, `cat MOTD`, `cat EFES`, `write NAME CONTENT`, `rm NAME` | Bounded RAM filesystem |
 | `snake`, `slot` | Mini games |

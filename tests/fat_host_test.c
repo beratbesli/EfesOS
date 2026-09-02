@@ -109,6 +109,37 @@ static void build_fixture(void)
     }
 }
 
+static void build_subdirectory_fixture(void)
+{
+    unsigned int index;
+    const char *directory_name = "SUBDIR     ";
+    const char *nested_name = "NEST    TXT";
+    const char *contents = "nested\n";
+
+    build_fixture();
+    for (index = 0U; index < 11U; index++) {
+        disk[(65U * SECTOR_SIZE) + 32U + index] =
+            (unsigned char)directory_name[index];
+    }
+    disk[(65U * SECTOR_SIZE) + 32U + 11U] = 0x10U;
+    put16((65U * SECTOR_SIZE) + 32U + 26U, 3U);
+    put32((65U * SECTOR_SIZE) + 32U + 28U, 0U);
+    /* Cluster 3 is the directory and cluster 4 contains the nested file. */
+    put16((1U * SECTOR_SIZE) + 6U, 0xFFF8U);
+    put16((1U * SECTOR_SIZE) + 8U, 0xFFF8U);
+    put16((33U * SECTOR_SIZE) + 6U, 0xFFF8U);
+    put16((33U * SECTOR_SIZE) + 8U, 0xFFF8U);
+    for (index = 0U; index < 11U; index++) {
+        disk[(68U * SECTOR_SIZE) + index] = (unsigned char)nested_name[index];
+    }
+    disk[(68U * SECTOR_SIZE) + 11U] = 0x20U;
+    put16((68U * SECTOR_SIZE) + 26U, 4U);
+    put32((68U * SECTOR_SIZE) + 28U, 7U);
+    for (index = 0U; index < 7U; index++) {
+        disk[(69U * SECTOR_SIZE) + index] = (unsigned char)contents[index];
+    }
+}
+
 int main(void)
 {
     struct fat_volume volume;
@@ -123,6 +154,15 @@ int main(void)
         name[0] != 'H' || name[1] != 'E' || name[2] != 'L' ||
         !fat_read_file(&volume, "hello.txt", contents, sizeof(contents), &size) ||
         size != 14U || contents[0] != 'E' || contents[13] != '\n') {
+        return 1;
+    }
+    build_subdirectory_fixture();
+    if (!fat_mount(&volume, read_fixture, 0) ||
+        !fat_read_file(&volume, "subdir/nest.txt", contents, sizeof(contents), &size) ||
+        size != 7U || contents[0] != 'n' || contents[6] != '\n' ||
+        fat_read_file(&volume, "../hello.txt", contents, sizeof(contents), &size) ||
+        fat_read_file(&volume, "subdir/../hello.txt", contents, sizeof(contents), &size) ||
+        fat_read_file(&volume, "subdir/", contents, sizeof(contents), &size)) {
         return 1;
     }
     build_fixture();

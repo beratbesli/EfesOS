@@ -101,6 +101,160 @@ static int name_matches(const fat_u8_t *entry, const fat_u8_t *short_name)
     return 1;
 }
 
+static int read_fat_entry(const struct fat_volume *volume, fat_u32_t cluster,
+    fat_u16_t *next_cluster)
+{
+    fat_u8_t primary[FAT_SECTOR_SIZE];
+    fat_u8_t mirror[FAT_SECTOR_SIZE];
+    fat_u32_t offset;
+    unsigned int fat_index;
+
+    if (volume == 0 || next_cluster == 0 || cluster < 2U ||
+        cluster >= volume->cluster_count + 2U) {
+        return 0;
+    }
+    offset = cluster * 2U;
+    if (!read_sector(volume, volume->fat_start + offset / FAT_SECTOR_SIZE, primary)) {
+        return 0;
+    }
+    for (fat_index = 1U; fat_index < volume->fat_count; fat_index++) {
+        if (!read_sector(volume, volume->fat_start +
+            (fat_index * volume->sectors_per_fat) + offset / FAT_SECTOR_SIZE,
+            mirror) || mirror[offset % FAT_SECTOR_SIZE] !=
+                primary[offset % FAT_SECTOR_SIZE] ||
+            mirror[(offset % FAT_SECTOR_SIZE) + 1U] !=
+                primary[(offset % FAT_SECTOR_SIZE) + 1U]) {
+            return 0;
+        }
+    }
+    *next_cluster = read_u16(primary, offset % FAT_SECTOR_SIZE);
+    return *next_cluster != FAT16_BAD && *next_cluster < FAT16_EOC;
+}
+
+struct fat_directory {
+    fat_u32_t cluster;
+    int root;
+};
+
+static int find_entry_in_directory(const struct fat_volume *volume,
+    const struct fat_directory *directory, const fat_u8_t *short_name,
+    fat_u8_t *entry)
+{
+    fat_u8_t sector[FAT_SECTOR_SIZE];
+    fat_u32_t cluster;
+    unsigned int guard = 0U;
+
+    if (volume == 0 || directory == 0 || short_name == 0 || entry == 0 ||
+        (!directory->root && (directory->cluster < 2U ||
+            directory->cluster >= volume->cluster_count + 2U))) {
+        return 0;
+    }
+    cluster = directory->cluster;
+    for (;;) {
+        fat_u32_t sector_count;
+        fat_u32_t sector_index;
+
+        if (directory->root) {
+            sector_count = (volume->root_entries + 15U) / 16U;
+        } else {
+            sector_count = volume->sectors_per_cluster;
+        }
+        for (sector_index = 0U; sector_index < sector_count; sector_index++) {
+            fat_u32_t lba = directory->root ?
+                volume->root_start + sector_index :
+                volume->data_start + ((cluster - 2U) * volume->sectors_per_cluster) +
+                    sector_index;
+            unsigned int item;
+
+            if (!read_sector(volume, lba, sector)) {
+                return 0;
+            }
+            for (item = 0U; item < 16U &&
+                (directory->root ? sector_index * 16U + item < volume->root_entries : 1);
+                item++) {
+                const fat_u8_t *candidate = sector + (item * 32U);
+
+                if (candidate[0] == 0U) {
+                    return 0;
+                }
+                if (candidate[0] == 0xE5U || candidate[11] == FAT_ATTR_LFN ||
+                    (candidate[11] & FAT_ATTR_VOLUME_ID) != 0U) {
+                    continue;
+                }
+                if (name_matches(candidate, short_name)) {
+                    unsigned int index;
+
+                    for (index = 0U; index < 32U; index++) {
+                        entry[index] = candidate[index];
+                    }
+                    return 1;
+                }
+            }
+        }
+        if (directory->root) {
+            return 0;
+        }
+        {
+            fat_u16_t next_cluster;
+
+            if (!read_fat_entry(volume, cluster, &next_cluster)) {
+                return 0;
+            }
+            cluster = next_cluster;
+        }
+        if (++guard >= volume->cluster_count) {
+            return 0;
+        }
+    }
+}
+
+static int find_path(const struct fat_volume *volume, const char *path,
+    fat_u8_t *entry)
+{
+    struct fat_directory directory = {0U, 1};
+    unsigned int offset = 0U;
+
+    if (volume == 0 || path == 0 || entry == 0 || path[0] == '/') {
+        return 0;
+    }
+    for (;;) {
+        fat_u8_t short_name[11];
+        char component[13];
+        unsigned int length = 0U;
+
+        while (path[offset] != '\0' && path[offset] != '/') {
+            if (length + 1U >= sizeof(component)) {
+                return 0;
+            }
+            component[length++] = path[offset++];
+        }
+        if (length == 0U) {
+            return 0;
+        }
+        component[length] = '\0';
+        if (!short_name_from_text(component, short_name) ||
+            !find_entry_in_directory(volume, &directory, short_name, entry)) {
+            return 0;
+        }
+        if (path[offset] == '\0') {
+            return 1;
+        }
+        if ((entry[11] & FAT_ATTR_DIRECTORY) == 0U) {
+            return 0;
+        }
+        directory.cluster = read_u16(entry, 26U);
+        directory.root = 0;
+        if (directory.cluster < 2U ||
+            directory.cluster >= volume->cluster_count + 2U) {
+            return 0;
+        }
+        offset++;
+        if (path[offset] == '\0') {
+            return 0;
+        }
+    }
+}
+
 static void entry_to_text(const fat_u8_t *entry, char *name, unsigned int capacity)
 {
     unsigned int index;
@@ -123,41 +277,6 @@ static void entry_to_text(const fat_u8_t *entry, char *name, unsigned int capaci
         }
     }
     name[output] = '\0';
-}
-
-static int find_entry(const struct fat_volume *volume, const fat_u8_t *short_name,
-    fat_u8_t *entry, unsigned int *entry_index)
-{
-    fat_u8_t sector[FAT_SECTOR_SIZE];
-    fat_u32_t sector_index;
-    unsigned int item;
-
-    for (sector_index = 0; sector_index < (volume->root_entries + 15U) / 16U; sector_index++) {
-        if (!read_sector(volume, volume->root_start + sector_index, sector)) {
-            return 0;
-        }
-        for (item = 0; item < 16U && sector_index * 16U + item < volume->root_entries; item++) {
-            fat_u8_t *candidate = sector + (item * 32U);
-            if (candidate[0] == 0U) {
-                return 0;
-            }
-            if (candidate[0] == 0xE5U || candidate[11] == FAT_ATTR_LFN ||
-                (candidate[11] & (FAT_ATTR_DIRECTORY | FAT_ATTR_VOLUME_ID)) != 0U) {
-                continue;
-            }
-            if (name_matches(candidate, short_name)) {
-                unsigned int index;
-                for (index = 0; index < 32U; index++) {
-                    entry[index] = candidate[index];
-                }
-                if (entry_index != 0) {
-                    *entry_index = (sector_index * 16U) + item;
-                }
-                return 1;
-            }
-        }
-    }
-    return 0;
 }
 
 int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
@@ -320,23 +439,20 @@ int fat_file_name(const struct fat_volume *volume, unsigned int index, char *nam
 int fat_read_file(const struct fat_volume *volume, const char *name, void *buffer,
     unsigned int capacity, unsigned int *size)
 {
-    fat_u8_t short_name[11];
     fat_u8_t entry[32];
     fat_u8_t sector[FAT_SECTOR_SIZE];
-    fat_u8_t fat_sector[FAT_SECTOR_SIZE];
-    fat_u8_t fat_mirror[FAT_SECTOR_SIZE];
     fat_u32_t remaining;
     fat_u32_t cluster;
     fat_u32_t output = 0;
     fat_u32_t guard = 0;
     fat_u32_t max_sectors;
-    fat_u32_t fat_index;
 
     if (size != 0) {
         *size = 0;
     }
-    if (volume == 0 || !volume->mounted || buffer == 0 || !short_name_from_text(name, short_name) ||
-        !find_entry(volume, short_name, entry, 0)) {
+    if (volume == 0 || !volume->mounted || buffer == 0 ||
+        !find_path(volume, name, entry) ||
+        (entry[11] & (FAT_ATTR_DIRECTORY | FAT_ATTR_VOLUME_ID | FAT_ATTR_LFN)) != 0U) {
         return 0;
     }
     remaining = read_u32(entry, 28);
@@ -380,24 +496,14 @@ int fat_read_file(const struct fat_volume *volume, const char *name, void *buffe
         if (remaining == 0U) {
             break;
         }
-        cluster_offset = cluster * 2U;
-        if (!read_sector(volume, volume->fat_start + cluster_offset / FAT_SECTOR_SIZE, fat_sector)) {
-            return 0;
-        }
-        for (fat_index = 1U; fat_index < volume->fat_count; fat_index++) {
-            if (!read_sector(volume, volume->fat_start +
-                (fat_index * volume->sectors_per_fat) + cluster_offset / FAT_SECTOR_SIZE,
-                fat_mirror) ||
-                fat_mirror[cluster_offset % FAT_SECTOR_SIZE] !=
-                    fat_sector[cluster_offset % FAT_SECTOR_SIZE] ||
-                fat_mirror[(cluster_offset % FAT_SECTOR_SIZE) + 1U] !=
-                    fat_sector[(cluster_offset % FAT_SECTOR_SIZE) + 1U]) {
+        {
+            fat_u16_t next_cluster;
+
+            if (!read_fat_entry(volume, cluster, &next_cluster)) {
+                /* End-of-chain is valid only after all requested bytes were read. */
                 return 0;
             }
-        }
-        cluster = read_u16(fat_sector, cluster_offset % FAT_SECTOR_SIZE);
-        if (cluster == FAT16_BAD || cluster >= FAT16_EOC) {
-            return 0;
+            cluster = next_cluster;
         }
     }
     if (size != 0) {

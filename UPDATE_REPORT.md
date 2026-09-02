@@ -80,6 +80,7 @@
 - FAT dosya zinciri cycle testi strict bounded guard ile doğrulanıyor; döngülü cluster zinciri dosya okumasını fail-closed durduruyor.
 - FAT mount artık BPB’nin bildirdiği cluster sayısının FAT tablosu kapasitesine sığdığını doğruluyor; eksik FAT girdileriyle yapılan taşma/yanlış sektör okuması host fixture ile reddediliyor.
 - FAT mount, tüm FAT kopyalarının reserved-entry imzasını doğruluyor; aynalı tablolardan biri bozuksa volume fail-closed reddediliyor.
+- FAT/VFS dosya çözümlemesi bounded 8.3 alt-dizin yollarını destekliyor; mutlak yollar, boş bileşenler, `..` traversal, dosya üzerinden alt-yol ve döngülü/bozuk directory cluster zincirleri fail-closed reddediliyor. Host regresyonu nested read ve traversal reddini doğruluyor.
 - FAT dosya zinciri okuması, tüketilen her FAT girdisini tüm aynalı kopyalar ile karşılaştırıyor; kopyalar ayrışırsa okuma reddediliyor.
 - FAT16 boş dosyalar yalnızca `start_cluster=0` ile kabul ediliyor; boyutu sıfır olup dangling cluster taşıyan bozuk directory entry’leri reddediliyor.
 - Terminated task’ların kernel stack’leri aktif interrupt stack’i korunarak sonraki scheduler geçişinde geri kazanılıyor.

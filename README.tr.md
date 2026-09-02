@@ -20,7 +20,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
 - Zaman aşımı ve hata denetimli ATA PIO birincil disk erişimi; disk yokluğu açıkça raporlanır
 - ATA ham yazmaları varsayılan olarak boot’ta korumalıdır; yalnızca doğrulanmış journal penceresi transaction için açılabilir
-- Sınırlı 8.3 dizin/dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat`); doğrulanmış ELF’i diskten başlatma (`run NAME`)
+- Sınırlı 8.3 kök/alt-dizin dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); doğrulanmış ELF’i diskten başlatma (`run NAME`)
 - FAT volume dışında doğrulanmış journal bölgesi varsa shell `write`/`rm` işlemleri kalıcı RAMFS journal’ına transaction olarak yazılır; `pformat` yalnızca tamamen boş journal tail’ini açıkça biçimlendirir
 - BSS sıfırlama, W^X denetimi ve son sayfa izinleriyle sınırlı ELF32 segment yükleyicisi
 - ELF executable sayfaları için yazılım execute biti ve scheduler/syscall sınırlarında EIP doğrulaması (non-PAE donanım NX’in yerine tamamen geçmez)
