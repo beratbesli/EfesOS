@@ -30,6 +30,8 @@ static uint32_t sectors;
 static uint8_t last_status;
 static uint16_t identify_type;
 static int writes_protected;
+static uint32_t write_window_start;
+static uint32_t write_window_sectors;
 
 static unsigned int irq_save(void)
 {
@@ -122,6 +124,8 @@ void ata_init(void)
     last_status = 0;
     identify_type = 0;
     writes_protected = ATA_WRITES_PROTECTED_BY_DEFAULT;
+    write_window_start = 0U;
+    write_window_sectors = 0U;
     /* Polling mode: disable ATA IRQ delivery while commands are in flight. */
     outb(ATA_CONTROL, 0x02U);
     outb(ATA_DRIVE, 0xA0U);
@@ -224,13 +228,27 @@ int ata_write_protected(void)
     return writes_protected;
 }
 
+int ata_enable_transactional_writes(uint32_t start_lba, uint32_t sector_count)
+{
+    if (!device_present || sector_count == 0U || start_lba >= sectors ||
+        sector_count > sectors - start_lba) {
+        return 0;
+    }
+    write_window_start = start_lba;
+    write_window_sectors = sector_count;
+    writes_protected = 0;
+    return 1;
+}
+
 int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
 {
     const uint8_t *source = (const uint8_t *)buffer;
     unsigned int sector;
     unsigned int flags;
 
-    if (writes_protected || !valid_request(lba, count, buffer)) {
+    if (writes_protected || !valid_request(lba, count, buffer) ||
+        lba < write_window_start ||
+        (uint32_t)count > write_window_sectors - (lba - write_window_start)) {
         return 0;
     }
     flags = irq_save();
