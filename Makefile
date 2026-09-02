@@ -165,6 +165,7 @@ $(STAGE2_BIN): boot/stage2.asm $(KERNEL_BIN) | $(BUILD_DIR)
 
 $(IMAGE): $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN)
 	truncate -s $(FLOPPY_BYTES) $(IMAGE)
+	dd if=/dev/zero of=$(IMAGE) bs=512 count=$$(( $(FLOPPY_BYTES) / 512 )) conv=notrunc status=none
 	dd if=$(BOOT_BIN) of=$(IMAGE) conv=notrunc status=none
 	dd if=$(STAGE2_BIN) of=$(IMAGE) bs=512 seek=1 conv=notrunc status=none
 	dd if=$(KERNEL_BIN) of=$(IMAGE) bs=512 seek=$$((1 + $(STAGE2_SECTORS))) conv=notrunc status=none
