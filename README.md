@@ -73,6 +73,12 @@ Run the standalone FAT parser test when changing filesystem code:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1
 ```
 
+Run the bounded RAM filesystem test when changing RAMFS code:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ramfs-self-test.ps1
+```
+
 Run the standalone ELF validation test when changing process loading code:
 
 ```powershell

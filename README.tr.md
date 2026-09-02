@@ -73,6 +73,12 @@ Dosya sistemi değişikliklerinde bağımsız FAT ayrıştırıcı testini çal�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1
 ```
 
+RAM dosya sistemi değişikliklerinde bounded isim ve içerik testini çalıştır:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ramfs-self-test.ps1
+```
+
 Süreç yükleyici değişikliklerinde bağımsız ELF doğrulama testini çalıştır:
 
 ```powershell
