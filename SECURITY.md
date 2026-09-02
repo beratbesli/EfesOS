@@ -38,6 +38,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Stage-2 verifies a build-generated bounded kernel checksum before handoff and the kernel requires the verification bit; this detects corruption but is not a cryptographic secure-boot signature.
 - User `EXIT` follows the same ownership-checked cleanup path as faults, reclaiming user mappings before the scheduler can reuse the task slot.
 - Terminated task stacks are tracked in a bounded pending-reap mask, so concurrent faults/exits cannot overwrite one another’s deferred cleanup record.
+- Deferred kernel-stack cleanup verifies the unmapped guard and every recorded physical frame before freeing it; missing or mismatched ownership is fail-closed instead of silently leaking or freeing an unexpected page.
 - Scheduler task names are copied into a bounded 15-character buffer; callers cannot leave dangling name pointers or overflow scheduler metadata.
 - Diagnostic serial messages are emitted with interrupts disabled so preemptive task switches cannot splice security/test records.
 - All 256 IDT vectors now have a kernel stub; unexpected high vectors reach the common fail-closed dispatcher instead of an empty descriptor/triple fault, while only `int 0x80` is user-callable.

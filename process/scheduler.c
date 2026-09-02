@@ -105,12 +105,22 @@ static void reap_task_stack(struct scheduler_task *task)
     if (task == 0 || task->stack_base == 0U) {
         return;
     }
+    if (paging_is_mapped(task->stack_base)) {
+        kernel_panic("Kernel task stack guard page is mapped.");
+    }
     for (index = 0; index < SCHEDULER_STACK_PAGES; index++) {
-        unsigned int physical = paging_unmap_page(task->stack_base + PAGE_SIZE +
-            (index * PAGE_SIZE));
-        if (physical != 0U) {
-            pmm_free_block(physical);
+        unsigned int expected = task->stack_frames[index];
+        unsigned int physical;
+
+        if (expected == 0U) {
+            kernel_panic("Kernel task stack ownership is incomplete.");
         }
+        physical = paging_unmap_page(task->stack_base + PAGE_SIZE +
+            (index * PAGE_SIZE));
+        if (physical != expected) {
+            kernel_panic("Kernel task stack mapping ownership mismatch.");
+        }
+        pmm_free_block(physical);
         task->stack_frames[index] = 0U;
     }
     task->stack_base = 0U;
