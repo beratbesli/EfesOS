@@ -33,10 +33,12 @@
 - Paging map API’si null fiziksel frame’i reddediyor; kernel düşük identity eşlemelerini yanlışlıkla unmap etmeye izin vermiyor ve iki koşul VMM self-test’inde doğrulanıyor.
 - Usercopy ve executable-entry doğrulaması artık her sayfada hem PDE hem PTE’nin USER/PRESENT izinlerini denetliyor; yazılım kontrolü gerçek donanım page-table yürüyüşüyle aynı kararı veriyor.
 - Paging, kernel page-table’ı paylaşan bir PDE üzerinde kullanıcı bayrağını etkinleştirmiyor; address-space cleanup fiziksel tablo kimliğiyle paylaşılan kernel tablolarını koruyor ve bu kural VMM self-test’inde doğrulanıyor.
+- Özel page-table içine user PTE eklenirken mevcut supervisor PTE’lerin bulunduğu karışık tablo reddediliyor; PDE kullanıcı bitinin gelecekte yanlışlıkla genişlemesi önleniyor ve VMM boot self-test’i bu negatif senaryoyu çalıştırıyor.
 - Özel CR3’ler kernel ile paylaşılan page-table’larda map/protect/unmap işlemlerini tamamen reddediyor; böylece yalnızca PDE bayrağını değiştirerek kernel identity/framebuffer eşlemelerini kullanıcıya açma veya global tabloyu bozma yolu kapatıldı.
 - Kernel page directory’sinde kullanıcı bayrağıyla map/protect işlemleri tamamen reddediliyor; ELF runtime self-test’i de bu politika ile uyumlu olarak geçici özel adres alanında çalışıyor.
 - Özel CR3’teki scheduler cleanup’i paylaşılan kernel stack tablolarını değiştirmeden önce kernel CR3’e geçiyor ve eski CR3’e dönüyor; böylece izolasyon koruması kaynak geri kazanımıyla uyumlu tutuluyor.
 - CR3 geçişi ve adres alanı yok etme artık yalnızca kayıtlı page directory’lerle yapılabiliyor; rastgele fiziksel adresler fail-closed reddediliyor.
+- Journal replay/append mutlak LBA bölgesinin 32-bit sarmasını I/O’dan önce reddediyor; host testi taşan başlangıç LBA’sında callback’in hiç çağrılmadığını doğruluyor.
 - Adres alanı geçişi/yıkımı başarısız olursa cleanup sessizce devam etmiyor; kernel fail-closed panic ile duruyor.
 - Kullanıcı ELF veya stack unmap cleanup’ı başarısız olursa artık fiziksel kaynak kaybını gizlemeden fail-closed panic uygulanıyor.
 - Kullanıcı stack cleanup’i unmap edilen fiziksel frame’i kayıtlı `stack_frame` sahibiyle karşılaştırıyor; eşleşmeyen metadata beklenmeyen frame’i serbest bırakmadan panic ile duruyor.
@@ -62,15 +64,17 @@
 - PMM başlangıcı, linker’ın bildirdiği kernel başlangıç/bitiş aralığını doğruluyor; ters veya boş aralıkta bellek serbest bırakılmadan fail-closed duruyor.
 - ATA ham yazma yolu her boot’ta write-protected başlıyor ve kernel bunu zorunlu kontrol ediyor; journaling/transaction katmanı olmadan fiziksel disk değişikliği gerçekleşmiyor.
 - Kalıcı depolama için ilk journal kayıt sözleşmesi eklendi: bounded isim/içerik alanları, CRC, terminal commit işareti ve ayrılmış alan doğrulaması var; bozuk veya yarım kayıtlar replay edilmeden reddediliyor. ATA yazması hâlâ kapalı.
-- Journal replay katmanı iki geçişli tasarlandı: superblock, contiguous log, artan sequence ve boşluk sonrası sektörler önce tamamen doğrulanıyor; ancak tüm kayıtlar geçerliyse tüketiciye uygulanıyor. Host testi bozuk kayıt ve kısmi replay senaryosunu doğruluyor.
+- Journal replay katmanı iki geçişli tasarlandı: superblock, contiguous log, artan sequence ve boşluk sonrası sektörler önce tamamen doğrulanıyor; ancak kayıtlar geçerliyse tüketiciye uygulanıyor. Geçerli commit-cleared terminal kayıt yarım append olarak yok sayılıyor, CRC/commit/padding bozukluğu ise fail-closed. Host testi bozuk kayıt, tam replay ve torn-tail kurtarmasını doğruluyor.
 - Journal append API’si iki fazlı yayın ve read-back doğrulaması kullanıyor; ikinci yazma yarıda kalırsa yalnızca terminal commit’siz kayıt yok sayılıyor, önceki commit’li kayıtlar güvenle replay edilebiliyor. Geçersiz CRC veya commit alanı yine fail-closed. Host testi başarılı transaction’ları ve yarım ikinci yazma kurtarmasını ayrı ayrı doğruluyor. ATA global yazma koruması değişmedi.
 - Kernel journal replay’i artık VFS volume geometrisini de kontrol ediyor; ayrılmamış veya FAT volume ile çakışan son sektörler geçerli görünümlü olsa bile journal olarak yorumlanmıyor.
+- RAMFS journal tüketicisi girişleri tekrar doğruluyor; isim sonlandırması/kanonikliği ve metin payload’ındaki NUL baytları reddediliyor, remove kayıtları idempotent uygulanıyor.
 - Kernel, write-protected ATA yolunu gerçek `ata_write_sectors` çağrısıyla self-test ediyor; koruma açıkken kabul edilen bir yazma artık boot smoke testini fail-closed düşürüyor.
 - FAT kök dizini taraması artık BPB’de belirtilen gerçek entry sayısının dışına çıkmıyor; son sektör artıkları dosya gibi kabul edilmiyor ve host fixture ile doğrulanıyor.
 - FAT dosya zinciri cycle testi strict bounded guard ile doğrulanıyor; döngülü cluster zinciri dosya okumasını fail-closed durduruyor.
 - FAT mount artık BPB’nin bildirdiği cluster sayısının FAT tablosu kapasitesine sığdığını doğruluyor; eksik FAT girdileriyle yapılan taşma/yanlış sektör okuması host fixture ile reddediliyor.
 - FAT mount, tüm FAT kopyalarının reserved-entry imzasını doğruluyor; aynalı tablolardan biri bozuksa volume fail-closed reddediliyor.
 - FAT dosya zinciri okuması, tüketilen her FAT girdisini tüm aynalı kopyalar ile karşılaştırıyor; kopyalar ayrışırsa okuma reddediliyor.
+- FAT16 boş dosyalar yalnızca `start_cluster=0` ile kabul ediliyor; boyutu sıfır olup dangling cluster taşıyan bozuk directory entry’leri reddediliyor.
 - Terminated task’ların kernel stack’leri aktif interrupt stack’i korunarak sonraki scheduler geçişinde geri kazanılıyor.
 - Birden fazla task aynı scheduler geçişi arasında sonlandığında kernel stack cleanup kayıtları bounded bitmask ile tutuluyor; tek pending slot nedeniyle kaynak sızıntısı oluşmuyor.
 - Scheduler kernel stack cleanup’ı guard sayfasını ve her frame’in fiziksel sahiplik kaydını doğruluyor; eksik/eşleşmeyen mapping fail-closed panic ile gizlenmiyor.
@@ -118,10 +122,13 @@
 - `scripts/ramfs-self-test.ps1` başarılı; null, geçersiz ve sonlandırılmamış RAMFS isimleri bounded olarak reddediliyor.
 - `scripts/boot-info-self-test.ps1` başarılı.
 - `scripts/journal-self-test.ps1` başarılı; kayıt sektöründeki byte mutasyonları, geçersiz commit ve bozuk CRC fail-closed reddediliyor.
+- `scripts/journal-self-test.ps1` ayrıca terminal torn-append sonrasında önceki commit’li kayıtların replay edilebildiğini ve 32-bit LBA taşmasında hiçbir I/O callback’inin çağrılmadığını doğruluyor.
 - QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 37 kritik boot/runtime işaretçisi doğrulanıyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
 - Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT/journal uçtan uca testi başarılı; mount, kök dizin, dosya okuması ve persistent replay dahil 39 işaretçi doğrulanıyor.
 - `scripts/run-self-test.ps1` ile etkileşimli `run RUN.ELF` yolu QEMU’da başarılı; diskten yüklenen programın seri çıktısı doğrulandı.
+- Tam seri doğrulama koşusu (build, journal/RAMFS/FAT/ELF/boot-info host testleri, iki QEMU bellek profili, journal fixture ve disk ELF yolu) başarılı; iki ardışık imaj SHA-256 değeri eşleşti.
+- Kernel C kaynaklarının Clang static analyzer taraması yeni değişikliklerle uyarısız tamamlandı. Windows ortamında ASan/UBSan runtime DLL’si bulunmadığından yerel sanitizer çalıştırması yapılmadı; Linux CI sanitizer kapısı etkin kalıyor.
 - Değişiklikler `codex/core-hardening` dalında checkpoint commit’leriyle kaydedildi.
 
 ## Bilinen sınırlar
