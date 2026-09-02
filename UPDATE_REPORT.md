@@ -72,6 +72,7 @@
 - RAMFS journal tüketicisi girişleri tekrar doğruluyor; isim sonlandırması/kanonikliği ve metin payload’ındaki NUL baytları reddediliyor, remove kayıtları idempotent uygulanıyor.
 - Kernel, write-protected ATA yolunu gerçek `ata_write_sectors` çağrısıyla self-test ediyor; koruma açıkken kabul edilen bir yazma artık boot smoke testini fail-closed düşürüyor.
 - Syscall girişinde ring-3 dönüş çerçevesi artık segment selector, EFLAGS, user SS ve writable user ESP ile doğrulanıyor; bozuk çerçeve dispatch edilmeden user fault olarak izole ediliyor.
+- Kullanıcı stack region seçimi artık PIT/scheduler zamanlamasından beslenen bounded non-cryptographic seed ile çeşitleniyor; ELF loader tüm stack rezerv alanını executable image çakışmalarına karşı kapatıyor. Bu tam ASLR değil, savunma-derinliği katmanı.
 - FAT kök dizini taraması artık BPB’de belirtilen gerçek entry sayısının dışına çıkmıyor; son sektör artıkları dosya gibi kabul edilmiyor ve host fixture ile doğrulanıyor.
 - FAT dosya zinciri cycle testi strict bounded guard ile doğrulanıyor; döngülü cluster zinciri dosya okumasını fail-closed durduruyor.
 - FAT mount artık BPB’nin bildirdiği cluster sayısının FAT tablosu kapasitesine sığdığını doğruluyor; eksik FAT girdileriyle yapılan taşma/yanlış sektör okuması host fixture ile reddediliyor.

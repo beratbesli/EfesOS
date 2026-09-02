@@ -1,4 +1,5 @@
 #include "paging.h"
+#include "pit.h"
 #include "pmm.h"
 #include "scheduler.h"
 #include "elf_loader.h"
@@ -27,6 +28,22 @@ struct user_process_record {
 
 static struct user_process_record processes[USER_PROCESS_MAX];
 static unsigned int process_reaps;
+static unsigned int layout_random_state;
+
+static unsigned int next_layout_random(void)
+{
+    if (layout_random_state == 0U) {
+        layout_random_state = pit_ticks() ^ (unsigned int)&layout_random_state ^ 0xA5C39E17U;
+        if (layout_random_state == 0U) {
+            layout_random_state = 0x1U;
+        }
+    }
+    /* xorshift32: bounded, non-blocking layout diversification only. */
+    layout_random_state ^= layout_random_state << 13U;
+    layout_random_state ^= layout_random_state >> 17U;
+    layout_random_state ^= layout_random_state << 5U;
+    return layout_random_state;
+}
 
 static int user_stack_region_in_use(unsigned int stack_address)
 {
@@ -84,12 +101,14 @@ static int user_process_spawn_locked(const char *name, const void *image,
     unsigned int stack_address = 0U;
     unsigned int stack_guard_address;
     unsigned int region_offset;
+    unsigned int region_start;
     unsigned int region_index;
     unsigned int process_index;
     unsigned int kernel_directory = paging_kernel_directory();
     unsigned int physical;
     int image_loaded = 0;
     int stack_mapped = 0;
+    int region_found = 0;
 
     if (name == 0 || image == 0 || image_size == 0U || image_size > USER_PROCESS_IMAGE_MAX_SIZE ||
         paging_current_directory() != kernel_directory) {
@@ -105,8 +124,9 @@ static int user_process_spawn_locked(const char *name, const void *image,
     }
 
     region_index = USER_STACK_REGION_COUNT;
+    region_start = next_layout_random() % USER_STACK_REGION_COUNT;
     for (region_offset = 0U; region_offset < USER_STACK_REGION_COUNT; region_offset++) {
-        unsigned int candidate = (process_reaps + process_index + region_offset) %
+        unsigned int candidate = (region_start + region_offset) %
             USER_STACK_REGION_COUNT;
         unsigned int candidate_guard = USER_STACK_REGION_BASE +
             (candidate * USER_STACK_REGION_STRIDE);
@@ -115,10 +135,11 @@ static int user_process_spawn_locked(const char *name, const void *image,
         if (!user_stack_region_in_use(candidate_stack) &&
             !paging_is_mapped(candidate_guard) && !paging_is_mapped(candidate_stack)) {
             region_index = candidate;
+            region_found = 1;
             break;
         }
     }
-    if (region_index == USER_STACK_REGION_COUNT) {
+    if (!region_found) {
         return 0;
     }
     stack_guard_address = USER_STACK_REGION_BASE + (region_index * USER_STACK_REGION_STRIDE);

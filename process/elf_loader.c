@@ -33,6 +33,8 @@
 #define ELF_FLAG_WRITABLE 2U
 #define USER_MIN_ADDRESS 0x00400000U
 #define USER_MAX_ADDRESS 0x40000000U
+#define USER_STACK_RESERVED_BASE 0x00800000U
+#define USER_STACK_RESERVED_END 0x01800000U
 #define ELF_MAX_PROGRAM_HEADERS 32U
 #define ELF_MAX_IMAGE_PAGES 1024U
 #define ELF_PAGE_MASK (~(PAGE_SIZE - 1U))
@@ -51,6 +53,20 @@ static unsigned int read_u32(const unsigned char *data, unsigned int offset)
 static int range_is_inside(unsigned int offset, unsigned int length, unsigned int size)
 {
     return offset <= size && length <= size - offset;
+}
+
+static int overlaps_reserved_stack(unsigned int address, unsigned int length)
+{
+    unsigned int end;
+
+    if (length == 0U || address >= USER_STACK_RESERVED_END) {
+        return 0;
+    }
+    if (length > 0xFFFFFFFFU - address) {
+        return 1;
+    }
+    end = address + length;
+    return end > USER_STACK_RESERVED_BASE;
 }
 
 static unsigned char *virtual_pointer(unsigned int address)
@@ -115,6 +131,7 @@ int elf_validate_image(const void *image, unsigned int size, unsigned int *entry
         if (memory_size < file_size || !range_is_inside(file_offset, file_size, size) ||
             virtual_address < USER_MIN_ADDRESS || virtual_address >= USER_MAX_ADDRESS ||
             memory_size > USER_MAX_ADDRESS - virtual_address ||
+            overlaps_reserved_stack(virtual_address, memory_size) ||
             ((flags & ELF_FLAG_WRITABLE) != 0U && (flags & ELF_FLAG_EXECUTABLE) != 0U) ||
             (alignment != 0U && alignment != 1U && alignment != 0x1000U) ||
             (flags & ~(ELF_FLAG_EXECUTABLE | ELF_FLAG_WRITABLE | 4U)) != 0U) {
@@ -448,11 +465,11 @@ int elf_loader_runtime_self_test(void)
     }
 
     kernel_frame = pmm_alloc_block();
-    if (kernel_frame == 0U || paging_map_page(0x01000000U, kernel_frame,
+    if (kernel_frame == 0U || paging_map_page(0x02000000U, kernel_frame,
         PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
         if (kernel_frame != 0U) {
-            if (paging_is_mapped(0x01000000U)) {
-                paging_unmap_page(0x01000000U);
+            if (paging_is_mapped(0x02000000U)) {
+                paging_unmap_page(0x02000000U);
             }
             pmm_free_block(kernel_frame);
         }
@@ -461,21 +478,21 @@ int elf_loader_runtime_self_test(void)
     pmm_free_block(kernel_frame);
 
     user_frame = pmm_alloc_user_block();
-    if (user_frame == 0U || !paging_map_page(0x01000000U, user_frame,
+    if (user_frame == 0U || !paging_map_page(0x02000000U, user_frame,
         PAGE_FLAG_USER | PAGE_FLAG_WRITABLE) ||
-        paging_map_page(0x01001000U, user_frame, PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
-        if (paging_is_mapped(0x01001000U)) {
-            paging_unmap_page(0x01001000U);
+        paging_map_page(0x02001000U, user_frame, PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
+        if (paging_is_mapped(0x02001000U)) {
+            paging_unmap_page(0x02001000U);
         }
-        if (paging_is_mapped(0x01000000U)) {
-            paging_unmap_page(0x01000000U);
+        if (paging_is_mapped(0x02000000U)) {
+            paging_unmap_page(0x02000000U);
         }
         if (user_frame != 0U) {
             pmm_free_block(user_frame);
         }
         goto cleanup;
     }
-    if (paging_unmap_page(0x01000000U) != user_frame) {
+    if (paging_unmap_page(0x02000000U) != user_frame) {
         pmm_free_block(user_frame);
         goto cleanup;
     }
@@ -494,14 +511,14 @@ int elf_loader_runtime_self_test(void)
     set_u16(image, ELF_TYPE_OFFSET, ELF_ET_EXEC);
     set_u16(image, ELF_MACHINE_OFFSET, ELF_EM_386);
     set_u32(image, ELF_VERSION_OFFSET, ELF_VERSION_CURRENT);
-    set_u32(image, ELF_ENTRY_OFFSET, 0x01000000U);
+    set_u32(image, ELF_ENTRY_OFFSET, 0x02000000U);
     set_u32(image, ELF_PHOFF_OFFSET, ELF32_HEADER_SIZE);
     set_u16(image, ELF_EHSIZE_OFFSET, ELF32_HEADER_SIZE);
     set_u16(image, ELF_PHENTSIZE_OFFSET, ELF32_PROGRAM_HEADER_SIZE);
     set_u16(image, ELF_PHNUM_OFFSET, 1);
     set_u32(image, ELF32_HEADER_SIZE + ELF_PT_TYPE_OFFSET, ELF_PT_LOAD);
     set_u32(image, ELF32_HEADER_SIZE + ELF_PT_OFFSET_OFFSET, 116U);
-    set_u32(image, ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET, 0x01000000U);
+    set_u32(image, ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET, 0x02000000U);
     set_u32(image, ELF32_HEADER_SIZE + ELF_PT_FILESZ_OFFSET, 4U);
     set_u32(image, ELF32_HEADER_SIZE + ELF_PT_MEMSZ_OFFSET, PAGE_SIZE);
     set_u32(image, ELF32_HEADER_SIZE + ELF_PT_FLAGS_OFFSET, ELF_FLAG_EXECUTABLE);
@@ -512,8 +529,8 @@ int elf_loader_runtime_self_test(void)
     image[119] = 0xA5;
     image_loaded = elf_load_image(image, sizeof(image), &entry, &loaded_base, &loaded_end);
     if (!image_loaded ||
-        entry != 0x01000000U || loaded_base != 0x01000000U ||
-        loaded_end != 0x01001000U || !paging_is_mapped(loaded_base) ||
+        entry != 0x02000000U || loaded_base != 0x02000000U ||
+        loaded_end != 0x02001000U || !paging_is_mapped(loaded_base) ||
         !paging_validate_user_execute(entry)) {
         goto cleanup;
     }
