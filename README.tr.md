@@ -23,7 +23,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - BSS sıfırlama, W^X denetimi ve son sayfa izinleriyle sınırlı ELF32 segment yükleyicisi
 - Veri taşıyan seri syscall için taşma ve izin kontrolleri yapan sınırlı kullanıcı tamponu doğrulaması
 - Hata alan demo süreçlerinin ELF sayfaları ve yığın çerçeveleri scheduler devam etmeden geri kazanılır
-- Dört bounded kullanıcı süreci özel page directory alır; scheduler adres alanlarını CR3 ile değiştirir ve fault sonrası slotları yeniden kullanır
+- Sekize kadar bounded kullanıcı süreci özel page directory alır; scheduler adres alanlarını CR3 ile değiştirir ve fault sonrası slotları yeniden kullanır
 - Kernel’e özel bounded `user_process_spawn` API’si doğrulanmış ELF imajlarını sahiplikli adres alanlarına yükler; stack ve cleanup otomatik yönetilir
 - Kullanıcı yığınlarının altında eşlenmemiş guard sayfası bulunur; aşağı yönlü stack taşması komşu eşlemelere ulaşmadan fault üretir
 - Yeni kullanıcı süreçleri sekiz bounded stack bölgesinden birini kullanır; tek bir sabit kullanıcı stack adresine bağımlılık azaltılır

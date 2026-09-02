@@ -23,7 +23,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Bounded ELF32 segment loader with BSS initialization, W^X checks and page-permission finalization
 - Bounded user-buffer validation for the data-carrying serial syscall, including overflow and permission checks
 - Faulted demo processes release their user ELF pages and stack frames before scheduling continues
-- Four bounded user processes get private page directories; the scheduler switches address spaces with CR3 and reuses slots after faults
+- Up to eight bounded user processes get private page directories; the scheduler switches address spaces with CR3 and reuses slots after faults
 - Kernel-only bounded `user_process_spawn` API loads validated ELF images into owned address spaces with automatic stack/cleanup ownership
 - User stacks include an unmapped guard page so downward stack overflow faults before reaching adjacent mappings
 - New user processes use one of eight bounded stack regions, reducing assumptions about a single fixed user-stack address

@@ -8,8 +8,8 @@
 #define USER_CODE_ADDRESS 0x00400000U
 #define USER_STACK_REGION_BASE 0x00800000U
 #define USER_STACK_REGION_STRIDE 0x00100000U
-#define USER_STACK_REGION_COUNT 8U
-#define USER_PROCESS_MAX 4U
+#define USER_STACK_REGION_COUNT 16U
+#define USER_PROCESS_MAX 8U
 
 extern unsigned char user_demo_start;
 extern unsigned char user_demo_end;
