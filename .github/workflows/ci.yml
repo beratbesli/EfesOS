@@ -21,6 +21,8 @@ jobs:
         run: clang -std=c11 -Wall -Wextra -Werror -Ifs tests/fat_host_test.c fs/fat.c -o build/fat-host-test && build/fat-host-test
       - name: Boot metadata host test
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude tests/boot_info_host_test.c -o build/boot-info-host-test && build/boot-info-host-test
+      - name: ELF loader host test
+        run: clang -std=c11 -Wall -Wextra -Werror -Wno-error=int-to-pointer-cast -Iprocess -Imemory -Iinclude tests/elf_host_test.c process/elf_loader.c -o build/elf-host-test && build/elf-host-test
       - name: QEMU boot smoke test
         run: |
           timeout 20s qemu-system-i386 -display none -monitor none -serial stdio -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a > build/ci-serial.log 2> build/ci-qemu-error.log || true

@@ -70,6 +70,12 @@ Dosya sistemi değişikliklerinde bağımsız FAT ayrıştırıcı testini çal�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1
 ```
 
+Süreç yükleyici değişikliklerinde bağımsız ELF doğrulama testini çalıştır:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\elf-self-test.ps1
+```
+
 QEMU üzerindeki ATA/FAT okuma yolunun tamamını deterministik test diskiyle sına:
 
 ```powershell

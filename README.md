@@ -70,6 +70,12 @@ Run the standalone FAT parser test when changing filesystem code:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1
 ```
 
+Run the standalone ELF validation test when changing process loading code:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\elf-self-test.ps1
+```
+
 Exercise the complete QEMU ATA/FAT read path with the deterministic fixture:
 
 ```powershell
