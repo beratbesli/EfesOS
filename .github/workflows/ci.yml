@@ -16,7 +16,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install toolchain and emulator
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y clang lld nasm qemu-system-x86 make python3
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y clang lld llvm nasm qemu-system-x86 make python3
       - name: Build and verify image
         run: make verify
       - name: SHA-256 integrity negative test
