@@ -93,9 +93,9 @@ static int valid_name(const unsigned char *name, unsigned int length)
     return 1;
 }
 
-int journal_encode(unsigned char *sector, unsigned int operation,
+static int journal_encode_internal(unsigned char *sector, unsigned int operation,
     unsigned int sequence, const char *name, const void *content,
-    unsigned int content_length)
+    unsigned int content_length, int committed)
 {
     unsigned int name_length;
     unsigned int index;
@@ -128,10 +128,18 @@ int journal_encode(unsigned char *sector, unsigned int operation,
             ((const unsigned char *)content)[index];
     }
     write_u32(sector, 16U, record_crc(sector));
-    /* A future transaction writer must publish this terminal word only after
-       the payload write completes; encode emits it for complete test records. */
-    write_u32(sector, JOURNAL_COMMIT_OFFSET, JOURNAL_COMMIT);
+    if (committed) {
+        write_u32(sector, JOURNAL_COMMIT_OFFSET, JOURNAL_COMMIT);
+    }
     return 1;
+}
+
+int journal_encode(unsigned char *sector, unsigned int operation,
+    unsigned int sequence, const char *name, const void *content,
+    unsigned int content_length)
+{
+    return journal_encode_internal(sector, operation, sequence, name, content,
+        content_length, 1);
 }
 
 int journal_decode(const unsigned char *sector, struct journal_entry *entry)
@@ -251,27 +259,16 @@ static int sequence_is_newer(unsigned int sequence, unsigned int previous)
     return sequence != 0U && sequence > previous;
 }
 
-int journal_replay(journal_read_fn read, unsigned int start_lba,
-    unsigned int sector_count, journal_apply_fn apply, unsigned int *applied)
+static int scan_log(journal_read_fn read, unsigned int start_lba,
+    unsigned int data_sectors, unsigned int *record_count,
+    unsigned int *last_sequence)
 {
     unsigned char sector[JOURNAL_SECTOR_SIZE];
     struct journal_entry entry;
-    unsigned int data_sectors;
     unsigned int previous_sequence = 0U;
-    unsigned int record_count = 0U;
+    unsigned int count = 0U;
     unsigned int index;
 
-    if (applied != 0) {
-        *applied = 0U;
-    }
-    if (read == 0 || apply == 0 || sector_count < 2U ||
-        sector_count > JOURNAL_MAX_DATA_SECTORS + 1U ||
-        !read(start_lba, 1U, sector) || !journal_superblock_decode(sector, &data_sectors) ||
-        data_sectors + 1U > sector_count) {
-        return 0;
-    }
-    /* First pass: validate the complete prefix without invoking the consumer.
-       A non-empty invalid sector makes the entire replay fail closed. */
     for (index = 0U; index < data_sectors; index++) {
         if (!read(start_lba + 1U + index, 1U, sector)) {
             return 0;
@@ -284,14 +281,44 @@ int journal_replay(journal_read_fn read, unsigned int start_lba,
             return 0;
         }
         previous_sequence = entry.sequence;
-        record_count++;
+        count++;
     }
-    if (index < data_sectors) {
-        for (; index < data_sectors; index++) {
-            if (!read(start_lba + 1U + index, 1U, sector) || !sector_is_empty(sector)) {
-                return 0;
-            }
+    for (; index < data_sectors; index++) {
+        if (!read(start_lba + 1U + index, 1U, sector) || !sector_is_empty(sector)) {
+            return 0;
         }
+    }
+    if (record_count != 0) {
+        *record_count = count;
+    }
+    if (last_sequence != 0) {
+        *last_sequence = previous_sequence;
+    }
+    return 1;
+}
+
+int journal_replay(journal_read_fn read, unsigned int start_lba,
+    unsigned int sector_count, journal_apply_fn apply, unsigned int *applied)
+{
+    unsigned char sector[JOURNAL_SECTOR_SIZE];
+    struct journal_entry entry;
+    unsigned int data_sectors;
+    unsigned int record_count = 0U;
+    unsigned int index;
+
+    if (applied != 0) {
+        *applied = 0U;
+    }
+    if (read == 0 || apply == 0 || sector_count < 2U ||
+        sector_count > JOURNAL_MAX_DATA_SECTORS + 1U ||
+        !read(start_lba, 1U, sector) || !journal_superblock_decode(sector, &data_sectors) ||
+        data_sectors + 1U > sector_count) {
+        return 0;
+    }
+    /* First pass: validate the complete contiguous log without invoking the
+       consumer. A non-empty invalid sector makes the entire replay fail closed. */
+    if (!scan_log(read, start_lba, data_sectors, &record_count, 0)) {
+        return 0;
     }
     /* Second pass: only now mutate the consumer state. */
     for (index = 0U; index < record_count; index++) {
@@ -302,6 +329,44 @@ int journal_replay(journal_read_fn read, unsigned int start_lba,
     }
     if (applied != 0) {
         *applied = record_count;
+    }
+    return 1;
+}
+
+int journal_append(journal_read_fn read, journal_write_fn write,
+    unsigned int start_lba, unsigned int sector_count, unsigned int operation,
+    unsigned int sequence, const char *name, const void *content,
+    unsigned int content_length)
+{
+    unsigned char superblock[JOURNAL_SECTOR_SIZE];
+    unsigned char sector[JOURNAL_SECTOR_SIZE];
+    unsigned int data_sectors;
+    unsigned int record_count;
+    unsigned int last_sequence;
+    unsigned int target_lba;
+    struct journal_entry entry;
+
+    if (read == 0 || write == 0 || sector_count < 2U ||
+        sector_count > JOURNAL_MAX_DATA_SECTORS + 1U ||
+        !read(start_lba, 1U, superblock) ||
+        !journal_superblock_decode(superblock, &data_sectors) ||
+        data_sectors + 1U > sector_count ||
+        !scan_log(read, start_lba, data_sectors, &record_count, &last_sequence) ||
+        record_count >= data_sectors || !sequence_is_newer(sequence, last_sequence) ||
+        !journal_encode_internal(sector, operation, sequence, name, content,
+            content_length, 0)) {
+        return 0;
+    }
+    target_lba = start_lba + 1U + record_count;
+    /* Two-phase sector publication: a prepared payload is never replayable;
+       only the second write exposes the terminal commit marker. */
+    if (!write(target_lba, 1U, sector)) {
+        return 0;
+    }
+    write_u32(sector, JOURNAL_COMMIT_OFFSET, JOURNAL_COMMIT);
+    if (!write(target_lba, 1U, sector) || !read(target_lba, 1U, superblock) ||
+        !journal_decode(superblock, &entry)) {
+        return 0;
     }
     return 1;
 }

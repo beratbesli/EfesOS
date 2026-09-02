@@ -40,6 +40,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - The ATA raw-write path starts write-protected on every boot and remains disabled until a future transactional/journaled storage layer explicitly replaces this policy.
 - Journal records use bounded fields, strict name validation, a CRC over header/payload and a terminal commit marker; malformed, torn, or reserved-byte mutations are rejected before any future replay layer can apply them.
 - Journal replay validates the complete contiguous log and its monotonic sequence twice before invoking a consumer; invalid holes or later non-empty sectors cannot cause partial state application.
+- The journal append API publishes each record in two phases (commit cleared, then terminal commit) and reads it back before success; a failed second write leaves an unappliable record and the replay test confirms zero partial operations.
 - GitHub Actions dependencies are pinned to a verified commit and checkout credentials are not persisted in the worktree, reducing CI supply-chain and token-leakage risk.
 - Dependabot is configured to propose weekly GitHub Actions updates so pinned workflow dependencies receive security fixes without reverting to mutable tags.
 - CI runs Clang’s static analyzer across kernel C sources (excluding intentional fixed-address hardware accesses) so new pointer and memory diagnostics fail before merge.
