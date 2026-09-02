@@ -3,7 +3,7 @@
 ## Tamamlananlar
 
 - BIOS boot zinciri, A20 doğrulaması, E820 bellek haritası, deterministik `.bss` ve seri tanılama sertleştirildi.
-- Erken boot aşamasında CPUID yetenek yoklaması eklendi; PAE, NX ve TSC durumu seri tanıda raporlanıyor. Bu yalnızca capability bilgisidir, mevcut non-PAE sayfalama modu henüz değiştirilmedi.
+- Erken boot aşamasında CPUID yetenek yoklaması eklendi; PAE, NX ve TSC durumu seri tanıda raporlanıyor. PAE destekleniyorsa sayfalama PAE backend’ine geçiyor; NX destekleniyorsa EFER.NXE ve donanımsal NX etkinleştiriliyor, desteklenmeyen CPU’larda legacy fallback korunuyor.
 - ELF yükleyici, dynamic-linker gerektiren imajları reddeden relocation-free `ET_DYN` desteği kazandı; bu imajlara stack ile çakışmayan bounded per-load load bias uygulanıyor. `ET_EXEC` geriye dönük uyum için sabit kalıyor; bu tam ASLR değildir.
 - E820 tabanlı PMM, null-page koruması, salt-okunur kernel sayfaları, dinamik VMM ve canary/guard-page heap eklendi.
 - Vektör duyarlı IDT/PIC/PIT, kuyruklu klavye sürücüsü ve IRQ dışında çalışan olay döngüsü eklendi.
@@ -132,7 +132,9 @@
 - `scripts/journal-self-test.ps1` ayrıca terminal torn-append sonrasında önceki commit’li kayıtların replay edilebildiğini ve 32-bit LBA taşmasında hiçbir I/O callback’inin çağrılmadığını doğruluyor.
 - `scripts/sha256-self-test.ps1` ve `scripts/sha256_self_test.py`, build digest’inin bağımsız SHA-256 hesaplamasıyla eşleştiğini ve tek baytlık kernel bozulmasının farklı özet ürettiğini doğruluyor; CI’da `make sha256-self-test` kapısı etkin.
 - `scripts/sha256-boot-negative-test.ps1` ve `scripts/sha256_boot_negative_test.py`, bozulmuş imajı QEMU’da boot edip stage-2’nin kernel girişinden önce seri `!` fail-closed işaretiyle durduğunu doğruluyor; CI’da `make sha256-boot-negative-test` kapısı etkin.
-- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 38 kritik boot/runtime işaretçisi doğrulanıyor.
+- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 39 kritik boot/runtime işaretçisi doğrulanıyor.
+- QEMU `-cpu qemu64` koşusu PAE backend’i ve hardware NX (`hardware-nx=0x00000001`) ile ELF/runtime akışını başarıyla tamamlıyor; varsayılan profil de NX’siz PAE yolunu doğruluyor.
+- QEMU `-cpu qemu32,pae=off` koşusu legacy sayfalama fallback’ini (`paging mode=legacy hardware-nx=0x00000000`) ve ELF/runtime akışını başarıyla tamamlıyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
 - Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT/journal uçtan uca testi başarılı; mount, kök dizin, dosya okuması ve persistent replay dahil 39 işaretçi doğrulanıyor.
 - `scripts/run-self-test.ps1` ile etkileşimli `run RUN.ELF` yolu QEMU’da başarılı; diskten yüklenen programın seri çıktısı doğrulandı.
@@ -145,13 +147,13 @@
 
 ## Bilinen sınırlar
 
-ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; çok-sektörlü okumalar tek bounded PIO komutuyla, aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddiyle yürütülüyor. Disk yazmaları yalnızca doğrulanmış journal window ile sınırlı; FAT metadata yazımı hâlâ kapalı. IPC bounded beklemeli receive, generation-PID hedefleme ve scheduler uyandırma desteğine sahip; en fazla sekiz bounded kullanıcı süreci destekleniyor. Authentication, secure boot, imzalı modüller, tam ASLR, PAE/NX, ağ/USB/SMP ve tam VFS sonraki aşamalardır.
+ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; çok-sektörlü okumalar tek bounded PIO komutuyla, aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddiyle yürütülüyor. Disk yazmaları yalnızca doğrulanmış journal window ile sınırlı; FAT metadata yazımı hâlâ kapalı. IPC bounded beklemeli receive, generation-PID hedefleme ve scheduler uyandırma desteğine sahip; en fazla sekiz bounded kullanıcı süreci destekleniyor. Authentication, secure boot, imzalı modüller, tam ASLR, ağ/USB/SMP ve tam VFS sonraki aşamalardır.
 
 ## Öncelikli sonraki geliştirmeler
 
 1. **Depolama (P1):** ATA sürücüsünü IRQ/DMA ve gerçek donanım matrisiyle doğrula; yazmayı ancak hata kurtarma, journaling ve FAT bütünlük kontrollerinden sonra aç.
 2. **Donanım kapsamı (P2):** PCI BAR ayrıştırma, blok aygıt soyutlaması, USB/HID, ağ ve zamanlayıcı sürücülerini ekle; her biri için QEMU/host fixture testi yaz.
-3. **Güvenlik (P2):** imzalı boot zinciri, kimlik doğrulama, tam ASLR, PAE/NX, modül imzalama ve SMP kilitlemesini tasarla.
+3. **Güvenlik (P2):** imzalı boot zinciri, kimlik doğrulama, tam ASLR, modül imzalama ve SMP kilitlemesini tasarla.
 4. **Test kapsamı (P2):** ELF/FAT/boot fixture’larını property/fuzz testleriyle genişlet; gerçek donanım matrisi için sürekli regresyon kayıtları tut.
 
 GitHub’a otomatik push yapılmadı; `origin/main` değiştirilmedi.

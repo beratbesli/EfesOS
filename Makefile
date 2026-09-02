@@ -119,8 +119,8 @@ $(INTERRUPTS_OBJ): cpu/interrupts.asm | $(BUILD_DIR)
 $(PMM_OBJ): memory/pmm.c memory/pmm.h include/boot_info.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Imemory -c $< -o $@
 
-$(PAGING_OBJ): memory/paging.c memory/paging.h memory/pmm.h include/boot_info.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Imemory -c $< -o $@
+$(PAGING_OBJ): memory/paging.c memory/paging.h memory/pmm.h include/boot_info.h cpu/features.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Imemory -c $< -o $@
 
 $(HEAP_OBJ): memory/heap.c memory/heap.h memory/paging.h memory/pmm.h include/boot_info.h kernel/panic.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Ikernel -Imemory -c $< -o $@

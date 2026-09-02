@@ -3,7 +3,8 @@ param(
     [ValidateRange(1, 120)][int]$TimeoutSeconds = 15,
     [ValidateRange(16, 2048)][int]$MemoryMiB = 128,
     [switch]$SkipBuild,
-    [string]$DiskImage = ''
+    [string]$DiskImage = '',
+    [string]$Cpu = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,6 +26,7 @@ $successMarkers = @(
     'EfesOS: syscall ABI self-test passed.',
     'EfesOS: interrupt self-tests passed.',
     'EfesOS: VMM self-test passed.',
+    'EfesOS: paging mode=',
     'EfesOS: ELF loader validation self-test passed.',
     'EfesOS: ELF loader runtime self-test passed.',
     'EfesOS: kernel heap self-test passed.',
@@ -112,6 +114,9 @@ $arguments = @(
     '-drive', "`"file=$imagePath,format=raw,if=floppy`"",
     '-boot', 'a'
 )
+if ($Cpu -ne '') {
+    $arguments = @('-cpu', $Cpu) + $arguments
+}
 if ($DiskImage -ne '') {
     $arguments += @('-drive', "`"file=$DiskImage,format=raw,if=ide`"")
 }

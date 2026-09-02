@@ -27,7 +27,7 @@
 #include "splash.h"
 #include "vga.h"
 
-#define USER_PROCESS_ALLOCATION_BLOCKS 13U
+#define USER_PROCESS_BASE_ALLOCATION_BLOCKS 13U
 #define USER_PROCESS_RESTART_TARGET 4U
 
 static int scheduler_runtime_verified;
@@ -38,6 +38,7 @@ static unsigned int user_restart_count;
 static int user_repeated_reap_runtime_verified;
 static int user_restart_stress_runtime_verified;
 static unsigned int user_process_initial_free_blocks;
+static unsigned int user_process_allocation_blocks;
 static unsigned int user_restart_wait_ticks;
 static int user_address_space_runtime_verified;
 static int user_ipc_runtime_verified;
@@ -127,7 +128,7 @@ static void kernel_process_events(void)
         user_process_reap_count() > user_restart_count) {
         unsigned int pending_restarts = user_process_reap_count() - user_restart_count;
         unsigned int expected_free = user_process_initial_free_blocks +
-            USER_PROCESS_ALLOCATION_BLOCKS * pending_restarts;
+            user_process_allocation_blocks * pending_restarts;
 
         if (pmm_free_blocks() < user_process_initial_free_blocks ||
             user_restart_wait_ticks++ > 200U) {
@@ -146,7 +147,7 @@ static void kernel_process_events(void)
             if (!user_process_init()) {
                 kernel_panic("User process restart failed.");
             }
-            if (pmm_free_blocks() != expected_free - USER_PROCESS_ALLOCATION_BLOCKS) {
+            if (pmm_free_blocks() != expected_free - user_process_allocation_blocks) {
                 kernel_panic("User process restart leaked physical memory.");
             }
             user_restart_count++;
@@ -222,7 +223,7 @@ void kernel_main(const struct boot_info *boot_info)
         serial_write_hex(features->nx);
         serial_write(" tsc=");
         serial_write_hex(features->tsc);
-        serial_write(" (reported; PAE/NX paging is not enabled).\n");
+        serial_write(" (reported; paging mode is selected after capability checks).\n");
     }
     tss_init();
 
@@ -310,6 +311,11 @@ void kernel_main(const struct boot_info *boot_info)
         kernel_panic("Virtual memory manager self-test failed.");
     }
     serial_write("EfesOS: VMM self-test passed.\n");
+    serial_write("EfesOS: paging mode=");
+    serial_write(paging_uses_pae() ? "PAE" : "legacy");
+    serial_write(" hardware-nx=");
+    serial_write_hex((unsigned int)paging_uses_hardware_nx());
+    serial_write(".\n");
     if (!elf_loader_runtime_self_test()) {
         kernel_panic("ELF loader runtime self-test failed.");
     }
@@ -430,6 +436,8 @@ void kernel_main(const struct boot_info *boot_info)
         kernel_panic("Scheduler block/wake self-test failed.");
     }
     user_process_initial_free_blocks = pmm_free_blocks();
+    user_process_allocation_blocks = USER_PROCESS_BASE_ALLOCATION_BLOCKS +
+        paging_address_space_extra_blocks();
     serial_write("EfesOS: scheduler priority self-test passed.\n");
     last_game_tick = 0;
 

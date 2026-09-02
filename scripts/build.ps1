@@ -232,7 +232,7 @@ Invoke-CCompile -Source $systemSource -Output $systemObject -Includes @((Join-Pa
 Invoke-CCompile -Source $featuresSource -Output $featuresObject -Includes @((Join-Path $projectRoot 'cpu')) -FailureMessage 'CPU yetenekleri derlenemedi.'
 Invoke-Tool -Path $nasm -Arguments @('-w+error', '-f', 'elf32', $interruptSource, '-o', $interruptObject) -FailureMessage 'Kesme stub derlenemedi.'
 Invoke-CCompile -Source $pmmSource -Output $pmmObject -Includes @($includeDirectory, (Join-Path $projectRoot 'memory')) -FailureMessage 'Fiziksel bellek yoneticisi derlenemedi.'
-Invoke-CCompile -Source $pagingSource -Output $pagingObject -Includes @($includeDirectory, (Join-Path $projectRoot 'memory')) -FailureMessage 'Paging derlenemedi.'
+Invoke-CCompile -Source $pagingSource -Output $pagingObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'memory')) -FailureMessage 'Paging derlenemedi.'
 Invoke-CCompile -Source $heapSource -Output $heapObject -Includes @($includeDirectory, (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'memory')) -FailureMessage 'Kernel heap derlenemedi.'
 Invoke-CCompile -Source $schedulerSource -Output $schedulerObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'memory'), (Join-Path $projectRoot 'process')) -FailureMessage 'Scheduler derlenemedi.'
 Invoke-CCompile -Source $userProcessSource -Output $userProcessObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'memory'), (Join-Path $projectRoot 'process')) -FailureMessage 'Kullanici sureci derlenemedi.'
