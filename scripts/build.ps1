@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$Run
+    [switch]$Run,
+    [switch]$AllowLocalTools
 )
 
 $ErrorActionPreference = 'Stop'
@@ -127,9 +128,13 @@ function Get-OptionalCommand {
         }
     }
 
-    $localTool = Get-ChildItem -Path $toolsDirectory -Filter "$Name.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -ne $localTool) {
-        return $localTool.FullName
+    if ($AllowLocalTools -and (Test-Path -LiteralPath $toolsDirectory)) {
+        $localTool = Get-ChildItem -LiteralPath $toolsDirectory -File -Filter "$Name.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($null -ne $localTool) {
+            Write-Warning "Yerel araç açıkça istendi: $($localTool.FullName). Çalıştırmadan önce kaynağını ve özetini doğrulayın."
+            return $localTool.FullName
+        }
     }
 
     return $null

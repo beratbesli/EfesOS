@@ -44,6 +44,8 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 
 The Windows build script prefers the GNU cross-toolchain when it is available and otherwise uses Clang with the `i686-none-elf` target. Use tools obtained from trusted sources and verify their checksums before installing them. EfesOS does not download or vendor compiler binaries.
 
+For supply-chain safety, the build script does not search the repository's `tools` directory by default. If you intentionally place verified binaries there, opt in with `-AllowLocalTools` and verify their hashes first.
+
 ## Build and run on Windows
 
 From PowerShell in the repository root:

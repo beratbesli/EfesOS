@@ -44,6 +44,8 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 
 Windows derleme betiği varsa GNU cross-toolchain'i, yoksa Clang'in `i686-none-elf` hedefini kullanır. Araçları güvenilir bir kaynaktan edin ve kurmadan önce checksum doğrulaması yap. EfesOS derleyici ikililerini indirmez veya depoda barındırmaz.
 
+Tedarik zinciri güvenliği için derleme betiği depo içindeki `tools` dizinini varsayılan olarak taramaz. Doğrulanmış ikilileri bilerek buraya koyduysanız `-AllowLocalTools` ile açıkça izin verin ve önce hash değerlerini kontrol edin.
+
 ## Windows'ta derleme ve çalıştırma
 
 Depo kök klasöründe PowerShell açıp şu komutu çalıştır:
