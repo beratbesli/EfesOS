@@ -330,6 +330,7 @@ int fat_read_file(const struct fat_volume *volume, const char *name, void *buffe
     fat_u32_t output = 0;
     fat_u32_t guard = 0;
     fat_u32_t max_sectors;
+    fat_u32_t fat_index;
 
     if (size != 0) {
         *size = 0;
@@ -371,14 +372,16 @@ int fat_read_file(const struct fat_volume *volume, const char *name, void *buffe
         if (!read_sector(volume, volume->fat_start + cluster_offset / FAT_SECTOR_SIZE, fat_sector)) {
             return 0;
         }
-        if (volume->fat_count > 1U &&
-            (!read_sector(volume, volume->fat_start + volume->sectors_per_fat +
-                cluster_offset / FAT_SECTOR_SIZE, fat_mirror) ||
-             fat_mirror[cluster_offset % FAT_SECTOR_SIZE] !=
-                fat_sector[cluster_offset % FAT_SECTOR_SIZE] ||
-             fat_mirror[(cluster_offset % FAT_SECTOR_SIZE) + 1U] !=
-                fat_sector[(cluster_offset % FAT_SECTOR_SIZE) + 1U])) {
-            return 0;
+        for (fat_index = 1U; fat_index < volume->fat_count; fat_index++) {
+            if (!read_sector(volume, volume->fat_start +
+                (fat_index * volume->sectors_per_fat) + cluster_offset / FAT_SECTOR_SIZE,
+                fat_mirror) ||
+                fat_mirror[cluster_offset % FAT_SECTOR_SIZE] !=
+                    fat_sector[cluster_offset % FAT_SECTOR_SIZE] ||
+                fat_mirror[(cluster_offset % FAT_SECTOR_SIZE) + 1U] !=
+                    fat_sector[(cluster_offset % FAT_SECTOR_SIZE) + 1U]) {
+                return 0;
+            }
         }
         cluster = read_u16(fat_sector, cluster_offset % FAT_SECTOR_SIZE);
         if (cluster == FAT16_BAD || cluster >= FAT16_EOC) {
