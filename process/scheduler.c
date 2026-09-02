@@ -51,6 +51,16 @@ static unsigned int slot_generation[SCHEDULER_MAX_TASKS];
 
 static void scheduler_task_trampoline(void);
 
+static void clear_kernel_page(unsigned int address)
+{
+    unsigned int *page = (unsigned int *)address;
+    unsigned int index;
+
+    for (index = 0U; index < PAGE_SIZE / sizeof(unsigned int); index++) {
+        page[index] = 0U;
+    }
+}
+
 static int copy_task_name(char *destination, const char *source)
 {
     unsigned int index;
@@ -189,6 +199,7 @@ static int allocate_task_stack(struct scheduler_task *task, unsigned int slot)
             return 0;
         }
         task->stack_frames[index] = physical;
+        clear_kernel_page(virtual_address);
     }
 
     task->frame = (struct interrupt_frame *)(base + SCHEDULER_STACK_STRIDE - sizeof(struct interrupt_frame) - 8U);

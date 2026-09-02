@@ -21,6 +21,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Paging refuses to promote a page table shared with kernel mappings to user-visible and destroys address spaces by physical-table identity, preventing flag-only PDE differences from exposing or freeing shared kernel tables.
 - Each ring-3 task has a private page directory with shared kernel mappings; scheduler CR3 switches prevent user mappings from being shared between processes.
 - Newly allocated user stack frames are zeroed before the task is runnable, preventing physical-page reuse from exposing prior process or kernel data.
+- Newly allocated kernel-task stack pages are also zeroed before their initial frame is installed, preventing stale kernel locals from crossing task-slot reuse.
 - Page-directory creation is tracked in a bounded registry; CR3 switches and destruction reject unregistered physical addresses.
 - The paging API rejects user permissions below the protected user mapping floor, preventing identity-mapped kernel pages from being exposed accidentally.
 - ELF32 validation and loading reject malformed ranges, integer-overflowable sizes, unsupported machines and writable/executable segments before mapping user pages; loaded pages are zero-initialized and finalized with segment permissions.
