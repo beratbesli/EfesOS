@@ -111,7 +111,8 @@ int elf_validate_image(const void *image, unsigned int size, unsigned int *entry
         flags = read_u32(data, offset + ELF_PT_FLAGS_OFFSET);
         alignment = read_u32(data, offset + ELF_PT_ALIGN_OFFSET);
         if (memory_size < file_size || !range_is_inside(file_offset, file_size, size) ||
-            virtual_address < USER_MIN_ADDRESS || memory_size > USER_MAX_ADDRESS - virtual_address ||
+            virtual_address < USER_MIN_ADDRESS || virtual_address >= USER_MAX_ADDRESS ||
+            memory_size > USER_MAX_ADDRESS - virtual_address ||
             ((flags & ELF_FLAG_WRITABLE) != 0U && (flags & ELF_FLAG_EXECUTABLE) != 0U) ||
             (alignment != 0U && alignment != 1U && alignment != 0x1000U) ||
             (flags & ~(ELF_FLAG_EXECUTABLE | ELF_FLAG_WRITABLE | 4U)) != 0U) {
@@ -343,6 +344,7 @@ int elf_loader_self_test(void)
             ELF_PHOFF_OFFSET, ELF_EHSIZE_OFFSET, ELF_PHNUM_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_OFFSET_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET,
+            ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_FILESZ_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_MEMSZ_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_FLAGS_OFFSET,
@@ -350,7 +352,7 @@ int elf_loader_self_test(void)
         };
         static const unsigned int malformed_values[] = {
             0xFFFFFFFFU, 0U, 0U, 0xFFFFFFFFU, 0x003FF000U, 0xFFFFFFFFU,
-            3U, 8U, 2U, USER_MIN_ADDRESS + PAGE_SIZE
+            0xFFFFFFFFU, 3U, 8U, 2U, USER_MIN_ADDRESS + PAGE_SIZE
         };
         unsigned int malformed_index;
 
