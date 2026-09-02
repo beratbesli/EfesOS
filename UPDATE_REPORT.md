@@ -64,6 +64,7 @@
 - Kalıcı depolama için ilk journal kayıt sözleşmesi eklendi: bounded isim/içerik alanları, CRC, terminal commit işareti ve ayrılmış alan doğrulaması var; bozuk veya yarım kayıtlar replay edilmeden reddediliyor. ATA yazması hâlâ kapalı.
 - Journal replay katmanı iki geçişli tasarlandı: superblock, contiguous log, artan sequence ve boşluk sonrası sektörler önce tamamen doğrulanıyor; ancak tüm kayıtlar geçerliyse tüketiciye uygulanıyor. Host testi bozuk kayıt ve kısmi replay senaryosunu doğruluyor.
 - Journal append API’si iki fazlı yayın ve read-back doğrulaması kullanıyor; ikinci yazma yarıda kalırsa yalnızca terminal commit’siz kayıt yok sayılıyor, önceki commit’li kayıtlar güvenle replay edilebiliyor. Geçersiz CRC veya commit alanı yine fail-closed. Host testi başarılı transaction’ları ve yarım ikinci yazma kurtarmasını ayrı ayrı doğruluyor. ATA global yazma koruması değişmedi.
+- Kernel journal replay’i artık VFS volume geometrisini de kontrol ediyor; ayrılmamış veya FAT volume ile çakışan son sektörler geçerli görünümlü olsa bile journal olarak yorumlanmıyor.
 - Kernel, write-protected ATA yolunu gerçek `ata_write_sectors` çağrısıyla self-test ediyor; koruma açıkken kabul edilen bir yazma artık boot smoke testini fail-closed düşürüyor.
 - FAT kök dizini taraması artık BPB’de belirtilen gerçek entry sayısının dışına çıkmıyor; son sektör artıkları dosya gibi kabul edilmiyor ve host fixture ile doğrulanıyor.
 - FAT dosya zinciri cycle testi strict bounded guard ile doğrulanıyor; döngülü cluster zinciri dosya okumasını fail-closed durduruyor.

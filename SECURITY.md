@@ -37,6 +37,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - ATA access is bounded, timeout-controlled, retries failed reads only after a bounded channel reset, and rejects capacities beyond the driver’s 28-bit PIO addressing limit. FAT16 support is read-only; no shell command can write arbitrary disk sectors.
 - FAT16 mount validates the reserved entries in every mirrored FAT copy before exposing directory/file reads.
 - FAT cluster-chain reads compare each consumed FAT entry with every mirrored copy and fail closed on divergence.
+- Persistent journal replay is allowed only in a bounded region that does not overlap the mounted FAT volume; a valid-looking tail inside filesystem data is ignored.
 - The ATA raw-write path starts write-protected on every boot and remains disabled until a future transactional/journaled storage layer explicitly replaces this policy.
 - Journal records use bounded fields, strict name validation, a CRC over header/payload and a terminal commit marker; malformed, torn, or reserved-byte mutations are rejected before replay, while a valid commit-cleared terminal record is safely ignored as an incomplete append.
 - Journal replay validates the complete contiguous log and its monotonic sequence twice before invoking a consumer; invalid holes or later non-empty sectors cannot cause partial state application.

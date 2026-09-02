@@ -80,6 +80,11 @@ static void replay_persistent_ramfs(void)
         return;
     }
     region_start = ata_sector_count() - JOURNAL_REGION_SECTORS;
+    if (!vfs_journal_region_available(region_start, JOURNAL_REGION_SECTORS)) {
+        /* Never interpret sectors owned by a mounted FAT volume as journal
+           records, even if their bytes happen to pass journal validation. */
+        return;
+    }
     if (!ata_read_sectors(region_start, 1U, superblock) ||
         !journal_superblock_decode(superblock, &data_sectors)) {
         /* An unformatted tail is normal; no write or state mutation occurs. */

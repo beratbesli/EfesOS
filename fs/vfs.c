@@ -86,3 +86,25 @@ int vfs_read_file(const char *name, void *buffer, unsigned int capacity, unsigne
 {
     return fat_read_file(&volume, name, buffer, capacity, size);
 }
+
+int vfs_journal_region_available(unsigned int start_lba, unsigned int sector_count)
+{
+    unsigned int device_sectors = ata_sector_count();
+    unsigned int region_end;
+
+    if (sector_count == 0U || device_sectors == 0U || start_lba >= device_sectors ||
+        (sector_count - 1U) > 0xFFFFFFFFU - start_lba ||
+        sector_count > device_sectors - start_lba) {
+        return 0;
+    }
+    region_end = start_lba + sector_count;
+    if (!volume.mounted) {
+        return 1;
+    }
+    /* fat_mount/vfs_init already proved this addition fits the device. */
+    if (start_lba >= volume.start_lba + volume.total_sectors ||
+        region_end <= volume.start_lba) {
+        return 1;
+    }
+    return 0;
+}
