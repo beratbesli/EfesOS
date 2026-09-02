@@ -105,6 +105,7 @@ int main(void)
     struct fat_volume volume;
     char name[13];
     char contents[32];
+    char large_contents[2048];
     unsigned int size;
 
     build_fixture();
@@ -167,6 +168,15 @@ int main(void)
     }
     volume.cluster_count = 2U;
     if (fat_read_file(&volume, "hello.txt", contents, sizeof(contents), &size)) {
+        return 1;
+    }
+    build_fixture();
+    put32((65U * SECTOR_SIZE) + 28U, 1024U);
+    put16(516U, 3U);
+    put16(518U, 0xFFF8U);
+    disk[33U * SECTOR_SIZE + 4U] = 0x00;
+    if (!fat_mount(&volume, read_fixture, 0) ||
+        fat_read_file(&volume, "hello.txt", large_contents, sizeof(large_contents), &size)) {
         return 1;
     }
     build_fixture();

@@ -14,6 +14,7 @@ struct fat_volume {
     fat_u32_t root_start;
     fat_u32_t data_start;
     fat_u32_t sectors_per_fat;
+    fat_u32_t fat_count;
     fat_u32_t root_entries;
     fat_u32_t sectors_per_cluster;
     fat_u32_t cluster_count;

@@ -244,6 +244,7 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
     volume->root_start = volume->fat_start + ((fat_u32_t)fats * sectors_per_fat);
     volume->data_start = volume->root_start + root_sectors;
     volume->sectors_per_fat = sectors_per_fat;
+    volume->fat_count = fats;
     volume->root_entries = root_entries;
     volume->sectors_per_cluster = sectors_per_cluster;
     volume->cluster_count = cluster_count;
@@ -323,6 +324,7 @@ int fat_read_file(const struct fat_volume *volume, const char *name, void *buffe
     fat_u8_t entry[32];
     fat_u8_t sector[FAT_SECTOR_SIZE];
     fat_u8_t fat_sector[FAT_SECTOR_SIZE];
+    fat_u8_t fat_mirror[FAT_SECTOR_SIZE];
     fat_u32_t remaining;
     fat_u32_t cluster;
     fat_u32_t output = 0;
@@ -367,6 +369,15 @@ int fat_read_file(const struct fat_volume *volume, const char *name, void *buffe
         }
         cluster_offset = cluster * 2U;
         if (!read_sector(volume, volume->fat_start + cluster_offset / FAT_SECTOR_SIZE, fat_sector)) {
+            return 0;
+        }
+        if (volume->fat_count > 1U &&
+            (!read_sector(volume, volume->fat_start + volume->sectors_per_fat +
+                cluster_offset / FAT_SECTOR_SIZE, fat_mirror) ||
+             fat_mirror[cluster_offset % FAT_SECTOR_SIZE] !=
+                fat_sector[cluster_offset % FAT_SECTOR_SIZE] ||
+             fat_mirror[(cluster_offset % FAT_SECTOR_SIZE) + 1U] !=
+                fat_sector[(cluster_offset % FAT_SECTOR_SIZE) + 1U])) {
             return 0;
         }
         cluster = read_u16(fat_sector, cluster_offset % FAT_SECTOR_SIZE);
