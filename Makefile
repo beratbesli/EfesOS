@@ -48,6 +48,7 @@ ELF_LOADER_OBJ := $(BUILD_DIR)/elf_loader.o
 PROGRAMS_OBJ := $(BUILD_DIR)/programs.o
 RAMFS_OBJ := $(BUILD_DIR)/ramfs.o
 JOURNAL_OBJ := $(BUILD_DIR)/journal.o
+PERSISTENT_OBJ := $(BUILD_DIR)/persistent.o
 FAT_OBJ := $(BUILD_DIR)/fat.o
 VFS_OBJ := $(BUILD_DIR)/vfs.o
 GAMES_OBJ := $(BUILD_DIR)/games.o
@@ -66,7 +67,7 @@ $(BUILD_DIR):
 $(ENTRY_OBJ): kernel/kernel_entry.asm | $(BUILD_DIR)
 	$(NASM) -w+error -f elf32 $< -o $@
 
-$(KERNEL_MAIN_OBJ): kernel/kernel.c include/ata.h include/boot_info.h cpu/idt.h cpu/tss.h games/games.h include/keyboard.h include/pci.h kernel/panic.h kernel/splash.h kernel/ipc.h memory/heap.h memory/paging.h memory/pmm.h process/elf_loader.h process/scheduler.h process/user_process.h fs/ramfs.h fs/journal.h fs/vfs.h include/serial.h include/syscall.h shell/shell.h include/vga.h | $(BUILD_DIR)
+$(KERNEL_MAIN_OBJ): kernel/kernel.c include/ata.h include/boot_info.h cpu/idt.h cpu/tss.h games/games.h include/keyboard.h include/pci.h kernel/panic.h kernel/splash.h kernel/ipc.h memory/heap.h memory/paging.h memory/pmm.h process/elf_loader.h process/scheduler.h process/user_process.h fs/ramfs.h fs/journal.h fs/persistent.h fs/vfs.h include/serial.h include/syscall.h shell/shell.h include/vga.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Igames -Ikernel -Imemory -Iprocess -Ishell -c $< -o $@
 
 $(PANIC_OBJ): kernel/panic.c kernel/panic.h include/serial.h include/vga.h | $(BUILD_DIR)
@@ -141,6 +142,9 @@ $(RAMFS_OBJ): fs/ramfs.c fs/ramfs.h fs/journal.h | $(BUILD_DIR)
 $(JOURNAL_OBJ): fs/journal.c fs/journal.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Ifs -c $< -o $@
 
+$(PERSISTENT_OBJ): fs/persistent.c fs/persistent.h fs/journal.h fs/ramfs.h fs/vfs.h include/ata.h include/serial.h kernel/panic.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Ifs -Ikernel -Icpu -c $< -o $@
+
 $(FAT_OBJ): fs/fat.c fs/fat.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Ifs -c $< -o $@
 
@@ -150,11 +154,11 @@ $(VFS_OBJ): fs/vfs.c fs/vfs.h fs/fat.h include/ata.h | $(BUILD_DIR)
 $(GAMES_OBJ): games/games.c games/games.h cpu/pit.h include/vga.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Igames -c $< -o $@
 
-$(SHELL_OBJ): shell/shell.c shell/shell.h include/ata.h include/keyboard.h include/language.h include/pci.h include/serial.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h fs/vfs.h games/games.h memory/heap.h memory/pmm.h process/programs.h process/scheduler.h process/user_process.h | $(BUILD_DIR)
+$(SHELL_OBJ): shell/shell.c shell/shell.h include/ata.h include/keyboard.h include/language.h include/pci.h include/serial.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h fs/persistent.h fs/vfs.h games/games.h memory/heap.h memory/pmm.h process/programs.h process/scheduler.h process/user_process.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ifs -Igames -Imemory -Iprocess -Ishell -c $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(ATA_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(ATA_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
+$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(ATA_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(PERSISTENT_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(ATA_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(PERSISTENT_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@

@@ -4,6 +4,7 @@
 #include "games.h"
 #include "heap.h"
 #include "pmm.h"
+#include "persistent.h"
 #include "pci.h"
 #include "pit.h"
 #include "programs.h"
@@ -247,6 +248,7 @@ static void write_file_command(void)
 {
     char *name = input + 6;
     char *separator = name;
+    int written;
 
     while (*separator != '\0' && *separator != ' ') {
         separator++;
@@ -256,8 +258,13 @@ static void write_file_command(void)
         return;
     }
     *separator = '\0';
-    if (!ramfs_write_file(name, separator + 1)) {
+    written = persistent_ramfs_is_enabled() ?
+        !persistent_ramfs_write_file(name, separator + 1) :
+        !ramfs_write_file(name, separator + 1);
+    if (written) {
         vga_write("Write rejected (name/content too long or filesystem full).\n");
+    } else if (persistent_ramfs_is_enabled()) {
+        vga_write("Persistent write committed.\n");
     }
     *separator = ' ';
 }
@@ -367,8 +374,13 @@ static void execute_command(void)
     } else if (string_starts_with(input, "write ")) {
         write_file_command();
     } else if (string_starts_with(input, "rm ")) {
-        if (!ramfs_remove_file(input + 3)) {
+        int removed = persistent_ramfs_is_enabled() ?
+            !persistent_ramfs_remove_file(input + 3) :
+            !ramfs_remove_file(input + 3);
+        if (removed) {
             vga_write("File not found or invalid name.\n");
+        } else if (persistent_ramfs_is_enabled()) {
+            vga_write("Persistent remove committed.\n");
         }
     } else if (string_starts_with(input, "echo ")) {
         vga_write(input + 5);
