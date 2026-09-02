@@ -68,7 +68,7 @@
 - Kullanıcı süreç spawn’ı artık aktif kayıtları tarayarak boş stack bölgesini seçiyor; yeniden başlatma zamanlaması etkin stack adresi çakışması oluşturmuyor ve bölge yoksa oluşturma fail-closed reddediliyor.
 - `EXIT` syscall’i gerçek demo akışında doğrulandı; normal çıkan user task’ın adres alanı/yığını fault yolu ile aynı fail-closed cleanup’tan geçiyor ve slot güvenle yeniden kullanılıyor.
 - GitHub Actions; build, imaj doğrulama, FAT/boot/ELF host testleri ve QEMU ring-3 smoke testini çalıştırıyor.
-- ELF yükleyici doğrulaması artık paging/PMM stub’larıyla bağımsız host testinde ve CI’da da çalıştırılıyor.
+- ELF yükleyici doğrulaması artık paging/PMM stub’larıyla bağımsız host testinde ve CI’da da çalıştırılıyor; host derlemesi integer-pointer uyarısı bastırmadan tam `-Werror` kapısını kullanıyor.
 - Build ve smoke doğrulaması artık 0x55AA boot imzasını zorunlu tutuyor ve tüm marker’lar bulunsa bile `KERNEL PANIC` çıktısını başarısız sayıyor.
 - IDT artık 256 vektörün tamamına ortak stub kuruyor; 129–255 arası beklenmeyen vektörler boş descriptor yerine fail-closed dispatcher’a ulaşıyor.
 

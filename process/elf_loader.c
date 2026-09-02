@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #include "elf_loader.h"
 #include "paging.h"
 #include "pmm.h"
@@ -47,6 +49,11 @@ static unsigned int read_u32(const unsigned char *data, unsigned int offset)
 static int range_is_inside(unsigned int offset, unsigned int length, unsigned int size)
 {
     return offset <= size && length <= size - offset;
+}
+
+static unsigned char *virtual_pointer(unsigned int address)
+{
+    return (unsigned char *)(uintptr_t)address;
 }
 
 int elf_validate_image(const void *image, unsigned int size, unsigned int *entry)
@@ -219,15 +226,15 @@ int elf_load_image(const void *image, unsigned int size, unsigned int *entry,
             {
                 unsigned int byte;
                 for (byte = 0; byte < PAGE_SIZE; byte++) {
-                    ((unsigned char *)page)[byte] = 0;
+                    virtual_pointer(page)[byte] = 0;
                 }
             }
         }
         for (page = 0; page < file_size; page++) {
-            ((unsigned char *)(virtual_address + page))[0] = data[file_offset + page];
+            virtual_pointer(virtual_address + page)[0] = data[file_offset + page];
         }
         for (page = 0; page < (page_end - (virtual_address + file_size)); page++) {
-            ((unsigned char *)(virtual_address + file_size + page))[0] = 0;
+            virtual_pointer(virtual_address + file_size + page)[0] = 0;
         }
         for (page = virtual_address & ELF_PAGE_MASK; page < page_end; page += PAGE_SIZE) {
             unsigned int page_flags = PAGE_FLAG_USER;
@@ -434,7 +441,7 @@ int elf_loader_runtime_self_test(void)
         }
         return 0;
     }
-    loaded = (unsigned char *)entry;
+    loaded = virtual_pointer(entry);
     if (loaded[0] != 0xC3 || loaded[1] != 0xEF || loaded[2] != 0x05 || loaded[3] != 0xA5 ||
         loaded[4] != 0U || !elf_unload_image(loaded_base, loaded_end) ||
         paging_is_mapped(loaded_base)) {

@@ -16,7 +16,7 @@ if ($null -eq $compiler) {
 }
 New-Item -ItemType Directory -Force -Path $build | Out-Null
 $output = Join-Path $build 'elf-host-test.exe'
-$arguments = @('-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-error=int-to-pointer-cast', '-I', (Join-Path $root 'process'),
+$arguments = @('-std=c11', '-Wall', '-Wextra', '-Werror', '-I', (Join-Path $root 'process'),
     '-I', (Join-Path $root 'memory'), '-I', (Join-Path $root 'include'),
     (Join-Path $root 'tests\elf_host_test.c'), (Join-Path $root 'process\elf_loader.c'), '-o', $output)
 & $compilerPath @arguments
