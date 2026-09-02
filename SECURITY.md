@@ -18,6 +18,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - VGA PCI configuration writes are limited to a verified Bochs/BGA display device; the BGA ID is read back before any BAR or command-register write, and mismatches are skipped.
 - Ring-3 tasks use supervisor-inaccessible code/stack pages, a dedicated TSS transition stack and a restricted `int 0x80` ABI. User exceptions terminate the task, reclaim its user pages, and continue scheduling instead of panicking the kernel.
 - Paging refuses null physical frames and protects the low identity mapping from accidental kernel unmapping.
+- User-range and execute validation now requires both user-present PDE and PTE permissions, matching the hardware walk at every level.
 - Paging treats page tables shared with kernel mappings as immutable from private CR3s: map/protect/unmap operations are rejected, and address spaces are destroyed by physical-table identity, preventing flag-only PDE differences from exposing or freeing shared kernel tables.
 - The kernel page directory rejects all user-flagged map/protect operations, so a future internal call cannot create a user-visible kernel PDE that would be copied into new address spaces.
 - Each ring-3 task has a private page directory with shared kernel mappings; scheduler CR3 switches prevent user mappings from being shared between processes.

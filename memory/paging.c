@@ -283,17 +283,19 @@ int paging_validate_user_range(paging_u32_t virtual_address, paging_u32_t length
     if (length == 0U) {
         return 1;
     }
-    if (virtual_address < PAGE_SIZE || virtual_address >= USER_ADDRESS_LIMIT ||
+    if (page_directory == 0 || virtual_address < PAGE_SIZE || virtual_address >= USER_ADDRESS_LIMIT ||
         length > USER_ADDRESS_LIMIT - virtual_address) {
         return 0;
     }
     end = virtual_address + length;
     page = virtual_address & PAGE_ADDRESS_MASK;
     while (page < end) {
+        paging_u32_t directory_entry = page_directory[page >> 22U];
         paging_u32_t *table = get_page_table(page);
         paging_u32_t entry;
 
-        if (table == 0) {
+        if (table == 0 || (directory_entry & (PAGE_PRESENT | PAGE_FLAG_USER)) !=
+            (PAGE_PRESENT | PAGE_FLAG_USER)) {
             return 0;
         }
         entry = table[(page >> 12U) & 0x3FFU];
@@ -308,10 +310,16 @@ int paging_validate_user_range(paging_u32_t virtual_address, paging_u32_t length
 
 int paging_validate_user_execute(paging_u32_t virtual_address)
 {
+    paging_u32_t directory_entry;
     paging_u32_t *table;
     paging_u32_t entry;
 
-    if (virtual_address < PAGE_SIZE || virtual_address >= USER_ADDRESS_LIMIT) {
+    if (page_directory == 0 || virtual_address < PAGE_SIZE || virtual_address >= USER_ADDRESS_LIMIT) {
+        return 0;
+    }
+    directory_entry = page_directory[virtual_address >> 22U];
+    if ((directory_entry & (PAGE_PRESENT | PAGE_FLAG_USER)) !=
+        (PAGE_PRESENT | PAGE_FLAG_USER)) {
         return 0;
     }
     table = get_page_table(virtual_address);

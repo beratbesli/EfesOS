@@ -31,6 +31,7 @@
 - Paging API’si kullanıcı bayrağını korunan taban adresin altında reddediyor; bu kural VMM self-test’iyle doğrulanıyor.
 - Paging map API’si artık tanımsız izin flag’lerini sessizce kırpmıyor; bilinmeyen bitler reddediliyor ve VMM negatif self-test’iyle korunuyor.
 - Paging map API’si null fiziksel frame’i reddediyor; kernel düşük identity eşlemelerini yanlışlıkla unmap etmeye izin vermiyor ve iki koşul VMM self-test’inde doğrulanıyor.
+- Usercopy ve executable-entry doğrulaması artık her sayfada hem PDE hem PTE’nin USER/PRESENT izinlerini denetliyor; yazılım kontrolü gerçek donanım page-table yürüyüşüyle aynı kararı veriyor.
 - Paging, kernel page-table’ı paylaşan bir PDE üzerinde kullanıcı bayrağını etkinleştirmiyor; address-space cleanup fiziksel tablo kimliğiyle paylaşılan kernel tablolarını koruyor ve bu kural VMM self-test’inde doğrulanıyor.
 - Özel CR3’ler kernel ile paylaşılan page-table’larda map/protect/unmap işlemlerini tamamen reddediyor; böylece yalnızca PDE bayrağını değiştirerek kernel identity/framebuffer eşlemelerini kullanıcıya açma veya global tabloyu bozma yolu kapatıldı.
 - Kernel page directory’sinde kullanıcı bayrağıyla map/protect işlemleri tamamen reddediliyor; ELF runtime self-test’i de bu politika ile uyumlu olarak geçici özel adres alanında çalışıyor.
