@@ -153,6 +153,10 @@ int paging_map_page(paging_u32_t virtual_address, paging_u32_t physical_address,
         return 0;
     }
 
+    if ((flags & PAGE_FLAG_USER) != 0U && !pmm_claim_user_block(physical_address)) {
+        return 0;
+    }
+
     table[table_index] = physical_address | PAGE_PRESENT | (flags & PAGE_ALLOWED_FLAGS);
     invalidate_page(virtual_address);
     return 1;
@@ -203,6 +207,7 @@ paging_u32_t paging_unmap_page(paging_u32_t virtual_address)
     paging_u32_t table_index;
     paging_u32_t physical_address;
     paging_u32_t index;
+    paging_u32_t entry;
 
     if (virtual_address < PAGE_SIZE || (virtual_address & (PAGE_SIZE - 1U)) != 0U ||
         (page_directory == kernel_page_directory && virtual_address < USER_MAPPING_MIN) ||
@@ -220,8 +225,12 @@ paging_u32_t paging_unmap_page(paging_u32_t virtual_address)
         return 0;
     }
 
-    physical_address = table[table_index] & PAGE_ADDRESS_MASK;
+    entry = table[table_index];
+    physical_address = entry & PAGE_ADDRESS_MASK;
     table[table_index] = 0;
+    if ((entry & PAGE_FLAG_USER) != 0U) {
+        pmm_release_user_block(physical_address);
+    }
     invalidate_page(virtual_address);
 
     for (index = 0; index < PAGE_TABLE_ENTRIES; index++) {
@@ -426,7 +435,8 @@ int paging_destroy_address_space(paging_u32_t directory)
         table = (paging_u32_t *)(entry & PAGE_ADDRESS_MASK);
         for (table_index = 0; table_index < PAGE_TABLE_ENTRIES; table_index++) {
             if ((table[table_index] & PAGE_PRESENT) != 0U &&
-                !pmm_block_is_user_owned(table[table_index] & PAGE_ADDRESS_MASK)) {
+                (!pmm_block_is_user_owned(table[table_index] & PAGE_ADDRESS_MASK) ||
+                 !pmm_user_block_is_mapped(table[table_index] & PAGE_ADDRESS_MASK))) {
                 return 0;
             }
         }
@@ -445,6 +455,9 @@ int paging_destroy_address_space(paging_u32_t directory)
         table = (paging_u32_t *)(entry & PAGE_ADDRESS_MASK);
         for (table_index = 0; table_index < PAGE_TABLE_ENTRIES; table_index++) {
             if ((table[table_index] & PAGE_PRESENT) != 0U) {
+                if ((table[table_index] & PAGE_FLAG_USER) != 0U) {
+                    pmm_release_user_block(table[table_index] & PAGE_ADDRESS_MASK);
+                }
                 pmm_free_block(table[table_index] & PAGE_ADDRESS_MASK);
             }
         }

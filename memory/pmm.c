@@ -7,7 +7,7 @@ typedef unsigned long long pmm_u64_t;
 #define PMM_LOW_MEMORY_END 0x00100000U
 #define PMM_BOOTSTRAP_RESERVED_END 0x00100000U
 #define PMM_USER_MIN_ADDRESS 0x00400000U
-#define PMM_USER_MAX_ADDRESS 0x40000000U
+#define PMM_USER_MAX_ADDRESS 0x10000000U
 #define PMM_USER_MAX_BLOCKS (PMM_USER_MAX_ADDRESS / PMM_BLOCK_SIZE)
 #define PMM_USER_BITMAP_WORDS ((PMM_USER_MAX_BLOCKS + 31U) / 32U)
 
@@ -17,6 +17,7 @@ extern unsigned char __kernel_end;
 static pmm_u32_t bitmap[PMM_BITMAP_WORDS];
 static pmm_u32_t usable_bitmap[PMM_BITMAP_WORDS];
 static pmm_u32_t user_bitmap[PMM_USER_BITMAP_WORDS];
+static pmm_u32_t user_mapped_bitmap[PMM_USER_BITMAP_WORDS];
 static pmm_u32_t detected_blocks;
 static pmm_u32_t managed_blocks;
 static pmm_u32_t used_managed_blocks;
@@ -50,6 +51,26 @@ static void mark_block_kernel_owned(pmm_u32_t block)
         return;
     }
     user_bitmap[block / 32U] &= ~(1U << (block % 32U));
+}
+
+static int user_mapped(pmm_u32_t block)
+{
+    return block < PMM_USER_MAX_BLOCKS && (user_mapped_bitmap[block / 32U] &
+        (1U << (block % 32U))) != 0U;
+}
+
+static void mark_user_mapped(pmm_u32_t block)
+{
+    if (block < PMM_USER_MAX_BLOCKS) {
+        user_mapped_bitmap[block / 32U] |= 1U << (block % 32U);
+    }
+}
+
+static void mark_user_unmapped(pmm_u32_t block)
+{
+    if (block < PMM_USER_MAX_BLOCKS) {
+        user_mapped_bitmap[block / 32U] &= ~(1U << (block % 32U));
+    }
 }
 
 static void mark_block_free(pmm_u32_t block)
@@ -161,6 +182,7 @@ int pmm_init(const struct boot_info *boot_info)
     }
     for (word = 0; word < PMM_USER_BITMAP_WORDS; word++) {
         user_bitmap[word] = 0U;
+        user_mapped_bitmap[word] = 0U;
     }
     detected_blocks = 0;
     managed_blocks = 0;
@@ -233,6 +255,39 @@ int pmm_block_is_user_owned(pmm_u32_t address)
         (1U << (block % 32U))) != 0U;
 }
 
+int pmm_claim_user_block(pmm_u32_t address)
+{
+    pmm_u32_t block;
+
+    if (!pmm_block_is_user_owned(address)) {
+        return 0;
+    }
+    block = address / PMM_BLOCK_SIZE;
+    if (user_mapped(block)) {
+        return 0;
+    }
+    mark_user_mapped(block);
+    return 1;
+}
+
+void pmm_release_user_block(pmm_u32_t address)
+{
+    if ((address & (PMM_BLOCK_SIZE - 1U)) == 0U) {
+        mark_user_unmapped(address / PMM_BLOCK_SIZE);
+    }
+}
+
+int pmm_user_block_is_mapped(pmm_u32_t address)
+{
+    pmm_u32_t block;
+
+    if (!pmm_block_is_user_owned(address)) {
+        return 0;
+    }
+    block = address / PMM_BLOCK_SIZE;
+    return user_mapped(block);
+}
+
 pmm_u32_t pmm_alloc_block(void)
 {
     return pmm_alloc_block_below(0xFFFFFFFFU);
@@ -251,6 +306,9 @@ void pmm_free_block(pmm_u32_t address)
         return;
     }
 
+    if (user_mapped(block)) {
+        return;
+    }
     mark_block_free(block);
     mark_block_kernel_owned(block);
     used_managed_blocks--;

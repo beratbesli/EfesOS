@@ -426,6 +426,7 @@ int elf_loader_runtime_self_test(void)
     unsigned int loaded_end;
     unsigned int index;
     paging_u32_t kernel_frame;
+    paging_u32_t user_frame;
     paging_u32_t kernel_directory;
     paging_u32_t test_directory;
     unsigned char *loaded;
@@ -458,6 +459,27 @@ int elf_loader_runtime_self_test(void)
         goto cleanup;
     }
     pmm_free_block(kernel_frame);
+
+    user_frame = pmm_alloc_user_block();
+    if (user_frame == 0U || !paging_map_page(0x01000000U, user_frame,
+        PAGE_FLAG_USER | PAGE_FLAG_WRITABLE) ||
+        paging_map_page(0x01001000U, user_frame, PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
+        if (paging_is_mapped(0x01001000U)) {
+            paging_unmap_page(0x01001000U);
+        }
+        if (paging_is_mapped(0x01000000U)) {
+            paging_unmap_page(0x01000000U);
+        }
+        if (user_frame != 0U) {
+            pmm_free_block(user_frame);
+        }
+        goto cleanup;
+    }
+    if (paging_unmap_page(0x01000000U) != user_frame) {
+        pmm_free_block(user_frame);
+        goto cleanup;
+    }
+    pmm_free_block(user_frame);
 
     for (index = 0; index < sizeof(image); index++) {
         image[index] = 0;
