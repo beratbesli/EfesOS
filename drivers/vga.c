@@ -1,8 +1,5 @@
 #include "vga.h"
-
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
+#include "pci.h"
 
 enum {
     TEXT_WIDTH = 80,
@@ -24,9 +21,9 @@ enum {
     BGA_ENABLED_WITH_LFB = 0x41,
     PCI_CONFIG_ADDRESS_PORT = 0x0CF8,
     PCI_CONFIG_DATA_PORT = 0x0CFC,
-    VGA_PCI_CONFIG_COMMAND = 0x80001004U,
-    VGA_PCI_CONFIG_BAR0 = 0x80001010U,
     VGA_PCI_COMMAND_IO_AND_MEMORY = 0x0003,
+    VGA_VENDOR_ID = 0x1234,
+    VGA_DEVICE_ID = 0x1111,
     VGA_COLOR_LIGHT_GREEN = 0x0A
 };
 
@@ -101,20 +98,37 @@ static uint8_t glyph_row(uint8_t character, uint8_t row)
     return pixels;
 }
 
-static void outw(uint16_t port, uint16_t value)
-{
-    __asm__ volatile ("outw %0, %1" : : "a"(value), "Nd"(port));
-}
-
-static void outl(uint16_t port, uint32_t value)
-{
-    __asm__ volatile ("outl %0, %1" : : "a"(value), "Nd"(port));
-}
-
 static void bga_write(uint16_t index, uint16_t value)
 {
     outw(BGA_INDEX_PORT, index);
     outw(BGA_DATA_PORT, value);
+}
+
+static uint16_t bga_read(uint16_t index)
+{
+    outw(BGA_INDEX_PORT, index);
+    return inw(BGA_DATA_PORT);
+}
+
+static uint32_t pci_config_address(const struct pci_device *device, uint8_t offset)
+{
+    return 0x80000000U | ((uint32_t)device->bus << 16U) |
+        ((uint32_t)device->slot << 11U) | ((uint32_t)device->function << 8U) |
+        ((uint32_t)offset & 0xFCU);
+}
+
+static const struct pci_device *find_bga_device(void)
+{
+    unsigned int index;
+
+    for (index = 0U; index < pci_device_count(); index++) {
+        const struct pci_device *device = pci_device_at(index);
+        if (device != 0 && device->vendor_id == VGA_VENDOR_ID &&
+            device->device_id == VGA_DEVICE_ID && device->class_code == 0x03U) {
+            return device;
+        }
+    }
+    return 0;
 }
 
 static void clear_graphics_cell(unsigned short cell)
@@ -214,6 +228,8 @@ static void draw_graphics_char(char character)
 
 void vga_init(const struct boot_info *boot_info)
 {
+    const struct pci_device *device;
+
     graphics_active = 0;
     if (boot_info == 0 ||
         (boot_info->video_flags & BOOT_VIDEO_FONT_AVAILABLE) == 0U ||
@@ -222,12 +238,20 @@ void vga_init(const struct boot_info *boot_info)
         return;
     }
 
+    device = find_bga_device();
+    if (device == 0) {
+        return;
+    }
+
     font_data = (volatile uint8_t *)boot_info->vga_font_address;
-    outl(PCI_CONFIG_ADDRESS_PORT, VGA_PCI_CONFIG_BAR0);
+    outl(PCI_CONFIG_ADDRESS_PORT, pci_config_address(device, 0x10U));
     outl(PCI_CONFIG_DATA_PORT, VBE_FRAMEBUFFER_VIRTUAL);
-    outl(PCI_CONFIG_ADDRESS_PORT, VGA_PCI_CONFIG_COMMAND);
+    outl(PCI_CONFIG_ADDRESS_PORT, pci_config_address(device, 0x04U));
     outw(PCI_CONFIG_DATA_PORT, VGA_PCI_COMMAND_IO_AND_MEMORY);
     bga_write(BGA_ID, BGA_ID4);
+    if (bga_read(BGA_ID) != BGA_ID4) {
+        return;
+    }
     bga_write(BGA_ENABLE, 0);
     bga_write(BGA_XRES, GRAPHICS_WIDTH);
     bga_write(BGA_YRES, GRAPHICS_HEIGHT);

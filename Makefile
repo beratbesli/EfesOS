@@ -82,7 +82,7 @@ $(LANGUAGE_OBJ): kernel/language.c include/language.h | $(BUILD_DIR)
 $(SPLASH_OBJ): kernel/splash.c kernel/splash.h shell/shell.h include/vga.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Ikernel -Ishell -c $< -o $@
 
-$(VGA_OBJ): drivers/vga.c include/boot_info.h include/vga.h | $(BUILD_DIR)
+$(VGA_OBJ): drivers/vga.c include/boot_info.h include/vga.h include/pci.h cpu/io.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
 $(SERIAL_OBJ): drivers/serial.c include/serial.h cpu/io.h | $(BUILD_DIR)
