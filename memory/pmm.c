@@ -130,7 +130,7 @@ int pmm_init(const struct boot_info *boot_info)
     pmm_u32_t kernel_start = (pmm_u32_t)&__kernel_start;
     pmm_u32_t kernel_end = (pmm_u32_t)&__kernel_end;
 
-    if (!boot_info_is_valid(boot_info)) {
+    if (!boot_info_is_valid(boot_info) || kernel_end <= kernel_start) {
         return 0;
     }
 
