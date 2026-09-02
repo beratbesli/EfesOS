@@ -42,6 +42,10 @@ if (!$SkipBuild) {
 if (!(Test-Path -LiteralPath $imagePath)) {
     throw "Disk imaji bulunamadi: $imagePath"
 }
+& (Join-Path $PSScriptRoot 'sha256-self-test.ps1') -KernelPath (Join-Path $buildDirectory 'kernel.bin')
+if (!$?) {
+    throw 'SHA-256 self-test basarisiz oldu.'
+}
 if ($TestPersistentFormat) {
     & (Join-Path $PSScriptRoot 'create-test-disk.ps1') -OutputPath $testDiskPath -BlankJournal
 } else {

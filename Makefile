@@ -16,7 +16,7 @@ CFLAGS := -m32 -std=c11 -ffreestanding -fno-builtin -fno-pic -fno-pie -fno-stack
 CFLAGS += $(CROSS_CFLAGS)
 
 BUILD_DIR := build
-STAGE2_SECTORS ?= 8
+STAGE2_SECTORS ?= 12
 STAGE2_BYTES := $(shell expr $(STAGE2_SECTORS) \* 512)
 KERNEL_MAX_BYTES := 524288
 FLOPPY_BYTES := 1474560
@@ -58,7 +58,7 @@ KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 KERNEL_BIN := $(BUILD_DIR)/kernel.bin
 IMAGE := $(BUILD_DIR)/efesos.img
 
-.PHONY: all run clean verify
+.PHONY: all run clean verify sha256-self-test
 
 all: $(IMAGE)
 
@@ -172,8 +172,8 @@ $(KERNEL_BIN): $(KERNEL_ELF)
 $(BOOT_BIN): boot/boot.asm | $(BUILD_DIR)
 	$(NASM) -w+error -D STAGE2_SECTORS=$(STAGE2_SECTORS) -f bin $< -o $@
 
-$(STAGE2_BIN): boot/stage2.asm $(KERNEL_BIN) | $(BUILD_DIR)
-	sectors=$$(($$(wc -c < $(KERNEL_BIN)) / 512)); checksum=$$($(PYTHON) scripts/crc32.py $(KERNEL_BIN)); $(NASM) -w+error -D STAGE2_SECTORS=$(STAGE2_SECTORS) -D KERNEL_SECTORS=$$sectors -D KERNEL_CHECKSUM=$$checksum -f bin $< -o $@
+$(STAGE2_BIN): boot/stage2.asm $(KERNEL_BIN) scripts/sha256_words.py | $(BUILD_DIR)
+	sectors=$$(($$(wc -c < $(KERNEL_BIN)) / 512)); set -- $$($(PYTHON) scripts/sha256_words.py $(KERNEL_BIN)); $(NASM) -w+error -D STAGE2_SECTORS=$(STAGE2_SECTORS) -D KERNEL_SECTORS=$$sectors -D KERNEL_SHA256_0=$$1 -D KERNEL_SHA256_1=$$2 -D KERNEL_SHA256_2=$$3 -D KERNEL_SHA256_3=$$4 -D KERNEL_SHA256_4=$$5 -D KERNEL_SHA256_5=$$6 -D KERNEL_SHA256_6=$$7 -D KERNEL_SHA256_7=$$8 -f bin $< -o $@
 
 $(IMAGE): $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN)
 	truncate -s $(FLOPPY_BYTES) $(IMAGE)
@@ -189,6 +189,9 @@ verify: $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN) $(IMAGE)
 	test $$(($$(wc -c < $(KERNEL_BIN)) % 512)) -eq 0
 	test $$(wc -c < $(IMAGE)) -eq $(FLOPPY_BYTES)
 	test "$$(od -An -tx1 -j510 -N2 $(BOOT_BIN) | tr -d ' \\n')" = "55aa"
+
+sha256-self-test: $(KERNEL_BIN)
+	$(PYTHON) scripts/sha256_self_test.py $(KERNEL_BIN)
 
 run: $(IMAGE)
 	$(QEMU) -vga std -drive file=$(IMAGE),format=raw,if=floppy -boot a -no-reboot -no-shutdown

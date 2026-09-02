@@ -229,7 +229,7 @@ void kernel_main(const struct boot_info *boot_info)
     if (!boot_info_is_valid(boot_info)) {
         kernel_panic("Invalid or missing BIOS E820 boot information.");
     }
-    if ((boot_info->video_flags & BOOT_KERNEL_CHECKSUM_VERIFIED) == 0U) {
+    if ((boot_info->video_flags & BOOT_KERNEL_INTEGRITY_VERIFIED) == 0U) {
         kernel_panic("Kernel integrity check was not verified by stage-2.");
     }
 

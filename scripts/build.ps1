@@ -83,7 +83,7 @@ $kernelElf = Join-Path $buildDirectory 'kernel.elf'
 $kernelBinary = Join-Path $buildDirectory 'kernel.bin'
 $imagePath = Join-Path $buildDirectory 'efesos.img'
 $floppySize = 1440 * 1024
-$stage2Sectors = 8
+$stage2Sectors = 12
 $stage2Size = $stage2Sectors * 512
 $kernelLoadLimit = 512 * 1024
 
@@ -262,27 +262,35 @@ if ((1 + $stage2Sectors + $kernelSectors) * 512 -gt $floppySize) {
 [System.Array]::Copy($kernelRawBytes, $kernelBytes, $kernelRawBytes.Length)
 [System.IO.File]::WriteAllBytes($kernelBinary, $kernelBytes)
 
-function Get-Crc32 {
+function Get-Sha256Words {
     param([Parameter(Mandatory = $true)][byte[]]$Bytes)
 
-    [uint32]$crc = [uint32]4294967295
-    foreach ($byte in $Bytes) {
-        $crc = [uint32]($crc -bxor [uint32]$byte)
-        for ($bit = 0; $bit -lt 8; $bit++) {
-            if (($crc -band [uint32]1) -ne [uint32]0) {
-                $crc = [uint32](($crc -shr 1) -bxor [uint32]3988292384)
-            } else {
-                $crc = [uint32]($crc -shr 1)
-            }
-        }
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        [byte[]]$digest = $sha256.ComputeHash($Bytes)
+    } finally {
+        $sha256.Dispose()
     }
-    return [uint32]($crc -bxor [uint32]4294967295)
+    [uint32[]]$words = New-Object uint32[] 8
+    for ($index = 0; $index -lt 8; $index++) {
+        $offset = $index * 4
+        $words[$index] = [uint32](
+            ([uint32]$digest[$offset] -shl 24) -bor
+            ([uint32]$digest[$offset + 1] -shl 16) -bor
+            ([uint32]$digest[$offset + 2] -shl 8) -bor
+            [uint32]$digest[$offset + 3])
+    }
+    return $words
 }
-[uint32]$kernelChecksum = Get-Crc32 $kernelBytes
-$kernelChecksumLiteral = '0x{0:X8}' -f [uint32]$kernelChecksum
+[uint32[]]$kernelSha256Words = Get-Sha256Words $kernelBytes
 
 Invoke-Tool -Path $nasm -Arguments @('-w+error', '-D', "STAGE2_SECTORS=$stage2Sectors", '-f', 'bin', $bootSource, '-o', $bootBinary) -FailureMessage 'Stage-1 bootloader derlenemedi.'
-Invoke-Tool -Path $nasm -Arguments @('-w+error', '-D', "STAGE2_SECTORS=$stage2Sectors", '-D', "KERNEL_SECTORS=$kernelSectors", '-D', "KERNEL_CHECKSUM=$kernelChecksumLiteral", '-f', 'bin', $stage2Source, '-o', $stage2Binary) -FailureMessage 'Stage-2 bootloader derlenemedi.'
+$stage2Arguments = @('-w+error', '-D', "STAGE2_SECTORS=$stage2Sectors", '-D', "KERNEL_SECTORS=$kernelSectors")
+for ($index = 0; $index -lt 8; $index++) {
+    $stage2Arguments += @('-D', "KERNEL_SHA256_$index=0x{0:X8}" -f $kernelSha256Words[$index])
+}
+$stage2Arguments += @('-f', 'bin', $stage2Source, '-o', $stage2Binary)
+Invoke-Tool -Path $nasm -Arguments $stage2Arguments -FailureMessage 'Stage-2 bootloader derlenemedi.'
 
 Assert-FileSize -Path $bootBinary -ExpectedBytes 512
 Assert-FileSize -Path $stage2Binary -ExpectedBytes $stage2Size

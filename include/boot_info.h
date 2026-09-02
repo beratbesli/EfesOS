@@ -8,7 +8,9 @@ typedef unsigned int boot_u32_t;
 #define BOOT_INFO_MAX_MEMORY_MAP_ENTRIES 32U
 #define BOOT_MEMORY_AVAILABLE 1U
 #define BOOT_VIDEO_FONT_AVAILABLE 1U
-#define BOOT_KERNEL_CHECKSUM_VERIFIED 2U
+#define BOOT_KERNEL_INTEGRITY_VERIFIED 2U
+/* Compatibility name for older callers; stage-2 now uses SHA-256. */
+#define BOOT_KERNEL_CHECKSUM_VERIFIED BOOT_KERNEL_INTEGRITY_VERIFIED
 
 struct boot_memory_map_entry {
     boot_u32_t base_low;

@@ -34,7 +34,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Yeni kullanıcı süreçleri on altı bounded stack bölgesinden birini kullanır; tek bir sabit kullanıcı stack adresine bağımlılık azaltılır
 - 16 mesaj/64 bayt sınırları, generation-PID hedefleme, scheduler uyandırma ve usercopy doğrulaması olan IPC syscall’leri (`IPC_SEND`, `IPC_RECEIVE`, `IPC_SEND_TO`, `IPC_RECEIVE_WAIT`, `EXIT`)
 - Slot yeniden kullanımında stale kimlikleri önleyen generation tabanlı `GET_PID` syscall’i
-- Protected mode’a geçmeden önce stage-2 CRC-32 kernel bütünlük doğrulaması (bütünlük, kimlik doğrulama değil)
+- Protected mode’a geçmeden önce stage-2 SHA-256 kernel bütünlük doğrulaması (bütünlük, kimlik doğrulama değil)
 - Kaynak temizlemeli ve scheduler slot yeniden kullanımlı bounded kullanıcı `EXIT` yaşam döngüsü
 - 32-bit adres alanını kapsayan E820 tabanlı fiziksel bellek yöneticisi
 - Null-page koruması, salt-okunur kernel kod/verisi, dinamik sayfa eşleme ve korumalı kernel heap'i
@@ -47,11 +47,13 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - NASM
 - `i686-elf-gcc`, `i686-elf-ld`, `i686-elf-objcopy` veya LLVM (`clang`, `ld.lld`, `llvm-objcopy`)
 - QEMU (`qemu-system-i386`)
-- Python 3 (Linux `make` derlemesinde kernel CRC-32 üretimi için)
+- Python 3 (Linux `make` derlemesinde kernel SHA-256 kelimelerini üretmek için)
 
 Windows derleme betiği varsa GNU cross-toolchain'i, yoksa Clang'in `i686-none-elf` hedefini kullanır. Araçları güvenilir bir kaynaktan edin ve kurmadan önce checksum doğrulaması yap. EfesOS derleyici ikililerini indirmez veya depoda barındırmaz.
 
 Tedarik zinciri güvenliği için derleme betiği depo içindeki `tools` dizinini varsayılan olarak taramaz. Doğrulanmış ikilileri bilerek buraya koyduysanız `-AllowLocalTools` ile açıkça izin verin ve önce hash değerlerini kontrol edin.
+
+Host bütünlük regresyonunu (tek bayt bozulma negatif testi dahil) derlemeden sonra `make sha256-self-test` komutuyla çalıştırabilirsin.
 
 ## Windows'ta derleme ve çalıştırma
 
