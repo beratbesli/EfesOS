@@ -91,6 +91,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\create-test-disk.p
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DiskImage .\build\test-disk.img
 ```
 
+Exercise the interactive shell-to-ring-3 disk ELF path as well:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1
+```
+
 ## Shell commands
 
 | Command | Description |
@@ -117,7 +123,7 @@ include/    Shared headers
 kernel/     Entry point, GDT, splash and linker script
 memory/     Physical/virtual memory managers and guarded kernel heap
 process/    Scheduler and demo tasks
-scripts/    Windows build and QEMU smoke-test helpers
+scripts/    Windows build, QEMU smoke-test and disk ELF launch helpers
 shell/      Command shell
 ```
 

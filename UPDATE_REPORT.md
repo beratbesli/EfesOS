@@ -17,6 +17,7 @@
 - Sekize kadar bounded ring-3 süreç ayrı adres alanlarında çalışabiliyor; ilk dört demo süreç fault temizliği ve task generation kimliğiyle QEMU isolation marker’ı üzerinden doğrulanıyor.
 - Genel amaçlı kernel-only `user_process_spawn` yolu eklendi; bounded ELF imaj boyutu, otomatik stack bölgesi, address-space sahipliği ve cleanup akışı ortaklaştırıldı.
 - Shell’e `run NAME` eklendi; salt-okunur FAT’tan alınan dosya yalnızca bounded ELF doğrulamasından geçerse ring-3 süreci olarak başlatılıyor ve mevcut ownership/cleanup zincirini kullanıyor.
+- Deterministik FAT16 fixture artık geçerli bir `RUN.ELF` içeriyor; QEMU monitor ile `run RUN.ELF` komutu gönderilerek FAT okuma → ELF doğrulama/yükleme → ring-3 `WRITE`/`EXIT` zinciri uçtan uca doğrulanıyor.
 - Scheduler kullanıcı görev kayıtları kernel CR3 bağlamını ve sayfa hizalı kullanıcı stack üstünü zorunlu kılıyor; hatalı iç API çağrıları fail-closed reddediliyor.
 - Seri tanılama çıktısı kritik bölümlerde atomikleştirildi; preemption sırasında log satırlarının bölünmesi engellendi.
 - Paging API’si kullanıcı bayrağını korunan taban adresin altında reddediyor; bu kural VMM self-test’iyle doğrulanıyor.
@@ -84,6 +85,7 @@
 - QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 35 kritik boot/runtime işaretçisi doğrulanıyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
 - Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT uçtan uca testi başarılı; mount, kök dizin ve dosya okuması dahil 36 işaretçi doğrulanıyor.
+- `scripts/run-self-test.ps1` ile etkileşimli `run RUN.ELF` yolu QEMU’da başarılı; diskten yüklenen programın seri çıktısı doğrulandı.
 - Değişiklikler `codex/core-hardening` dalında checkpoint commit’leriyle kaydedildi.
 
 ## Bilinen sınırlar
@@ -92,10 +94,9 @@ ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışın
 
 ## Öncelikli sonraki geliştirmeler
 
-1. **Kullanıcı süreçleri (P0):** Genel süreç oluşturma/çıkış API’sini diskten ELF çalıştırma ile genişlet; süreç sahipliği, copy-on-write/ASLR seçeneklerini ve veri taşıyan her yeni syscall için kullanıcı aralığı doğrulamasını sürdür.
-2. **Depolama (P1):** ATA sürücüsünü IRQ/DMA ve gerçek donanım matrisiyle doğrula; yazmayı ancak hata kurtarma, journaling ve FAT bütünlük kontrollerinden sonra aç.
-3. **Donanım kapsamı (P2):** PCI BAR ayrıştırma, blok aygıt soyutlaması, USB/HID, ağ ve zamanlayıcı sürücülerini ekle; her biri için QEMU/host fixture testi yaz.
-4. **Güvenlik (P2):** imzalı boot zinciri, kimlik doğrulama, ASLR, modül imzalama ve SMP kilitlemesini tasarla.
-5. **Test kapsamı (P2):** ELF/FAT/boot fixture’larını property/fuzz testleriyle genişlet; gerçek donanım matrisi için sürekli regresyon kayıtları tut.
+1. **Depolama (P1):** ATA sürücüsünü IRQ/DMA ve gerçek donanım matrisiyle doğrula; yazmayı ancak hata kurtarma, journaling ve FAT bütünlük kontrollerinden sonra aç.
+2. **Donanım kapsamı (P2):** PCI BAR ayrıştırma, blok aygıt soyutlaması, USB/HID, ağ ve zamanlayıcı sürücülerini ekle; her biri için QEMU/host fixture testi yaz.
+3. **Güvenlik (P2):** imzalı boot zinciri, kimlik doğrulama, ASLR, modül imzalama ve SMP kilitlemesini tasarla.
+4. **Test kapsamı (P2):** ELF/FAT/boot fixture’larını property/fuzz testleriyle genişlet; gerçek donanım matrisi için sürekli regresyon kayıtları tut.
 
 GitHub’a otomatik push yapılmadı; `origin/main` değiştirilmedi.

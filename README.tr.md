@@ -91,6 +91,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\create-test-disk.p
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DiskImage .\build\test-disk.img
 ```
 
+Etkileşimli shell → ring-3 disk ELF yolunu da sınamak için:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1
+```
+
 ## Shell komutları
 
 | Komut | Açıklama |
@@ -117,7 +123,7 @@ include/    Paylaşılan başlık dosyaları
 kernel/     Giriş noktası, GDT, splash ve linker betiği
 memory/     Fiziksel/sanal bellek yöneticileri ve korumalı kernel heap'i
 process/    Scheduler ve demo görevleri
-scripts/    Windows derleme ve QEMU smoke-test yardımcıları
+scripts/    Windows derleme, QEMU smoke-test ve disk ELF başlatma yardımcıları
 shell/      Komut satırı shell'i
 ```
 
