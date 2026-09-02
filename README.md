@@ -12,6 +12,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 
 - Retried two-stage BIOS bootloader with A20 verification and a 1.44 MiB floppy image
 - BIOS E820 memory map handoff and deterministic `.bss` initialization
+- Early CPUID capability probe reports PAE/NX/TSC support (reporting only; paging remains non-PAE)
 - 32-bit protected mode, GDT, vector-aware IDT, PIC, PIT and buffered hardware keyboard input
 - Preemptive kernel-thread scheduler with guarded per-task stacks and timer-driven context switching
 - Bounded priority time slices with explicit voluntary-yield handling

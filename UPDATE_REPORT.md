@@ -3,6 +3,7 @@
 ## Tamamlananlar
 
 - BIOS boot zinciri, A20 doğrulaması, E820 bellek haritası, deterministik `.bss` ve seri tanılama sertleştirildi.
+- Erken boot aşamasında CPUID yetenek yoklaması eklendi; PAE, NX ve TSC durumu seri tanıda raporlanıyor. Bu yalnızca capability bilgisidir, mevcut non-PAE sayfalama modu henüz değiştirilmedi.
 - E820 tabanlı PMM, null-page koruması, salt-okunur kernel sayfaları, dinamik VMM ve canary/guard-page heap eklendi.
 - Vektör duyarlı IDT/PIC/PIT, kuyruklu klavye sürücüsü ve IRQ dışında çalışan olay döngüsü eklendi.
 - Koruma sayfalı preemptive kernel-thread scheduler ve TSS tabanlı gerçek ring-3 geçişi eklendi.

@@ -12,6 +12,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 
 - A20 doğrulamalı, yeniden deneyen iki aşamalı BIOS bootloader ve 1.44 MiB floppy imajı
 - BIOS E820 bellek haritası aktarımı ve deterministik `.bss` başlangıcı
+- Erken CPUID yetenek yoklaması PAE/NX/TSC desteğini raporlar (yalnızca raporlama; sayfalama non-PAE kalır)
 - 32-bit protected mode, GDT, vektör duyarlı IDT, PIC, PIT ve tamponlanmış donanım klavye girişi
 - Koruma sayfalı görev yığınları ve PIT tabanlı bağlam değişimi olan öncelikli kernel-thread scheduler
 - Açık `yield` desteğiyle sınırlı öncelik zaman dilimleri

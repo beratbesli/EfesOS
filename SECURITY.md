@@ -34,6 +34,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - ELF validation also requires the canonical 32-bit header size and rejects virtual addresses at or above the user ceiling before unsigned range arithmetic, preventing high-address wraparound during loading.
 - ELF segment page accounting rejects requests exceeding the bounded 1024-page image budget before subtraction, preventing unsigned-capacity wraparound and avoidable allocator exhaustion.
 - ELF executable pages carry a software execute bit, and scheduler plus syscall boundaries reject a ring-3 EIP that is not on a user executable page; user stacks also receive bounded per-boot layout diversification. These are defense-in-depth only: hardware NX and full ASLR remain unavailable in non-PAE mode.
+- Early boot probes CPUID and reports PAE, NX and TSC availability, but the current page-table format intentionally remains non-PAE; capability reporting must not be mistaken for hardware-enforced NX.
 - Ring-3 syscall returns are constrained to the known user code/data selectors, safe EFLAGS bits, a user SS, and a writable user stack pointer; malformed transition frames are isolated as user faults before dispatch.
 - Scheduler-owned kernel stacks have a guarded page, expanded bounded capacity, and a low-water canary checked before scheduling and reclamation; corruption fails closed instead of silently reusing a damaged stack.
 - The paging API enforces W^X for every mapping and protection operation, rejecting writable+executable combinations before they reach a page table.
@@ -77,6 +78,6 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - All 256 IDT vectors now have a kernel stub; unexpected high vectors reach the common fail-closed dispatcher instead of an empty descriptor/triple fault, while only `int 0x80` is user-callable.
 - The breakpoint self-test is accepted only from ring 0; a ring-3 `int3` now follows the isolated user-fault cleanup path instead of continuing as a privileged diagnostic.
 
-This remains a learning kernel. It has no authentication, secure boot, signed modules, full ASLR, SMP isolation, hardware-enforced NX (the current 32-bit non-PAE paging mode has no NX bit), comprehensive validation for every future syscall ABI, or a fully validated persistent filesystem. Do not treat it as a production security boundary until those items are implemented and audited.
+This remains a learning kernel. It has no authentication, secure boot, signed modules, full ASLR, SMP isolation, hardware-enforced NX (the current 32-bit non-PAE paging mode has no NX bit), comprehensive validation for every future syscall ABI, or a fully validated persistent filesystem. CPUID capability reporting does not change those limits. Do not treat it as a production security boundary until those items are implemented and audited.
 
 Every pull request should pass the LLVM/GCC build, deterministic FAT host test and QEMU ring-3 fault-isolation smoke test defined in `.github/workflows/ci.yml`.

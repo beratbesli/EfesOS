@@ -1,4 +1,5 @@
 #include "boot_info.h"
+#include "features.h"
 #include "ata.h"
 #include "idt.h"
 #include "games.h"
@@ -209,6 +210,20 @@ void kernel_main(const struct boot_info *boot_info)
 {
     serial_init();
     serial_write("EfesOS: kernel entry reached.\n");
+    cpu_features_init();
+    {
+        const struct cpu_features *features = cpu_features_get();
+
+        serial_write("EfesOS: CPU features cpuid=");
+        serial_write_hex(features->cpuid);
+        serial_write(" pae=");
+        serial_write_hex(features->pae);
+        serial_write(" nx=");
+        serial_write_hex(features->nx);
+        serial_write(" tsc=");
+        serial_write_hex(features->tsc);
+        serial_write(" (reported; PAE/NX paging is not enabled).\n");
+    }
     tss_init();
 
     if (!boot_info_is_valid(boot_info)) {

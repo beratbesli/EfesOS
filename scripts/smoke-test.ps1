@@ -15,6 +15,7 @@ $serialLog = Join-Path $buildDirectory 'smoke-serial.log'
 $qemuErrorLog = Join-Path $buildDirectory 'smoke-qemu-error.log'
 $successMarkers = @(
     'EfesOS: kernel entry reached.',
+    'EfesOS: CPU features cpuid=',
     'EfesOS: BIOS E820 entries available.',
     'EfesOS: stage-2 kernel integrity check passed.',
     'EfesOS: PCI devices discovered=',
