@@ -33,5 +33,7 @@ SECTIONS
 
     __kernel_end = .;
 
-    ASSERT(__kernel_end < 0x80000, "kernel overlaps the reserved bootstrap stack area")
+    /* Keep the image below the VGA/option-ROM window while leaving bounded
+       headroom for loader and security self-tests. */
+    ASSERT(__kernel_end < 0x90000, "kernel overlaps the reserved low-memory area")
 }

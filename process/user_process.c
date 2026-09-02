@@ -6,7 +6,6 @@
 #include "panic.h"
 #include "user_process.h"
 
-#define USER_CODE_ADDRESS 0x00400000U
 #define USER_STACK_REGION_BASE 0x00800000U
 #define USER_STACK_REGION_STRIDE 0x00100000U
 #define USER_STACK_REGION_COUNT 16U
@@ -231,17 +230,19 @@ static int user_process_init_locked(void)
     image[4] = 1;
     image[5] = 1;
     image[6] = 1;
-    set_u16(image, 16U, 2U);
+    /* ET_DYN keeps the demo position-independent so the loader can diversify
+       its image base without rewriting absolute relocations. */
+    set_u16(image, 16U, 3U);
     set_u16(image, 18U, 3U);
     set_u32(image, 20U, 1U);
-    set_u32(image, 24U, USER_CODE_ADDRESS);
+    set_u32(image, 24U, 0U);
     set_u32(image, 28U, 52U);
     set_u16(image, 40U, 52U);
     set_u16(image, 42U, 32U);
     set_u16(image, 44U, 1U);
     set_u32(image, 52U, 1U);
     set_u32(image, 56U, 116U);
-    set_u32(image, 60U, USER_CODE_ADDRESS);
+    set_u32(image, 60U, 0U);
     set_u32(image, 68U, code_size);
     set_u32(image, 72U, PAGE_SIZE);
     set_u32(image, 76U, 1U);

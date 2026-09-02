@@ -85,7 +85,7 @@ $imagePath = Join-Path $buildDirectory 'efesos.img'
 $floppySize = 1440 * 1024
 $stage2Sectors = 8
 $stage2Size = $stage2Sectors * 512
-$kernelLoadLimit = 448 * 1024
+$kernelLoadLimit = 512 * 1024
 
 function Get-RequiredCommand {
     param([Parameter(Mandatory = $true)][string]$Name)

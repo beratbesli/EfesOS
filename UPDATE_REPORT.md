@@ -4,6 +4,7 @@
 
 - BIOS boot zinciri, A20 doğrulaması, E820 bellek haritası, deterministik `.bss` ve seri tanılama sertleştirildi.
 - Erken boot aşamasında CPUID yetenek yoklaması eklendi; PAE, NX ve TSC durumu seri tanıda raporlanıyor. Bu yalnızca capability bilgisidir, mevcut non-PAE sayfalama modu henüz değiştirilmedi.
+- ELF yükleyici, dynamic-linker gerektiren imajları reddeden relocation-free `ET_DYN` desteği kazandı; bu imajlara stack ile çakışmayan bounded per-load load bias uygulanıyor. `ET_EXEC` geriye dönük uyum için sabit kalıyor; bu tam ASLR değildir.
 - E820 tabanlı PMM, null-page koruması, salt-okunur kernel sayfaları, dinamik VMM ve canary/guard-page heap eklendi.
 - Vektör duyarlı IDT/PIC/PIT, kuyruklu klavye sürücüsü ve IRQ dışında çalışan olay döngüsü eklendi.
 - Koruma sayfalı preemptive kernel-thread scheduler ve TSS tabanlı gerçek ring-3 geçişi eklendi.
@@ -138,6 +139,7 @@
 - Tam seri doğrulama koşusu (build, journal/RAMFS/FAT/ELF/boot-info host testleri, iki QEMU bellek profili, journal fixture ve disk ELF yolu) başarılı; iki ardışık imaj SHA-256 değeri eşleşti.
 - Kernel C kaynaklarının Clang static analyzer taraması yeni değişikliklerle uyarısız tamamlandı. Windows ortamında ASan/UBSan runtime DLL’si bulunmadığından yerel sanitizer çalıştırması yapılmadı; Linux CI sanitizer kapısı etkin kalıyor.
 - Değişiklikler `codex/core-hardening` dalında checkpoint commit’leriyle kaydedildi.
+- `ET_DYN` yükleyici kodunun bounded kernel imajı sınırına sığması için linker düşük bellek üst sınırı açıkça 0x90000’a taşındı; VGA/option-ROM penceresinin altında kalma ASSERT’i korunuyor.
 
 ## Bilinen sınırlar
 

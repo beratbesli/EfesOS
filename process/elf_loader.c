@@ -24,7 +24,9 @@
 #define ELF_PT_FLAGS_OFFSET 24U
 #define ELF_PT_ALIGN_OFFSET 28U
 #define ELF_PT_LOAD 1U
+#define ELF_PT_DYNAMIC 2U
 #define ELF_ET_EXEC 2U
+#define ELF_ET_DYN 3U
 #define ELF_EM_386 3U
 #define ELF_CLASS_32 1U
 #define ELF_DATA_LSB 1U
@@ -35,6 +37,8 @@
 #define USER_MAX_ADDRESS 0x40000000U
 #define USER_STACK_RESERVED_BASE 0x00800000U
 #define USER_STACK_RESERVED_END 0x01800000U
+#define USER_DYN_BASE_MIN 0x02000000U
+#define USER_DYN_BASE_MAX 0x30000000U
 #define ELF_MAX_PROGRAM_HEADERS 32U
 #define ELF_MAX_IMAGE_PAGES 1024U
 #define ELF_PAGE_MASK (~(PAGE_SIZE - 1U))
@@ -74,6 +78,83 @@ static unsigned char *virtual_pointer(unsigned int address)
     return (unsigned char *)(uintptr_t)address;
 }
 
+/* A load bias is layout diversification, not an authentication primitive.
+   The weak PIT hook is present in the kernel but absent from host parser tests;
+   the address/counter fallback still keeps the allocator deterministic there. */
+extern unsigned int pit_ticks(void) __attribute__((weak));
+static unsigned int load_bias_random_state;
+
+static unsigned int next_load_bias_random(void)
+{
+    if (load_bias_random_state == 0U) {
+        load_bias_random_state = (unsigned int)(uintptr_t)&load_bias_random_state ^
+            0x7E31A5C9U;
+        if (pit_ticks != 0) {
+            load_bias_random_state ^= pit_ticks();
+        }
+        if (load_bias_random_state == 0U) {
+            load_bias_random_state = 1U;
+        }
+    }
+    load_bias_random_state ^= load_bias_random_state << 13U;
+    load_bias_random_state ^= load_bias_random_state >> 17U;
+    load_bias_random_state ^= load_bias_random_state << 5U;
+    return load_bias_random_state;
+}
+
+static int image_type_is_supported(unsigned short type)
+{
+    return type == ELF_ET_EXEC || type == ELF_ET_DYN;
+}
+
+static int dyn_bias_range(unsigned int image_min, unsigned int image_end,
+    unsigned int *load_bias)
+{
+    unsigned int span;
+    unsigned int slots;
+    unsigned int attempt;
+
+    if (load_bias == 0 || image_min > image_end || image_end > USER_MAX_ADDRESS ||
+        image_min != (image_min & ELF_PAGE_MASK) ||
+        image_end != (image_end & ELF_PAGE_MASK) || image_end == image_min) {
+        return 0;
+    }
+    span = image_end - image_min;
+    if (span > ELF_MAX_IMAGE_PAGES * PAGE_SIZE ||
+        span > USER_DYN_BASE_MAX - USER_DYN_BASE_MIN ||
+        image_min > USER_MAX_ADDRESS - USER_DYN_BASE_MIN ||
+        image_end > USER_MAX_ADDRESS - USER_DYN_BASE_MIN) {
+        return 0;
+    }
+    slots = (USER_DYN_BASE_MAX - USER_DYN_BASE_MIN) / PAGE_SIZE;
+    for (attempt = 0U; attempt < 32U; attempt++) {
+        unsigned int candidate = USER_DYN_BASE_MIN +
+            ((next_load_bias_random() % slots) * PAGE_SIZE);
+        unsigned int start;
+        unsigned int end;
+        unsigned int page;
+
+        if (candidate < image_min || candidate > USER_MAX_ADDRESS - image_end) {
+            continue;
+        }
+        start = candidate + image_min;
+        end = candidate + image_end;
+        if (overlaps_reserved_stack(start, end - start)) {
+            continue;
+        }
+        for (page = start; page < end; page += PAGE_SIZE) {
+            if (paging_is_mapped(page)) {
+                break;
+            }
+        }
+        if (page == end) {
+            *load_bias = candidate;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int elf_validate_image(const void *image, unsigned int size, unsigned int *entry)
 {
     const unsigned char *data = (const unsigned char *)image;
@@ -83,18 +164,20 @@ int elf_validate_image(const void *image, unsigned int size, unsigned int *entry
     unsigned int load_segments = 0;
     unsigned int load_pages = 0;
     unsigned int image_entry;
+    unsigned short image_type;
     int entry_executable = 0;
 
     if (data == 0 || size < ELF32_HEADER_SIZE || data[ELF_IDENT_OFFSET] != 0x7FU ||
         data[1] != 'E' || data[2] != 'L' || data[3] != 'F' || data[4] != ELF_CLASS_32 ||
         data[5] != ELF_DATA_LSB || data[6] != ELF_VERSION_CURRENT ||
-        read_u16(data, ELF_TYPE_OFFSET) != ELF_ET_EXEC ||
+        !image_type_is_supported(read_u16(data, ELF_TYPE_OFFSET)) ||
         read_u16(data, ELF_MACHINE_OFFSET) != ELF_EM_386 ||
         read_u32(data, ELF_VERSION_OFFSET) != ELF_VERSION_CURRENT ||
         read_u16(data, ELF_EHSIZE_OFFSET) != ELF32_HEADER_SIZE ||
         read_u16(data, ELF_PHENTSIZE_OFFSET) != ELF32_PROGRAM_HEADER_SIZE) {
         return 0;
     }
+    image_type = read_u16(data, ELF_TYPE_OFFSET);
     phoff = read_u32(data, ELF_PHOFF_OFFSET);
     phnum = read_u16(data, ELF_PHNUM_OFFSET);
     if (phnum == 0U || phnum > ELF_MAX_PROGRAM_HEADERS ||
@@ -119,6 +202,12 @@ int elf_validate_image(const void *image, unsigned int size, unsigned int *entry
         unsigned int page_end;
         unsigned int segment_pages;
 
+        if (image_type == ELF_ET_DYN && type == ELF_PT_DYNAMIC) {
+            /* The loader has no dynamic linker/relocation engine. Refuse
+               dynamic ET_DYN images instead of jumping through unresolved
+               absolute references after applying a load bias. */
+            return 0;
+        }
         if (type != ELF_PT_LOAD) {
             continue;
         }
@@ -129,9 +218,11 @@ int elf_validate_image(const void *image, unsigned int size, unsigned int *entry
         flags = read_u32(data, offset + ELF_PT_FLAGS_OFFSET);
         alignment = read_u32(data, offset + ELF_PT_ALIGN_OFFSET);
         if (memory_size < file_size || !range_is_inside(file_offset, file_size, size) ||
-            virtual_address < USER_MIN_ADDRESS || virtual_address >= USER_MAX_ADDRESS ||
+            (image_type == ELF_ET_EXEC &&
+             (virtual_address < USER_MIN_ADDRESS || virtual_address >= USER_MAX_ADDRESS)) ||
+            (image_type == ELF_ET_DYN && virtual_address >= USER_MAX_ADDRESS) ||
             memory_size > USER_MAX_ADDRESS - virtual_address ||
-            overlaps_reserved_stack(virtual_address, memory_size) ||
+            (image_type == ELF_ET_EXEC && overlaps_reserved_stack(virtual_address, memory_size)) ||
             ((flags & ELF_FLAG_WRITABLE) != 0U && (flags & ELF_FLAG_EXECUTABLE) != 0U) ||
             (alignment != 0U && alignment != 1U && alignment != 0x1000U) ||
             (flags & ~(ELF_FLAG_EXECUTABLE | ELF_FLAG_WRITABLE | 4U)) != 0U) {
@@ -143,7 +234,9 @@ int elf_validate_image(const void *image, unsigned int size, unsigned int *entry
         segment_end = virtual_address + memory_size;
         page_start = virtual_address & ELF_PAGE_MASK;
         page_end = (segment_end + PAGE_SIZE - 1U) & ELF_PAGE_MASK;
-        if (page_end < segment_end || page_start < USER_MIN_ADDRESS || page_end > USER_MAX_ADDRESS) {
+        if (page_end < segment_end ||
+            (image_type == ELF_ET_EXEC && page_start < USER_MIN_ADDRESS) ||
+            page_end > USER_MAX_ADDRESS) {
             return 0;
         }
         segment_pages = (page_end - page_start) / PAGE_SIZE;
@@ -180,6 +273,58 @@ static void release_pages(const unsigned int *pages, unsigned int count)
     }
 }
 
+static int image_bounds(const unsigned char *data, unsigned int phoff,
+    unsigned int phnum, unsigned short image_type, unsigned int *image_min,
+    unsigned int *image_end)
+{
+    unsigned int index;
+    unsigned int minimum = USER_MAX_ADDRESS;
+    unsigned int maximum = 0U;
+
+    for (index = 0U; index < phnum; index++) {
+        unsigned int offset = phoff + index * ELF32_PROGRAM_HEADER_SIZE;
+        unsigned int type = read_u32(data, offset + ELF_PT_TYPE_OFFSET);
+        unsigned int virtual_address;
+        unsigned int memory_size;
+        unsigned int end;
+        unsigned int page_start;
+        unsigned int page_end;
+
+        if (type != ELF_PT_LOAD) {
+            continue;
+        }
+        virtual_address = read_u32(data, offset + ELF_PT_VADDR_OFFSET);
+        memory_size = read_u32(data, offset + ELF_PT_MEMSZ_OFFSET);
+        if (memory_size == 0U) {
+            continue;
+        }
+        if (virtual_address >= USER_MAX_ADDRESS ||
+            memory_size > USER_MAX_ADDRESS - virtual_address) {
+            return 0;
+        }
+        end = virtual_address + memory_size;
+        page_start = virtual_address & ELF_PAGE_MASK;
+        page_end = (end + PAGE_SIZE - 1U) & ELF_PAGE_MASK;
+        if (page_end < end || page_end > USER_MAX_ADDRESS ||
+            (image_type == ELF_ET_EXEC && page_start < USER_MIN_ADDRESS)) {
+            return 0;
+        }
+        if (page_start < minimum) {
+            minimum = page_start;
+        }
+        if (page_end > maximum) {
+            maximum = page_end;
+        }
+    }
+    if (minimum == USER_MAX_ADDRESS || maximum <= minimum ||
+        image_min == 0 || image_end == 0) {
+        return 0;
+    }
+    *image_min = minimum;
+    *image_end = maximum;
+    return 1;
+}
+
 int elf_load_image(const void *image, unsigned int size, unsigned int *entry,
     unsigned int *loaded_base, unsigned int *loaded_end)
 {
@@ -190,14 +335,29 @@ int elf_load_image(const void *image, unsigned int size, unsigned int *entry,
     unsigned int phnum;
     unsigned int index;
     unsigned int image_entry;
+    unsigned short image_type;
+    unsigned int load_bias = 0U;
+    unsigned int relative_min;
+    unsigned int relative_end;
     unsigned int image_base = USER_MAX_ADDRESS;
     unsigned int image_end = USER_MIN_ADDRESS;
 
     if (!elf_validate_image(image, size, &image_entry)) {
         return 0;
     }
+    image_type = read_u16(data, ELF_TYPE_OFFSET);
     phoff = read_u32(data, ELF_PHOFF_OFFSET);
     phnum = read_u16(data, ELF_PHNUM_OFFSET);
+    if (!image_bounds(data, phoff, phnum, image_type, &relative_min, &relative_end)) {
+        return 0;
+    }
+    if (image_type == ELF_ET_DYN && !dyn_bias_range(relative_min, relative_end, &load_bias)) {
+        return 0;
+    }
+    if (image_type == ELF_ET_EXEC &&
+        (relative_min < USER_MIN_ADDRESS || relative_end > USER_MAX_ADDRESS)) {
+        return 0;
+    }
     for (index = 0; index < phnum; index++) {
         unsigned int offset = phoff + index * ELF32_PROGRAM_HEADER_SIZE;
         unsigned int type = read_u32(data, offset + ELF_PT_TYPE_OFFSET);
@@ -206,6 +366,7 @@ int elf_load_image(const void *image, unsigned int size, unsigned int *entry,
         unsigned int file_size;
         unsigned int memory_size;
         unsigned int flags;
+        unsigned int mapped_virtual_address;
         unsigned int segment_end;
         unsigned int page;
         unsigned int page_end;
@@ -221,10 +382,21 @@ int elf_load_image(const void *image, unsigned int size, unsigned int *entry,
         if (memory_size == 0U) {
             continue;
         }
-        segment_end = virtual_address + memory_size;
-        page = virtual_address & ELF_PAGE_MASK;
+        if (virtual_address > 0xFFFFFFFFU - load_bias) {
+            release_pages(mapped_pages, mapped_count);
+            return 0;
+        }
+        mapped_virtual_address = virtual_address + load_bias;
+        if (mapped_virtual_address >= USER_MAX_ADDRESS ||
+            memory_size > USER_MAX_ADDRESS - mapped_virtual_address) {
+            release_pages(mapped_pages, mapped_count);
+            return 0;
+        }
+        segment_end = mapped_virtual_address + memory_size;
+        page = mapped_virtual_address & ELF_PAGE_MASK;
         page_end = (segment_end + PAGE_SIZE - 1U) & ELF_PAGE_MASK;
-        if (page_end < segment_end || page < USER_MIN_ADDRESS || page_end > USER_MAX_ADDRESS) {
+        if (page_end < segment_end || page < USER_MIN_ADDRESS || page_end > USER_MAX_ADDRESS ||
+            overlaps_reserved_stack(mapped_virtual_address, memory_size)) {
             release_pages(mapped_pages, mapped_count);
             return 0;
         }
@@ -258,12 +430,12 @@ int elf_load_image(const void *image, unsigned int size, unsigned int *entry,
             }
         }
         for (page = 0; page < file_size; page++) {
-            virtual_pointer(virtual_address + page)[0] = data[file_offset + page];
+            virtual_pointer(mapped_virtual_address + page)[0] = data[file_offset + page];
         }
-        for (page = 0; page < (page_end - (virtual_address + file_size)); page++) {
-            virtual_pointer(virtual_address + file_size + page)[0] = 0;
+        for (page = 0; page < (page_end - (mapped_virtual_address + file_size)); page++) {
+            virtual_pointer(mapped_virtual_address + file_size + page)[0] = 0;
         }
-        for (page = virtual_address & ELF_PAGE_MASK; page < page_end; page += PAGE_SIZE) {
+        for (page = mapped_virtual_address & ELF_PAGE_MASK; page < page_end; page += PAGE_SIZE) {
             unsigned int page_flags = PAGE_FLAG_USER;
             if ((flags & ELF_FLAG_WRITABLE) != 0U) {
                 page_flags |= PAGE_FLAG_WRITABLE;
@@ -278,7 +450,11 @@ int elf_load_image(const void *image, unsigned int size, unsigned int *entry,
         }
     }
     if (entry != 0) {
-        *entry = image_entry;
+        if (image_entry > 0xFFFFFFFFU - load_bias) {
+            release_pages(mapped_pages, mapped_count);
+            return 0;
+        }
+        *entry = image_entry + load_bias;
     }
     if (loaded_base != 0) {
         *loaded_base = image_base;
@@ -366,6 +542,20 @@ int elf_loader_self_test(void)
     if (!elf_validate_image(image, sizeof(image), &entry) || entry != USER_MIN_ADDRESS) {
         return 0;
     }
+    set_u16(image, ELF_TYPE_OFFSET, ELF_ET_DYN);
+    set_u32(image, ELF_ENTRY_OFFSET, 0U);
+    set_u32(image, ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET, 0U);
+    if (!elf_validate_image(image, sizeof(image), &entry) || entry != 0U) {
+        return 0;
+    }
+    set_u32(image, ELF32_HEADER_SIZE + ELF_PT_TYPE_OFFSET, ELF_PT_DYNAMIC);
+    if (elf_validate_image(image, sizeof(image), 0)) {
+        return 0;
+    }
+    set_u32(image, ELF32_HEADER_SIZE + ELF_PT_TYPE_OFFSET, ELF_PT_LOAD);
+    set_u16(image, ELF_TYPE_OFFSET, ELF_ET_EXEC);
+    set_u32(image, ELF_ENTRY_OFFSET, USER_MIN_ADDRESS);
+    set_u32(image, ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET, USER_MIN_ADDRESS);
     set_u32(image, ELF32_HEADER_SIZE + ELF_PT_FLAGS_OFFSET, ELF_FLAG_EXECUTABLE | ELF_FLAG_WRITABLE);
     if (elf_validate_image(image, sizeof(image), 0)) {
         return 0;
@@ -531,6 +721,25 @@ int elf_loader_runtime_self_test(void)
     if (!image_loaded ||
         entry != 0x02000000U || loaded_base != 0x02000000U ||
         loaded_end != 0x02001000U || !paging_is_mapped(loaded_base) ||
+        !paging_validate_user_execute(entry)) {
+        goto cleanup;
+    }
+    loaded = virtual_pointer(entry);
+    if (loaded[0] != 0xC3 || loaded[1] != 0xEF || loaded[2] != 0x05 || loaded[3] != 0xA5 ||
+        loaded[4] != 0U || !elf_unload_image(loaded_base, loaded_end) ||
+        paging_is_mapped(loaded_base) || elf_unload_image(loaded_base, loaded_end)) {
+        image_loaded = 0;
+        goto cleanup;
+    }
+    /* The same position-independent payload must also load at a diversified
+       ET_DYN base and expose relocated entry/base bounds to the scheduler. */
+    set_u16(image, ELF_TYPE_OFFSET, ELF_ET_DYN);
+    set_u32(image, ELF_ENTRY_OFFSET, 0U);
+    set_u32(image, ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET, 0U);
+    image_loaded = elf_load_image(image, sizeof(image), &entry, &loaded_base, &loaded_end);
+    if (!image_loaded || entry < USER_DYN_BASE_MIN ||
+        loaded_base < USER_DYN_BASE_MIN || loaded_base >= loaded_end ||
+        entry < loaded_base || entry >= loaded_end || !paging_is_mapped(loaded_base) ||
         !paging_validate_user_execute(entry)) {
         goto cleanup;
     }
