@@ -21,6 +21,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Paging treats page tables shared with kernel mappings as immutable from private CR3s: map/protect/unmap operations are rejected, and address spaces are destroyed by physical-table identity, preventing flag-only PDE differences from exposing or freeing shared kernel tables.
 - The kernel page directory rejects all user-flagged map/protect operations, so a future internal call cannot create a user-visible kernel PDE that would be copied into new address spaces.
 - Each ring-3 task has a private page directory with shared kernel mappings; scheduler CR3 switches prevent user mappings from being shared between processes.
+- User-task registration rejects a CR3 already owned by another active user task, preventing accidental address-space reuse through the internal scheduler API.
 - Newly allocated user stack frames are zeroed before the task is runnable, preventing physical-page reuse from exposing prior process or kernel data.
 - Newly allocated kernel-task stack pages are also zeroed before their initial frame is installed, preventing stale kernel locals from crossing task-slot reuse.
 - Page-directory creation is tracked in a bounded registry; CR3 switches and destruction reject unregistered physical addresses.

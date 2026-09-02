@@ -20,6 +20,7 @@
 - Kullanıcı page fault sonrası ELF ve kullanıcı yığını kaynaklarının scheduler’a dönmeden geri kazanılması eklendi.
 - Terminated görev slotları artık kernel çalışma sırasında güvenli biçimde yeniden kullanılabiliyor; kullanıcı demo süreci fault sonrası dört ardışık kez yeniden başlatılarak adres alanı/yığın temizliği, tekrar tahsis ve fiziksel bellek muhasebesi stres altında doğrulanıyor.
 - Kullanıcı süreçleri için kernel PDE’lerini paylaşan özel page directory’ler, scheduler CR3 geçişi ve adres alanı yıkımı eklendi.
+- Scheduler user-task kayıtları artık aktif başka bir görevin kullandığı CR3’ü yeniden paylaşmayı reddediyor; negatif kernel self-test’i bu sahiplik kuralını doğruluyor.
 - Sekize kadar bounded ring-3 süreç ayrı adres alanlarında çalışabiliyor; ilk dört demo süreç fault temizliği ve task generation kimliğiyle QEMU isolation marker’ı üzerinden doğrulanıyor.
 - Genel amaçlı kernel-only `user_process_spawn` yolu eklendi; bounded ELF imaj boyutu, otomatik stack bölgesi, address-space sahipliği ve cleanup akışı ortaklaştırıldı.
 - Shell’e `run NAME` eklendi; salt-okunur FAT’tan alınan dosya yalnızca bounded ELF doğrulamasından geçerse ring-3 süreci olarak başlatılıyor ve mevcut ownership/cleanup zincirini kullanıyor.

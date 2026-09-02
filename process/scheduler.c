@@ -273,6 +273,19 @@ static int has_other_runnable(void)
     return 0;
 }
 
+static int address_space_in_use(unsigned int address_space)
+{
+    unsigned int index;
+
+    for (index = 1U; index < task_count; index++) {
+        if (tasks[index].mode == TASK_USER && tasks[index].state != TASK_TERMINATED &&
+            tasks[index].address_space == address_space) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static void save_user_frame(struct scheduler_task *task, const struct interrupt_frame *frame)
 {
     unsigned int index;
@@ -544,6 +557,10 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
         return 0;
     }
     new_task = &tasks[slot];
+    if (address_space_in_use(address_space)) {
+        scheduler_irq_restore(flags);
+        return 0;
+    }
     if (slot_generation[slot] >= SCHEDULER_MAX_GENERATION) {
         scheduler_irq_restore(flags);
         return 0;
