@@ -47,7 +47,12 @@ int main(void)
         entry.content[4] = 'y';
         if (!ramfs_apply_journal_entry(&entry) ||
             ramfs_file_contents("PREFSET") == 0 ||
-            ramfs_remove_file("PREFSET") == 0) {
+            !ramfs_remove_file("PREFSET")) {
+            return 1;
+        }
+        entry.operation = JOURNAL_OPERATION_REMOVE;
+        entry.content_length = 0U;
+        if (!ramfs_apply_journal_entry(&entry)) {
             return 1;
         }
     }

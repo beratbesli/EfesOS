@@ -169,7 +169,17 @@ int ramfs_apply_journal_entry(const struct journal_entry *entry)
         return 0;
     }
     if (entry->operation == JOURNAL_OPERATION_REMOVE) {
-        return entry->content_length == 0U && ramfs_remove_file(entry->name);
+        if (entry->content_length != 0U) {
+            return 0;
+        }
+        /* Replay can legitimately encounter the same committed remove more
+           than once (for example after a reboot before log compaction). Make
+           the operation idempotent instead of turning valid recovery into a
+           panic when the target is already absent. */
+        if (ramfs_file_contents(entry->name) == 0) {
+            return 1;
+        }
+        return ramfs_remove_file(entry->name);
     }
     if (entry->operation != JOURNAL_OPERATION_WRITE) {
         return 0;
