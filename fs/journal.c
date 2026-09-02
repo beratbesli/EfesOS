@@ -259,6 +259,13 @@ static int sequence_is_newer(unsigned int sequence, unsigned int previous)
     return sequence != 0U && sequence > previous;
 }
 
+static int region_fits(unsigned int start_lba, unsigned int sector_count)
+{
+    /* The callbacks receive absolute 32-bit LBAs. Reject a region whose
+       final sector would wrap before doing any I/O. */
+    return sector_count != 0U && start_lba <= 0xFFFFFFFFU - (sector_count - 1U);
+}
+
 static int scan_log(journal_read_fn read, unsigned int start_lba,
     unsigned int data_sectors, unsigned int *record_count,
     unsigned int *last_sequence)
@@ -311,6 +318,7 @@ int journal_replay(journal_read_fn read, unsigned int start_lba,
     }
     if (read == 0 || apply == 0 || sector_count < 2U ||
         sector_count > JOURNAL_MAX_DATA_SECTORS + 1U ||
+        !region_fits(start_lba, sector_count) ||
         !read(start_lba, 1U, sector) || !journal_superblock_decode(sector, &data_sectors) ||
         data_sectors + 1U > sector_count) {
         return 0;
@@ -348,6 +356,7 @@ int journal_append(journal_read_fn read, journal_write_fn write,
 
     if (read == 0 || write == 0 || sector_count < 2U ||
         sector_count > JOURNAL_MAX_DATA_SECTORS + 1U ||
+        !region_fits(start_lba, sector_count) ||
         !read(start_lba, 1U, superblock) ||
         !journal_superblock_decode(superblock, &data_sectors) ||
         data_sectors + 1U > sector_count ||

@@ -7,6 +7,16 @@ static unsigned char disk[(JOURNAL_MAX_DATA_SECTORS + 1U) * JOURNAL_SECTOR_SIZE]
 static unsigned int applied_count;
 static unsigned int write_count;
 static unsigned int fail_write_number;
+static unsigned int overflow_read_calls;
+
+static int read_any(unsigned int lba, unsigned char count, void *buffer)
+{
+    (void)lba;
+    (void)count;
+    overflow_read_calls++;
+    memset(buffer, 0, count * JOURNAL_SECTOR_SIZE);
+    return 1;
+}
 
 static int read_disk(unsigned int lba, unsigned char count, void *buffer)
 {
@@ -115,6 +125,14 @@ int main(void)
     applied_count = 0U;
     if (journal_replay(read_disk, 0U, 5U, apply_entry, 0) || applied_count != 0U) {
         return 12;
+    }
+    overflow_read_calls = 0U;
+    if (journal_replay(read_any, 0xFFFFFFFFU, 2U, apply_entry, 0) ||
+        overflow_read_calls != 0U ||
+        journal_append(read_any, write_disk, 0xFFFFFFFFU, 2U,
+            JOURNAL_OPERATION_WRITE, 1U, "A", "one", 3U) ||
+        overflow_read_calls != 0U) {
+        return 13;
     }
     puts("Journal host self-test passed.");
     return 0;
