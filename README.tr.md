@@ -20,6 +20,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Salt-okunur type-0 BAR ayrıştırması ve sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
 - PCI BAR kayıtları sürücülere açılmadan önce çekirdek içinde tür/hizalama self-test’inden geçer
 - Zaman aşımı ve hata denetimli ATA PIO birincil disk erişimi; disk yokluğu açıkça raporlanır
+- Sürücüden bağımsız 512 baytlık blok aygıt katmanı kapasiteyi, transfer sınırını ve isteğe bağlı yazma yeteneğini çağrıdan önce doğrular; VFS’ye salt-okunur ATA görünümü verilir
 - ATA ham yazmaları varsayılan olarak boot’ta korumalıdır; yalnızca doğrulanmış journal penceresi transaction için açılabilir
 - Sınırlı 8.3 kök/alt-dizin dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); doğrulanmış ELF’i diskten başlatma (`run NAME`)
 - FAT volume dışında doğrulanmış journal bölgesi varsa shell `write`/`rm` işlemleri kalıcı RAMFS journal’ına transaction olarak yazılır; `pformat` yalnızca tamamen boş journal tail’ini açıkça biçimlendirir
@@ -82,6 +83,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
 ```
 
 Test, üretilen imajı QEMU'da açar ve başarılı sayılmadan önce COM1 üzerinde beklenen kernel aşamasını görmeyi zorunlu tutar.
+
+Depolama sürücüsü değişikliklerinde bağımsız blok aygıt sınır/yetenek testini çalıştır:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\block-device-self-test.ps1
+```
 
 Dosya sistemi değişikliklerinde bağımsız FAT ayrıştırıcı testini çalıştır:
 
@@ -175,7 +182,7 @@ Snake için `W`, `A`, `S`, `D` tuşlarıyla hareket edilir; çıkış `Q` tuşud
 ```text
 boot/       BIOS stage-1 ve stage-2 yükleyicileri
 cpu/        IDT, PIC, PIT ve kesme stub'ları
-drivers/    VGA ve klavye sürücüleri
+drivers/    VGA, klavye, PCI, ATA ve genel blok aygıt sürücüleri
 fs/         Bellek içi dosya sistemi
 games/      Snake ve slot oyun mantığı
 include/    Paylaşılan başlık dosyaları

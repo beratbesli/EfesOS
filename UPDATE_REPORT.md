@@ -10,6 +10,7 @@
 - Koruma sayfalı preemptive kernel-thread scheduler ve TSS tabanlı gerçek ring-3 geçişi eklendi.
 - `int 0x80` syscall ABI’si, geçersiz çağrı reddi ve ring-3 istisna izolasyonu eklendi.
 - PCI taraması, zaman aşımı kontrollü ve aygıt-hazırlık yeniden denemeli ATA PIO arayüzü ile MBR FAT16/VFS parser’ı eklendi.
+- 512 bayt sektör ve 128 sektör/istek sınırı olan sürücüden bağımsız blok aygıt katmanı eklendi. Başlatılmamış aygıtlar, null tamponlar, sıfır/taşan transferler ve aygıt sonunu aşan LBA aralıkları sürücü callback’i çağrılmadan reddediliyor; ATA’nın VFS’ye sunduğu görünüm bilerek salt-okunur tutuluyor.
 - RAMFS için sınırlı `write`/`rm` işlemleri eklendi; yol ayraçları ve taşan girdiler reddediliyor.
 - RAMFS okuma isimleri de aynı bounded isim doğrulamasından geçiyor; VGA metin çıktısı null pointer’ı fail-closed yutuyor.
 - ELF32 başlık/segment doğrulaması ve gerçek kullanıcı sayfası yüklemesi W^X, adres aralığı, taşma, BSS sıfırlama ve son izin kontrolleriyle eklendi.
@@ -76,6 +77,7 @@
 - Yeni diskte kalıcı RAMFS başlatmak için `pformat` eklendi; komut yalnızca FAT dışındaki tamamen boş tail bölgesini ve yerleşik varsayılanları değiştirilmemiş RAMFS’i biçimlendiriyor, dolu veya mevcut journal’ı reddediyor.
 - RAMFS journal tüketicisi girişleri tekrar doğruluyor; isim sonlandırması/kanonikliği ve metin payload’ındaki NUL baytları reddediliyor, remove kayıtları idempotent uygulanıyor.
 - Kernel, write-protected ATA yolunu gerçek `ata_write_sectors` çağrısıyla self-test ediyor; koruma açıkken kabul edilen bir yazma artık boot smoke testini fail-closed düşürüyor.
+- VFS artık ATA global fonksiyonlarına bağlı değil; doğrulanmış bir `block_device` üzerinden FAT superfloppy/MBR mount ve bounded retry yapıyor. Kernel, ATA aygıtının kapasite ve salt-okunur yetenek sözleşmesini boot sırasında doğruluyor.
 - Syscall girişinde ring-3 dönüş çerçevesi artık segment selector, EFLAGS, user SS ve writable user ESP ile doğrulanıyor; bozuk çerçeve dispatch edilmeden user fault olarak izole ediliyor.
 - Kullanıcı stack region seçimi artık PIT/scheduler zamanlamasından beslenen bounded non-cryptographic seed ile çeşitleniyor; ELF loader tüm stack rezerv alanını executable image çakışmalarına karşı kapatıyor. Bu tam ASLR değil, savunma-derinliği katmanı.
 - Scheduler stack’leri artık 8 sayfalık bounded kapasite ve guard-page yanında alt sınır canary’si taşıyor; scheduling/reclaim öncesi bozulma görülürse kernel fail-closed panic veriyor. Restart accounting bu yeni allocation boyutuna göre güncellendi.
@@ -129,6 +131,7 @@
 ## Doğrulama
 
 - `scripts/build.ps1` başarılı.
+- `scripts/block-device-self-test.ps1` başarılı; geçersiz yapılandırma, transfer üst sınırı, taşmasız son-sektör kontrolü, salt-okunur yazma reddi ve callback hata iletimi doğrulandı.
 - `scripts/fat-self-test.ps1` başarılı.
 - `scripts/ramfs-self-test.ps1` başarılı; null, geçersiz ve sonlandırılmamış RAMFS isimleri bounded olarak reddediliyor.
 - `scripts/boot-info-self-test.ps1` başarılı.
@@ -136,13 +139,13 @@
 - `scripts/journal-self-test.ps1` ayrıca terminal torn-append sonrasında önceki commit’li kayıtların replay edilebildiğini ve 32-bit LBA taşmasında hiçbir I/O callback’inin çağrılmadığını doğruluyor.
 - `scripts/sha256-self-test.ps1` ve `scripts/sha256_self_test.py`, build digest’inin bağımsız SHA-256 hesaplamasıyla eşleştiğini ve tek baytlık kernel bozulmasının farklı özet ürettiğini doğruluyor; CI’da `make sha256-self-test` kapısı etkin.
 - `scripts/sha256-boot-negative-test.ps1` ve `scripts/sha256_boot_negative_test.py`, bozulmuş imajı QEMU’da boot edip stage-2’nin kernel girişinden önce seri `!` fail-closed işaretiyle durduğunu doğruluyor; CI’da `make sha256-boot-negative-test` kapısı etkin.
-- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 39 kritik boot/runtime işaretçisi doğrulanıyor.
+- QEMU smoke testi başarılı; varsayılan profilde 41 kritik boot/runtime işaretçisi, deterministik ATA/FAT fixture’ında ek disk/journal işaretçileri doğrulanıyor.
 - QEMU `-cpu qemu64` koşusu PAE backend’i ve hardware NX (`hardware-nx=0x00000001`) ile ELF/runtime akışını başarıyla tamamlıyor; varsayılan profil de NX’siz PAE yolunu doğruluyor.
 - QEMU `-cpu qemu32,pae=off` koşusu legacy sayfalama fallback’ini (`paging mode=legacy hardware-nx=0x00000000`) ve ELF/runtime akışını başarıyla tamamlıyor.
 - CPU yetenek yoklaması RDRAND desteğini de raporluyor; destek varsa ET_DYN load-bias ve kullanıcı stack yerleşim tohumuna donanımsal rastgelelik ekleniyor, desteklenmeyen CPU’larda bounded fallback korunuyor.
 - QEMU `-cpu max` koşusu RDRAND yolunu (`rdrand=0x00000001`) ve PAE/NX ELF/runtime akışını başarıyla doğruluyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
-- Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT/journal uçtan uca testi başarılı; mount, kök dizin, dosya okuması ve persistent replay dahil 39 işaretçi doğrulanıyor.
+- Deterministik 4 MiB FAT16 imajıyla QEMU blok-aygıt/ATA/FAT/journal uçtan uca testi başarılı; mount, kök dizin, dosya okuması ve persistent replay dahil 43 işaretçi doğrulanıyor.
 - `scripts/run-self-test.ps1` ile etkileşimli `run RUN.ELF` yolu QEMU’da başarılı; diskten yüklenen programın seri çıktısı doğrulandı.
 - `scripts/run-self-test.ps1 -TestPersistentWrite` ile QEMU IDE diski üzerinde yalnızca ayrılmış journal-window’a gerçek `write`/flush yolu çalıştırıldı; QEMU kapandıktan sonra sektör kaydı magic/op/name/content/commit alanlarıyla doğrulandı.
 - Aynı QEMU akışının `-TestPersistentFormat` varyantı boş tail üzerinde `pformat` + `write` çalıştırıyor ve ilk journal kaydını kapanış sonrası doğruluyor.
@@ -158,8 +161,8 @@ ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; 48-bit destekli aygıtlarda 
 ## Öncelikli sonraki geliştirmeler
 
 1. **Depolama (P1):** ATA sürücüsünü IRQ/DMA ve gerçek donanım matrisiyle doğrula; yazmayı ancak hata kurtarma, journaling ve FAT bütünlük kontrollerinden sonra aç.
-2. **Donanım kapsamı (P2):** PCI BAR ayrıştırma, blok aygıt soyutlaması, USB/HID, ağ ve zamanlayıcı sürücülerini ekle; her biri için QEMU/host fixture testi yaz.
+2. **Donanım kapsamı (P2):** Yeni blok aygıt sözleşmesini kullanarak USB depolama/HID, ağ ve zamanlayıcı sürücülerini ekle; her biri için QEMU/host fixture testi yaz.
 3. **Güvenlik (P2):** imzalı boot zinciri, kimlik doğrulama, tam ASLR, modül imzalama ve SMP kilitlemesini tasarla.
 4. **Test kapsamı (P2):** ELF/FAT/boot fixture’larını property/fuzz testleriyle genişlet; gerçek donanım matrisi için sürekli regresyon kayıtları tut.
 
-GitHub’a otomatik push yapılmadı; `origin/main` değiştirilmedi.
+Checkpoint commit’leri `origin/main` dalına gönderildi; GitHub Actions sonucu ayrıca doğrulanıyor.

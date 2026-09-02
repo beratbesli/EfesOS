@@ -20,6 +20,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - PCI configuration-space enumeration with read-only type-0 BAR decoding and a bounded `pci` diagnostic command
 - PCI BAR records pass an in-kernel alignment/type self-test before device drivers consume them
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
+- Driver-independent 512-byte block-device layer validates capacity, transfer bounds and optional write capability before dispatch; VFS receives a read-only ATA view
 - ATA raw writes remain disabled by default; only a validated journal window can be transactionally enabled
 - Read-only FAT16 VFS mount with bounded 8.3 root/subdirectory file reads (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); validated ELF launch from disk (`run NAME`)
 - When a validated journal region exists outside the FAT volume, shell `write`/`rm` operations are committed transactionally to persistent RAMFS; `pformat` explicitly formats an entirely empty journal tail
@@ -82,6 +83,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
 ```
 
 The test boots the generated image in QEMU and requires the expected kernel milestone on COM1 before it passes.
+
+Run the standalone block-device boundary and capability test when changing storage drivers:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\block-device-self-test.ps1
+```
 
 Run the standalone FAT parser test when changing filesystem code:
 
@@ -175,7 +182,7 @@ Snake uses `W`, `A`, `S`, `D` to move and `Q` to exit. Slot uses Space to spin a
 ```text
 boot/       BIOS stage-1 and stage-2 loaders
 cpu/        IDT, PIC, PIT and interrupt stubs
-drivers/    VGA and keyboard drivers
+drivers/    VGA, keyboard, PCI, ATA and generic block-device drivers
 fs/         In-memory filesystem
 games/      Snake and slot game logic
 include/    Shared headers

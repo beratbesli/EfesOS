@@ -41,6 +41,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Scheduler-owned kernel stacks have a guarded page, expanded bounded capacity, and a low-water canary checked before scheduling and reclamation; corruption fails closed instead of silently reusing a damaged stack.
 - The paging API enforces W^X for every mapping and protection operation, rejecting writable+executable combinations before they reach a page table.
 - ATA access is bounded and timeout-controlled, retries failed reads only after a bounded channel reset, and uses 48-bit PIO commands when IDENTIFY advertises them. The public 32-bit LBA API rejects capacities it cannot represent; FAT16 support is read-only and no shell command can write arbitrary disk sectors.
+- A driver-independent block-device boundary rejects uninitialized devices, null buffers, zero/oversized transfers, and overflow-safe end-of-device violations before calling a driver. The ATA device exported to VFS intentionally has no write callback, so filesystem reads cannot reach the transactional raw-write interface.
 - FAT16 mount validates the reserved entries in every mirrored FAT copy before exposing directory/file reads.
 - FAT cluster-chain reads compare each consumed FAT entry with every mirrored copy and fail closed on divergence.
 - Persistent journal replay is allowed only in a bounded region that does not overlap the mounted FAT volume; a valid-looking tail inside filesystem data is ignored.
