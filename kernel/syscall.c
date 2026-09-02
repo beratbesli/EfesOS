@@ -17,6 +17,40 @@ static volatile unsigned int user_ipc_block_count;
 static volatile unsigned int user_exit_count;
 static volatile unsigned int user_pid_call_count;
 static volatile unsigned int user_invalid_call_count;
+static volatile unsigned int user_frame_reject_count;
+
+#define KERNEL_USER_CODE_SELECTOR 0x1BU
+#define KERNEL_USER_DATA_SELECTOR 0x23U
+#define EFLAGS_RESERVED_BIT 0x00000002U
+#define EFLAGS_IOPL_MASK 0x00003000U
+#define EFLAGS_NT_BIT 0x00004000U
+#define EFLAGS_VM_BIT 0x00020000U
+#define USER_ADDRESS_LIMIT 0xC0000000U
+
+static int user_return_frame_is_valid(const struct interrupt_frame *frame)
+{
+    const unsigned int *hardware_frame;
+    unsigned int user_stack_pointer;
+
+    if (frame == 0 || frame->cs != KERNEL_USER_CODE_SELECTOR ||
+        frame->ds != KERNEL_USER_DATA_SELECTOR ||
+        frame->es != KERNEL_USER_DATA_SELECTOR ||
+        frame->fs != KERNEL_USER_DATA_SELECTOR ||
+        frame->gs != KERNEL_USER_DATA_SELECTOR ||
+        (frame->eflags & EFLAGS_RESERVED_BIT) == 0U ||
+        (frame->eflags & (EFLAGS_IOPL_MASK | EFLAGS_NT_BIT | EFLAGS_VM_BIT)) != 0U) {
+        return 0;
+    }
+    /* A ring transition appends the user ESP and SS after the saved frame. */
+    hardware_frame = (const unsigned int *)(frame + 1);
+    user_stack_pointer = hardware_frame[0];
+    if (hardware_frame[1] != KERNEL_USER_DATA_SELECTOR ||
+        user_stack_pointer <= PAGE_SIZE || user_stack_pointer >= USER_ADDRESS_LIMIT ||
+        !paging_validate_user_range(user_stack_pointer - 1U, 1U, 1)) {
+        return 0;
+    }
+    return 1;
+}
 
 void syscall_init(void)
 {
@@ -31,6 +65,7 @@ void syscall_init(void)
     user_exit_count = 0;
     user_pid_call_count = 0;
     user_invalid_call_count = 0;
+    user_frame_reject_count = 0;
 }
 
 struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
@@ -39,8 +74,12 @@ struct interrupt_frame *syscall_dispatch(struct interrupt_frame *frame)
         return 0;
     }
 
-    if ((frame->cs & 3U) == 3U && !paging_validate_user_execute(frame->eip)) {
-        return scheduler_on_user_fault(frame);
+    if ((frame->cs & 3U) == 3U) {
+        if (!user_return_frame_is_valid(frame) ||
+            !paging_validate_user_execute(frame->eip)) {
+            user_frame_reject_count++;
+            return scheduler_on_user_fault(frame);
+        }
     }
 
     if ((frame->cs & 3U) == 3U) {
@@ -245,4 +284,9 @@ unsigned int syscall_user_pid_call_count(void)
 unsigned int syscall_user_invalid_call_count(void)
 {
     return user_invalid_call_count;
+}
+
+unsigned int syscall_user_frame_reject_count(void)
+{
+    return user_frame_reject_count;
 }

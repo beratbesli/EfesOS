@@ -32,5 +32,6 @@ unsigned int syscall_user_ipc_block_count(void);
 unsigned int syscall_user_exit_count(void);
 unsigned int syscall_user_pid_call_count(void);
 unsigned int syscall_user_invalid_call_count(void);
+unsigned int syscall_user_frame_reject_count(void);
 
 #endif
