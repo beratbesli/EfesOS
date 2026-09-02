@@ -15,7 +15,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Kernel text/rodata are write-protected after paging is enabled; the null page is unmapped and the heap has guard pages and canaries.
 - E820 ranges are rounded to pages without 64-bit addition wraparound before entering the physical allocator.
 - PMM initialization rejects an invalid or empty linker-reported kernel range before releasing E820 pages, so malformed kernel metadata cannot leave the kernel image allocatable.
-- VGA PCI configuration writes are limited to a verified Bochs/BGA display device and are skipped when the identity does not match.
+- VGA PCI configuration writes are limited to a verified Bochs/BGA display device; the BGA ID is read back before any BAR or command-register write, and mismatches are skipped.
 - Ring-3 tasks use supervisor-inaccessible code/stack pages, a dedicated TSS transition stack and a restricted `int 0x80` ABI. User exceptions terminate the task, reclaim its user pages, and continue scheduling instead of panicking the kernel.
 - Paging refuses null physical frames and protects the low identity mapping from accidental kernel unmapping.
 - Paging refuses to promote a page table shared with kernel mappings to user-visible and destroys address spaces by physical-table identity, preventing flag-only PDE differences from exposing or freeing shared kernel tables.

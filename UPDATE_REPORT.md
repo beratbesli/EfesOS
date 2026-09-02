@@ -39,7 +39,7 @@
 - Stage-2, kernel yüklemesi sonrası build tarafından üretilen bounded byte-checksum’u doğruluyor; doğrulama başarısızsa protected mode’a geçmiyor ve başarı biti boot metadata üzerinden kernel tarafından zorunlu tutuluyor. Bu bütünlük kontrolüdür, kriptografik imza/kimlik doğrulaması değildir.
 - Stage-2 VGA font BIOS çağrısının CF ve fiziksel adres aralığını doğruluyor; geçersiz/eksik font artık grafik donanımı varmış gibi işaretlenmiyor.
 - E820 BIOS çağrısı, BIOS’un tampon işaretçisini değiştirmesine karşı kayıtlı giriş ofsetini koruyor; VGA kernel sürücüsü font adresi üst sınırını bağımsız olarak tekrar doğruluyor.
-- VGA sürücüsü PCI BAR/command yazmadan önce bilinen BGA vendor/device/class kimliğini arıyor ve BGA ID register’ını geri okuyarak doğruluyor; farklı PCI donanımı yanlışlıkla değiştirilmiyor.
+- VGA sürücüsü PCI BAR/command yazmadan önce bilinen BGA vendor/device/class kimliğini ve BGA ID register’ını doğruluyor; farklı PCI donanımı yanlışlıkla değiştirilmiyor.
 - PMM, hizasız yüksek adresli E820 aralıklarını taşmasız yuvarlıyor; 64-bit taban adresi ekleme taşması düşük fiziksel blokları yanlışlıkla kullanılabilir yapamıyor.
 - PMM başlangıcı, linker’ın bildirdiği kernel başlangıç/bitiş aralığını doğruluyor; ters veya boş aralıkta bellek serbest bırakılmadan fail-closed duruyor.
 - ATA ham yazma yolu her boot’ta write-protected başlıyor ve kernel bunu zorunlu kontrol ediyor; journaling/transaction katmanı olmadan fiziksel disk değişikliği gerçekleşmiyor.

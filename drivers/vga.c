@@ -243,15 +243,15 @@ void vga_init(const struct boot_info *boot_info)
         return;
     }
 
+    bga_write(BGA_ID, BGA_ID4);
+    if (bga_read(BGA_ID) != BGA_ID4) {
+        return;
+    }
     font_data = (volatile uint8_t *)boot_info->vga_font_address;
     outl(PCI_CONFIG_ADDRESS_PORT, pci_config_address(device, 0x10U));
     outl(PCI_CONFIG_DATA_PORT, VBE_FRAMEBUFFER_VIRTUAL);
     outl(PCI_CONFIG_ADDRESS_PORT, pci_config_address(device, 0x04U));
     outw(PCI_CONFIG_DATA_PORT, VGA_PCI_COMMAND_IO_AND_MEMORY);
-    bga_write(BGA_ID, BGA_ID4);
-    if (bga_read(BGA_ID) != BGA_ID4) {
-        return;
-    }
     bga_write(BGA_ENABLE, 0);
     bga_write(BGA_XRES, GRAPHICS_WIDTH);
     bga_write(BGA_YRES, GRAPHICS_HEIGHT);
