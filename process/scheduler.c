@@ -21,9 +21,10 @@
 #define SCHEDULER_DEFAULT_PRIORITY 1U
 #define SCHEDULER_MAX_PRIORITY 8U
 #define SCHEDULER_MAX_GENERATION 0x00FFFFFFU
+#define SCHEDULER_NAME_MAX 16U
 
 struct scheduler_task {
-    const char *name;
+    char name[SCHEDULER_NAME_MAX];
     scheduler_task_t entry;
     struct interrupt_frame *frame;
     unsigned int stack_base;
@@ -49,6 +50,23 @@ static unsigned int last_added_task;
 static unsigned int slot_generation[SCHEDULER_MAX_TASKS];
 
 static void scheduler_task_trampoline(void);
+
+static int copy_task_name(char *destination, const char *source)
+{
+    unsigned int index;
+
+    if (destination == 0 || source == 0) {
+        return 0;
+    }
+    for (index = 0U; index + 1U < SCHEDULER_NAME_MAX && source[index] != '\0'; index++) {
+        destination[index] = source[index];
+    }
+    if (source[index] != '\0') {
+        return 0;
+    }
+    destination[index] = '\0';
+    return 1;
+}
 
 static unsigned int scheduler_irq_save(void)
 {
@@ -116,10 +134,12 @@ static void clear_task(struct scheduler_task *task)
 {
     unsigned int index;
 
+    for (index = 0U; index < SCHEDULER_NAME_MAX; index++) {
+        task->name[index] = '\0';
+    }
     for (index = 0; index < SCHEDULER_STACK_PAGES; index++) {
         task->stack_frames[index] = 0;
     }
-    task->name = 0;
     task->entry = 0;
     task->frame = 0;
     task->stack_base = 0;
@@ -279,7 +299,7 @@ void scheduler_init(void)
     for (index = 0U; index < SCHEDULER_MAX_TASKS; index++) {
         slot_generation[index] = 0U;
     }
-    tasks[0].name = "kernel";
+    copy_task_name(tasks[0].name, "kernel");
     tasks[0].state = TASK_RUNNABLE;
     tasks[0].address_space = paging_kernel_directory();
     tasks[0].task_id = 0U;
@@ -306,7 +326,10 @@ int scheduler_add_task(const char *name, scheduler_task_t task)
         return 0;
     }
     clear_task(new_task);
-    new_task->name = name;
+    if (!copy_task_name(new_task->name, name)) {
+        scheduler_irq_restore(flags);
+        return 0;
+    }
     new_task->entry = task;
     new_task->address_space = paging_kernel_directory();
     new_task->state = TASK_RUNNABLE;
@@ -477,7 +500,10 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
         return 0;
     }
     clear_task(new_task);
-    new_task->name = name;
+    if (!copy_task_name(new_task->name, name)) {
+        scheduler_irq_restore(flags);
+        return 0;
+    }
     new_task->user_entry = entry;
     new_task->user_stack_top = user_stack_top;
     new_task->address_space = address_space;
