@@ -88,6 +88,14 @@ unsigned int ramfs_file_count(void)
     return file_count;
 }
 
+int ramfs_is_pristine(void)
+{
+    return file_count == 3U &&
+        string_equals(files[0].name, "README") &&
+        string_equals(files[1].name, "MOTD") &&
+        string_equals(files[2].name, "EFES");
+}
+
 const char *ramfs_file_name(unsigned int index)
 {
     if (index >= file_count) {

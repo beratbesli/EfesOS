@@ -126,8 +126,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1 
 ```
 
 On a deliberately empty, non-overlapping disk tail, type `pformat` in the shell
-to initialize persistent RAMFS. Formatting refuses non-empty or already
-formatted regions.
+to initialize persistent RAMFS. Formatting refuses non-empty disk tails,
+already formatted regions, and a RAMFS changed beyond its built-in defaults.
 
 Check that two consecutive image builds are byte-for-byte reproducible:
 

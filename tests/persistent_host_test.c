@@ -112,15 +112,20 @@ int main(void)
 
     clear_disk();
     ramfs_init();
+    if (!ramfs_write_file("VOLATILE", "x") ||
+        !persistent_ramfs_init() || persistent_ramfs_format()) {
+        return 1;
+    }
+    ramfs_init();
     if (!persistent_ramfs_init() || persistent_ramfs_is_enabled() ||
         !persistent_ramfs_format() || !persistent_ramfs_is_enabled() ||
         !persistent_ramfs_write_file("FORMATTED", "ok")) {
-        return 1;
+        return 2;
     }
     ramfs_init();
     if (!persistent_ramfs_init() ||
         !ramfs_file_contents("FORMATTED")) {
-        return 2;
+        return 3;
     }
 
     clear_disk();
@@ -129,12 +134,12 @@ int main(void)
     if (!persistent_ramfs_init() || !persistent_ramfs_is_enabled() ||
         persistent_ramfs_replay_count() != 1U ||
         !ramfs_file_contents("PERSIST")) {
-        return 3;
+        return 4;
     }
     if (!persistent_ramfs_write_file("NEW", "durable") ||
         !persistent_ramfs_remove_file("PERSIST") ||
         ramfs_file_contents("PERSIST") != 0) {
-        return 4;
+        return 5;
     }
 
     /* Reinitialize the volatile view to model a reboot and replay the disk. */
@@ -143,14 +148,14 @@ int main(void)
         ramfs_file_contents("PERSIST") != 0 ||
         (value = ramfs_file_contents("NEW")) == 0 ||
         value[0] != 'd') {
-        return 5;
+        return 6;
     }
     {
         unsigned char sector[JOURNAL_SECTOR_SIZE] = {0};
 
         if (!ata_enable_transactional_writes(10U, 2U) ||
             ata_write_sectors(12U, 1U, sector)) {
-            return 6;
+            return 7;
         }
     }
     puts("Persistent RAMFS host self-test passed.");

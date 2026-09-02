@@ -9,6 +9,7 @@ struct journal_entry;
 
 void ramfs_init(void);
 unsigned int ramfs_file_count(void);
+int ramfs_is_pristine(void);
 const char *ramfs_file_name(unsigned int index);
 const char *ramfs_file_contents(const char *name);
 int ramfs_write_file(const char *name, const char *contents);

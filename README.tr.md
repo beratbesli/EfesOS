@@ -126,7 +126,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1 
 ```
 
 Kasten boş ve FAT ile çakışmayan disk tail’inde shell’e `pformat` yazarak
-kalıcı RAMFS’i başlatabilirsin. Dolu veya zaten biçimli bölgeler reddedilir.
+kalıcı RAMFS’i başlatabilirsin. Dolu/zaten biçimli bölgeler veya yerleşik
+varsayılanların dışında dosya içeren RAMFS biçimlendirmeyi reddeder.
 
 Ardışık iki imaj derlemesinin byte düzeyinde aynı olduğunu doğrulamak için:
 

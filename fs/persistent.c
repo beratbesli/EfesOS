@@ -95,7 +95,7 @@ int persistent_ramfs_format(void)
     unsigned int index;
     unsigned int data_sectors;
 
-    if (persistent_enabled || !ata_present() ||
+    if (persistent_enabled || !ramfs_is_pristine() || !ata_present() ||
         ata_sector_count() <= PERSISTENT_JOURNAL_REGION_SECTORS) {
         return 0;
     }

@@ -44,7 +44,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Journal replay validates the complete contiguous log and its monotonic sequence twice before invoking a consumer; invalid holes or later non-empty sectors cannot cause partial state application.
 - The journal append API publishes each record in two phases (commit cleared, then terminal commit) and reads it back before success; a failed second write leaves only an ignored terminal record, so earlier committed records remain replayable and no partial operation is applied.
 - Persistent RAMFS writes perform a RAMFS capacity/format preflight before journal append, apply only after read-back-verified commit, and replay into a fresh RAMFS after reboot; remove operations are idempotent.
-- Persistent journal formatting is explicit (`pformat`) and refuses any non-empty or already formatted tail, preventing accidental overwrite of disk data.
+- Persistent journal formatting is explicit (`pformat`) and refuses any non-empty or already formatted tail, or a RAMFS changed beyond its built-in defaults, preventing accidental overwrite or silent data loss.
 - GitHub Actions dependencies are pinned to a verified commit and checkout credentials are not persisted in the worktree, reducing CI supply-chain and token-leakage risk.
 - Dependabot is configured to propose weekly GitHub Actions updates so pinned workflow dependencies receive security fixes without reverting to mutable tags.
 - CI runs Clang’s static analyzer across kernel C sources (excluding intentional fixed-address hardware accesses) so new pointer and memory diagnostics fail before merge.
