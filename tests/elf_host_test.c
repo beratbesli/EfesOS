@@ -1,8 +1,15 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "elf_loader.h"
 #include "paging.h"
 #include "pmm.h"
+
+__attribute__((noreturn)) void kernel_panic(const char *message)
+{
+    (void)message;
+    abort();
+}
 
 /* The host test exercises validation only; mapping primitives are never
    reached by elf_loader_self_test, but stubs keep the link explicit. */

@@ -2,6 +2,7 @@
 
 #include "elf_loader.h"
 #include "paging.h"
+#include "panic.h"
 #include "pmm.h"
 
 #define ELF32_HEADER_SIZE 52U
@@ -155,9 +156,10 @@ static void release_pages(const unsigned int *pages, unsigned int count)
 
     for (index = 0; index < count; index++) {
         unsigned int physical = paging_unmap_page(pages[index]);
-        if (physical != 0U) {
-            pmm_free_block(physical);
+        if (physical == 0U) {
+            kernel_panic("ELF mapping cleanup failed.");
         }
+        pmm_free_block(physical);
     }
 }
 
