@@ -12,6 +12,7 @@
 #define ELF_VERSION_OFFSET 20U
 #define ELF_ENTRY_OFFSET 24U
 #define ELF_PHOFF_OFFSET 28U
+#define ELF_EHSIZE_OFFSET 40U
 #define ELF_PHENTSIZE_OFFSET 42U
 #define ELF_PHNUM_OFFSET 44U
 #define ELF_PT_TYPE_OFFSET 0U
@@ -73,6 +74,7 @@ int elf_validate_image(const void *image, unsigned int size, unsigned int *entry
         read_u16(data, ELF_TYPE_OFFSET) != ELF_ET_EXEC ||
         read_u16(data, ELF_MACHINE_OFFSET) != ELF_EM_386 ||
         read_u32(data, ELF_VERSION_OFFSET) != ELF_VERSION_CURRENT ||
+        read_u16(data, ELF_EHSIZE_OFFSET) != ELF32_HEADER_SIZE ||
         read_u16(data, ELF_PHENTSIZE_OFFSET) != ELF32_PROGRAM_HEADER_SIZE) {
         return 0;
     }
@@ -316,6 +318,7 @@ int elf_loader_self_test(void)
     set_u32(image, ELF_VERSION_OFFSET, ELF_VERSION_CURRENT);
     set_u32(image, ELF_ENTRY_OFFSET, USER_MIN_ADDRESS);
     set_u32(image, ELF_PHOFF_OFFSET, ELF32_HEADER_SIZE);
+    set_u16(image, ELF_EHSIZE_OFFSET, ELF32_HEADER_SIZE);
     set_u16(image, ELF_PHENTSIZE_OFFSET, ELF32_PROGRAM_HEADER_SIZE);
     set_u16(image, ELF_PHNUM_OFFSET, 1);
     set_u32(image, ELF32_HEADER_SIZE + ELF_PT_TYPE_OFFSET, ELF_PT_LOAD);
@@ -337,7 +340,7 @@ int elf_loader_self_test(void)
        changes cannot silently remove one of the overflow and policy guards. */
     {
         static const unsigned int malformed_offsets[] = {
-            ELF_PHOFF_OFFSET, ELF_PHNUM_OFFSET,
+            ELF_PHOFF_OFFSET, ELF_EHSIZE_OFFSET, ELF_PHNUM_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_OFFSET_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_FILESZ_OFFSET,
@@ -346,7 +349,7 @@ int elf_loader_self_test(void)
             ELF32_HEADER_SIZE + ELF_PT_ALIGN_OFFSET, ELF_ENTRY_OFFSET
         };
         static const unsigned int malformed_values[] = {
-            0xFFFFFFFFU, 0U, 0xFFFFFFFFU, 0x003FF000U, 0xFFFFFFFFU,
+            0xFFFFFFFFU, 0U, 0U, 0xFFFFFFFFU, 0x003FF000U, 0xFFFFFFFFU,
             3U, 8U, 2U, USER_MIN_ADDRESS + PAGE_SIZE
         };
         unsigned int malformed_index;
@@ -371,6 +374,7 @@ int elf_loader_self_test(void)
             set_u32(image, ELF_VERSION_OFFSET, ELF_VERSION_CURRENT);
             set_u32(image, ELF_ENTRY_OFFSET, USER_MIN_ADDRESS);
             set_u32(image, ELF_PHOFF_OFFSET, ELF32_HEADER_SIZE);
+            set_u16(image, ELF_EHSIZE_OFFSET, ELF32_HEADER_SIZE);
             set_u16(image, ELF_PHENTSIZE_OFFSET, ELF32_PROGRAM_HEADER_SIZE);
             set_u16(image, ELF_PHNUM_OFFSET, 1U);
             set_u32(image, ELF32_HEADER_SIZE + ELF_PT_TYPE_OFFSET, ELF_PT_LOAD);
@@ -381,7 +385,8 @@ int elf_loader_self_test(void)
             set_u32(image, ELF32_HEADER_SIZE + ELF_PT_FLAGS_OFFSET, ELF_FLAG_EXECUTABLE);
             set_u32(image, ELF32_HEADER_SIZE + ELF_PT_ALIGN_OFFSET, 1U);
             image[116] = 0xC3;
-            if (malformed_offsets[malformed_index] == ELF_PHNUM_OFFSET) {
+            if (malformed_offsets[malformed_index] == ELF_EHSIZE_OFFSET ||
+                malformed_offsets[malformed_index] == ELF_PHNUM_OFFSET) {
                 set_u16(image, malformed_offsets[malformed_index], (unsigned short)value);
             } else {
                 set_u32(image, malformed_offsets[malformed_index], value);
@@ -419,6 +424,7 @@ int elf_loader_runtime_self_test(void)
     set_u32(image, ELF_VERSION_OFFSET, ELF_VERSION_CURRENT);
     set_u32(image, ELF_ENTRY_OFFSET, 0x01000000U);
     set_u32(image, ELF_PHOFF_OFFSET, ELF32_HEADER_SIZE);
+    set_u16(image, ELF_EHSIZE_OFFSET, ELF32_HEADER_SIZE);
     set_u16(image, ELF_PHENTSIZE_OFFSET, ELF32_PROGRAM_HEADER_SIZE);
     set_u16(image, ELF_PHNUM_OFFSET, 1);
     set_u32(image, ELF32_HEADER_SIZE + ELF_PT_TYPE_OFFSET, ELF_PT_LOAD);

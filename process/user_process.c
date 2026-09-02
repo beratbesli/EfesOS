@@ -212,6 +212,7 @@ static int user_process_init_locked(void)
     set_u32(image, 20U, 1U);
     set_u32(image, 24U, USER_CODE_ADDRESS);
     set_u32(image, 28U, 52U);
+    set_u16(image, 40U, 52U);
     set_u16(image, 42U, 32U);
     set_u16(image, 44U, 1U);
     set_u32(image, 52U, 1U);
