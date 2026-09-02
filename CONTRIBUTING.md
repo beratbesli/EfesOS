@@ -12,6 +12,9 @@
 8. Do not commit `build/`, `tools/`, local IDE files or generated disk images.
 9. Describe the QEMU and host tests performed in the pull request.
 
+On Linux CI, the FAT and ELF host tests also run with AddressSanitizer and
+UndefinedBehaviorSanitizer; new parser code should remain clean under both.
+
 ## Scope
 
 EfesOS is a small learning kernel. Prefer focused changes that preserve the modular directory layout and avoid adding third-party binary dependencies.
