@@ -32,9 +32,23 @@ jobs:
       - name: QEMU boot smoke test
         run: |
           timeout 20s qemu-system-i386 -display none -monitor none -serial stdio -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a > build/ci-serial.log 2> build/ci-qemu-error.log || true
+          grep -F "EfesOS: kernel entry reached." build/ci-serial.log
+          grep -F "EfesOS: BIOS E820 entries available." build/ci-serial.log
           grep -F "EfesOS: ELF loader runtime self-test passed." build/ci-serial.log
           grep -F "EfesOS: stage-2 kernel integrity check passed." build/ci-serial.log
+          grep -F "EfesOS: PCI devices discovered=" build/ci-serial.log
+          grep -F "EfesOS: ATA primary-master present=" build/ci-serial.log
           grep -F "EfesOS: ATA write path fail-closed self-test passed." build/ci-serial.log
+          grep -F "EfesOS: FAT volume mounted=" build/ci-serial.log
+          grep -F "EfesOS: syscall ABI self-test passed." build/ci-serial.log
+          grep -F "EfesOS: interrupt self-tests passed." build/ci-serial.log
+          grep -F "EfesOS: VMM self-test passed." build/ci-serial.log
+          grep -F "EfesOS: ELF loader validation self-test passed." build/ci-serial.log
+          grep -F "EfesOS: kernel heap self-test passed." build/ci-serial.log
+          grep -F "EfesOS: RAM filesystem self-test passed." build/ci-serial.log
+          grep -F "EfesOS: bounded IPC queue self-test passed." build/ci-serial.log
+          grep -F "EfesOS: user address-space isolation self-test passed." build/ci-serial.log
+          grep -F "EfesOS: scheduler priority self-test passed." build/ci-serial.log
           grep -F "EfesOS: ring3 syscall runtime test passed." build/ci-serial.log
           grep -F "EfesOS: user pointer validation runtime test passed." build/ci-serial.log
           grep -F "EfesOS: user process resource cleanup passed." build/ci-serial.log
@@ -49,6 +63,7 @@ jobs:
           grep -F "EfesOS: blocking user IPC runtime test passed." build/ci-serial.log
           grep -F "EfesOS: user exit lifecycle runtime test passed." build/ci-serial.log
           grep -F "EfesOS: generation-based user PID runtime test passed." build/ci-serial.log
+          grep -F "EfesOS: scheduler stack resource cleanup passed." build/ci-serial.log
           grep -F "EfesOS: scheduler block/wake lifecycle self-test passed." build/ci-serial.log
           grep -F "EfesOS: user exception isolated." build/ci-serial.log
           grep -F "EfesOS: preemptive scheduler runtime test passed." build/ci-serial.log
