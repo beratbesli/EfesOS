@@ -43,7 +43,7 @@ static struct scheduler_task tasks[SCHEDULER_MAX_TASKS];
 static unsigned int task_count;
 static unsigned int current_task;
 static unsigned char scheduler_started;
-static unsigned int pending_reap;
+static unsigned int pending_reap_mask;
 static unsigned int stack_reap_count;
 static unsigned int last_added_task;
 static unsigned int slot_generation[SCHEDULER_MAX_TASKS];
@@ -68,7 +68,8 @@ static unsigned int find_task_slot(void)
     unsigned int index;
 
     for (index = 1U; index < task_count; index++) {
-        if (index != pending_reap && tasks[index].state == TASK_TERMINATED &&
+        if ((pending_reap_mask & (1U << index)) == 0U &&
+            tasks[index].state == TASK_TERMINATED &&
             tasks[index].stack_base == 0U && tasks[index].frame == 0) {
             return index;
         }
@@ -97,6 +98,18 @@ static void reap_task_stack(struct scheduler_task *task)
     task->stack_base = 0U;
     task->frame = 0;
     stack_reap_count++;
+}
+
+static void reap_pending_stacks(void)
+{
+    unsigned int index;
+
+    for (index = 1U; index < task_count; index++) {
+        if ((pending_reap_mask & (1U << index)) != 0U && index != current_task) {
+            reap_task_stack(&tasks[index]);
+            pending_reap_mask &= ~(1U << index);
+        }
+    }
 }
 
 static void clear_task(struct scheduler_task *task)
@@ -225,10 +238,7 @@ static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame
     if (!scheduler_started || task_count == 0U || frame == 0) {
         return frame;
     }
-    if (pending_reap < task_count && pending_reap != current_task) {
-        reap_task_stack(&tasks[pending_reap]);
-        pending_reap = SCHEDULER_MAX_TASKS;
-    }
+    reap_pending_stacks();
     if (tasks[current_task].mode == TASK_USER) {
         save_user_frame(&tasks[current_task], frame);
     } else {
@@ -263,7 +273,7 @@ void scheduler_init(void)
     task_count = 1;
     current_task = 0;
     scheduler_started = 0;
-    pending_reap = SCHEDULER_MAX_TASKS;
+    pending_reap_mask = 0U;
     stack_reap_count = 0U;
     last_added_task = SCHEDULER_MAX_TASKS;
     for (index = 0U; index < SCHEDULER_MAX_TASKS; index++) {
@@ -523,7 +533,7 @@ struct interrupt_frame *scheduler_on_user_fault(struct interrupt_frame *frame)
     ipc_purge_receiver(scheduler_current_task_id());
     ipc_purge_sender(scheduler_current_task_id());
     tasks[current_task].state = TASK_TERMINATED;
-    pending_reap = current_task;
+    pending_reap_mask |= 1U << current_task;
     if (!user_process_reap_task(scheduler_current_task_index(), scheduler_current_task_id())) {
         kernel_panic("Unowned user task faulted.");
     }
@@ -539,7 +549,7 @@ struct interrupt_frame *scheduler_on_user_exit(struct interrupt_frame *frame)
     ipc_purge_receiver(scheduler_current_task_id());
     ipc_purge_sender(scheduler_current_task_id());
     tasks[current_task].state = TASK_TERMINATED;
-    pending_reap = current_task;
+    pending_reap_mask |= 1U << current_task;
     if (!user_process_reap_task(scheduler_current_task_index(), scheduler_current_task_id())) {
         kernel_panic("Unowned user task exited.");
     }
@@ -554,7 +564,7 @@ static void scheduler_task_trampoline(void)
         entry();
     }
     tasks[current_task].state = TASK_TERMINATED;
-    pending_reap = current_task;
+    pending_reap_mask |= 1U << current_task;
     __asm__ volatile ("int $0x31" : : : "memory");
     for (;;) {
         __asm__ volatile ("hlt");

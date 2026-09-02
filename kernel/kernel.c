@@ -333,18 +333,29 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("EfesOS: bounded IPC queue self-test passed.\n");
     scheduler_add_task("counter", counter_program);
     scheduler_add_task("snake", snake_program);
-    if (!user_process_init() || !user_process_init()) {
+    if (!user_process_init() || !user_process_init() || !user_process_init() ||
+        !user_process_init()) {
         kernel_panic("User process initialization failed.");
     }
     if (user_process_address_space() == 0U ||
         user_process_address_space() == paging_kernel_directory()) {
         kernel_panic("User process address-space isolation failed.");
     }
-    if (user_process_active_count() != 2U ||
+    if (user_process_active_count() != 4U ||
         user_process_address_space_at(0U) == 0U ||
         user_process_address_space_at(0U) == user_process_address_space_at(1U) ||
+        user_process_address_space_at(0U) == user_process_address_space_at(2U) ||
+        user_process_address_space_at(0U) == user_process_address_space_at(3U) ||
+        user_process_address_space_at(1U) == user_process_address_space_at(2U) ||
+        user_process_address_space_at(1U) == user_process_address_space_at(3U) ||
+        user_process_address_space_at(2U) == user_process_address_space_at(3U) ||
         user_process_stack_address_at(0U) == 0U ||
-        user_process_stack_address_at(0U) == user_process_stack_address_at(1U)) {
+        user_process_stack_address_at(0U) == user_process_stack_address_at(1U) ||
+        user_process_stack_address_at(0U) == user_process_stack_address_at(2U) ||
+        user_process_stack_address_at(0U) == user_process_stack_address_at(3U) ||
+        user_process_stack_address_at(1U) == user_process_stack_address_at(2U) ||
+        user_process_stack_address_at(1U) == user_process_stack_address_at(3U) ||
+        user_process_stack_address_at(2U) == user_process_stack_address_at(3U)) {
         kernel_panic("Multiple user process initialization failed.");
     }
     serial_write("EfesOS: multiple user process isolation self-test passed.\n");

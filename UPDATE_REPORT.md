@@ -14,7 +14,7 @@
 - Kullanıcı page fault sonrası ELF ve kullanıcı yığını kaynaklarının scheduler’a dönmeden geri kazanılması eklendi.
 - Terminated görev slotları artık kernel çalışma sırasında güvenli biçimde yeniden kullanılabiliyor; kullanıcı demo süreci fault sonrası dört ardışık kez yeniden başlatılarak adres alanı/yığın temizliği, tekrar tahsis ve fiziksel bellek muhasebesi stres altında doğrulanıyor.
 - Kullanıcı süreçleri için kernel PDE’lerini paylaşan özel page directory’ler, scheduler CR3 geçişi ve adres alanı yıkımı eklendi.
-- İki bounded ring-3 süreç aynı anda ayrı adres alanlarında başlatılıyor; fault temizliği task kimliğiyle eşleşiyor ve QEMU isolation marker’ı ile doğrulanıyor.
+- Dört bounded ring-3 süreç aynı anda ayrı adres alanlarında başlatılıyor; fault temizliği task generation kimliğiyle eşleşiyor ve QEMU isolation marker’ı ile doğrulanıyor.
 - Seri tanılama çıktısı kritik bölümlerde atomikleştirildi; preemption sırasında log satırlarının bölünmesi engellendi.
 - Paging API’si kullanıcı bayrağını korunan taban adresin altında reddediyor; bu kural VMM self-test’iyle doğrulanıyor.
 - Paging map API’si artık tanımsız izin flag’lerini sessizce kırpmıyor; bilinmeyen bitler reddediliyor ve VMM negatif self-test’iyle korunuyor.
@@ -43,6 +43,7 @@
 - FAT dosya zinciri cycle testi strict bounded guard ile doğrulanıyor; döngülü cluster zinciri dosya okumasını fail-closed durduruyor.
 - FAT mount artık BPB’nin bildirdiği cluster sayısının FAT tablosu kapasitesine sığdığını doğruluyor; eksik FAT girdileriyle yapılan taşma/yanlış sektör okuması host fixture ile reddediliyor.
 - Terminated task’ların kernel stack’leri aktif interrupt stack’i korunarak sonraki scheduler geçişinde geri kazanılıyor.
+- Birden fazla task aynı scheduler geçişi arasında sonlandığında kernel stack cleanup kayıtları bounded bitmask ile tutuluyor; tek pending slot nedeniyle kaynak sızıntısı oluşmuyor.
 - Scheduler için güvenli bloklama/uyandırma primitive’leri eklendi; mevcut görev bloklanırken başka runnable görev yoksa bloklama reddediliyor ve yaşam döngüsü self-test’i boot sırasında çalışıyor.
 - Scheduler’ın görev durumu, PID sahipliği ve wake/block geçişleri artık IRQ-korumalı kritik bölümlerde yürütülüyor; IPC gönderimi ile timer preemption arasındaki yarış penceresi kapatıldı.
 - Ring-3 task oluşturma API’si entry ve user stack-top adreslerini 4 MiB–3 GiB kullanıcı aralığına sınırlandırıyor; kernel adresleri için negatif boot self-test’i eklendi.
@@ -70,11 +71,11 @@
 
 ## Bilinen sınırlar
 
-ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddi kullanılıyor. Disk yazma ve kalıcı dosya sistemi kullanıcıya hâlâ açılmadı. IPC bounded beklemeli receive, generation-PID hedefleme ve scheduler uyandırma desteğine sahip; demo hâlâ iki sabit kullanıcı süreciyle sınırlı. Authentication, secure boot, ağ/USB/SMP ve tam VFS sonraki aşamalardır.
+ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddi kullanılıyor. Disk yazma ve kalıcı dosya sistemi kullanıcıya hâlâ açılmadı. IPC bounded beklemeli receive, generation-PID hedefleme ve scheduler uyandırma desteğine sahip; demo dört sabit kullanıcı süreciyle sınırlı. Authentication, secure boot, ağ/USB/SMP ve tam VFS sonraki aşamalardır.
 
 ## Öncelikli sonraki geliştirmeler
 
-1. **Kullanıcı süreçleri (P0):** İki demo sürecini genel süreç oluşturma/çıkış API’sine genişlet; süreç sahipliği, copy-on-write/ASLR seçeneklerini ve veri taşıyan her yeni syscall için kullanıcı aralığı doğrulamasını sürdür.
+1. **Kullanıcı süreçleri (P0):** Dört demo sürecini genel süreç oluşturma/çıkış API’sine genişlet; süreç sahipliği, copy-on-write/ASLR seçeneklerini ve veri taşıyan her yeni syscall için kullanıcı aralığı doğrulamasını sürdür.
 2. **Depolama (P1):** ATA sürücüsünü IRQ/DMA ve gerçek donanım matrisiyle doğrula; yazmayı ancak hata kurtarma, journaling ve FAT bütünlük kontrollerinden sonra aç.
 3. **Donanım kapsamı (P2):** PCI BAR ayrıştırma, blok aygıt soyutlaması, USB/HID, ağ ve zamanlayıcı sürücülerini ekle; her biri için QEMU/host fixture testi yaz.
 4. **Güvenlik (P2):** imzalı boot zinciri, kimlik doğrulama, ASLR, modül imzalama ve SMP kilitlemesini tasarla.

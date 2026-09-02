@@ -30,6 +30,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Each user address space leaves a page-sized unmapped guard below its user stack; stack underflow therefore terminates the task instead of overwriting another mapping.
 - Stage-2 verifies a build-generated bounded kernel checksum before handoff and the kernel requires the verification bit; this detects corruption but is not a cryptographic secure-boot signature.
 - User `EXIT` follows the same ownership-checked cleanup path as faults, reclaiming user mappings before the scheduler can reuse the task slot.
+- Terminated task stacks are tracked in a bounded pending-reap mask, so concurrent faults/exits cannot overwrite one another’s deferred cleanup record.
 - Diagnostic serial messages are emitted with interrupts disabled so preemptive task switches cannot splice security/test records.
 
 This remains a learning kernel. It has no authentication, secure boot, signed modules, ASLR, SMP isolation, comprehensive validation for every future syscall ABI, or a fully validated persistent filesystem. Do not treat it as a production security boundary until those items are implemented and audited.
