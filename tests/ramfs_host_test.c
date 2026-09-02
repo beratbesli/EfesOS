@@ -28,6 +28,15 @@ int main(void)
         return 1;
     }
     {
+        unsigned int content_length;
+        if (!ramfs_can_write_file("PREFLIGHT", "safe", &content_length) ||
+            content_length != 4U ||
+            ramfs_can_write_file("bad/name", "rejected", 0) ||
+            ramfs_can_write_file("PREFLIGHT", 0, 0)) {
+            return 1;
+        }
+    }
+    {
         struct journal_entry entry = {0};
         entry.operation = JOURNAL_OPERATION_WRITE;
         entry.sequence = 1U;

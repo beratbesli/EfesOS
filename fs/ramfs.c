@@ -111,7 +111,8 @@ const char *ramfs_file_contents(const char *name)
     return 0;
 }
 
-int ramfs_write_file(const char *name, const char *contents)
+int ramfs_can_write_file(const char *name, const char *contents,
+    unsigned int *content_length)
 {
     unsigned int index;
     unsigned int length;
@@ -123,14 +124,29 @@ int ramfs_write_file(const char *name, const char *contents)
     if (length >= RAMFS_CONTENT_MAX) {
         return 0;
     }
+    if (content_length != 0) {
+        *content_length = length;
+    }
+    for (index = 0; index < file_count; index++) {
+        if (string_equals(name, files[index].name)) {
+            return 1;
+        }
+    }
+    return file_count != RAMFS_MAX_FILES;
+}
+
+int ramfs_write_file(const char *name, const char *contents)
+{
+    unsigned int index;
+
+    if (!ramfs_can_write_file(name, contents, 0)) {
+        return 0;
+    }
     for (index = 0; index < file_count; index++) {
         if (string_equals(name, files[index].name)) {
             copy_string(files[index].contents, contents, RAMFS_CONTENT_MAX);
             return 1;
         }
-    }
-    if (file_count == RAMFS_MAX_FILES) {
-        return 0;
     }
     add_file(name, contents);
     return 1;

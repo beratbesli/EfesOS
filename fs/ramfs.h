@@ -12,6 +12,8 @@ unsigned int ramfs_file_count(void);
 const char *ramfs_file_name(unsigned int index);
 const char *ramfs_file_contents(const char *name);
 int ramfs_write_file(const char *name, const char *contents);
+int ramfs_can_write_file(const char *name, const char *contents,
+    unsigned int *content_length);
 int ramfs_remove_file(const char *name);
 int ramfs_apply_journal_entry(const struct journal_entry *entry);
 int ramfs_self_test(void);
