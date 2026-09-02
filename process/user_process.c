@@ -21,6 +21,7 @@ struct user_process_record {
     unsigned int stack_address;
     unsigned int address_space;
     unsigned int task_index;
+    unsigned int task_id;
     int active;
 };
 
@@ -165,11 +166,12 @@ static int user_process_init_locked(void)
     processes[process_index].stack_address = stack_address;
     processes[process_index].address_space = address_space;
     processes[process_index].task_index = scheduler_last_added_task();
+    processes[process_index].task_id = scheduler_task_id(processes[process_index].task_index);
     processes[process_index].active = 1;
     return 1;
 }
 
-int user_process_reap_task(unsigned int task_index)
+int user_process_reap_task(unsigned int task_index, unsigned int task_id)
 {
     struct user_process_record *process = 0;
     unsigned int physical;
@@ -181,7 +183,7 @@ int user_process_reap_task(unsigned int task_index)
             break;
         }
     }
-    if (process == 0) {
+    if (process == 0 || task_id == 0U || process->task_id != task_id) {
         return 0;
     }
 
@@ -218,6 +220,7 @@ int user_process_reap_task(unsigned int task_index)
         process->address_space = 0U;
     }
     process->task_index = 0U;
+    process->task_id = 0U;
     process->active = 0;
     process_reaps++;
     return 1;
@@ -225,7 +228,7 @@ int user_process_reap_task(unsigned int task_index)
 
 void user_process_reap(void)
 {
-    user_process_reap_task(scheduler_current_task_index());
+    user_process_reap_task(scheduler_current_task_index(), scheduler_current_task_id());
 }
 
 unsigned int user_process_reap_count(void)

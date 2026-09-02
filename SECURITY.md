@@ -25,6 +25,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - The ATA raw-write path starts write-protected on every boot and remains disabled until a future transactional/journaled storage layer explicitly replaces this policy.
 - IPC uses a fixed 16-message, 64-byte-per-message queue with interrupt-safe FIFO operations. `IPC_SEND_TO` binds delivery to an active user generation-PID (while legacy `IPC_SEND` remains broadcast), `IPC_RECEIVE_WAIT` blocks safely until a sender wakes the task, and exited-task messages are purged; ring-3 calls validate all user buffers and return bounded `E2BIG`/`EFAULT`/`EAGAIN` errors.
 - Scheduler task IDs include a per-slot generation and are exposed through the bounded `GET_PID` syscall, so a reused slot does not silently retain its previous identity.
+- User-process ownership records require both the task slot and its generation-PID during cleanup, preventing a stale slot callback from reclaiming a replacement process.
 - Generation counters are bounded to the PID encoding width; an exhausted slot is never wrapped into an old identity and is rejected instead (fail-closed).
 - Each user address space leaves a page-sized unmapped guard below its user stack; stack underflow therefore terminates the task instead of overwriting another mapping.
 - Stage-2 verifies a build-generated bounded kernel checksum before handoff and the kernel requires the verification bit; this detects corruption but is not a cryptographic secure-boot signature.

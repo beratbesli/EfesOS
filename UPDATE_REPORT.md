@@ -25,6 +25,7 @@
 - Scheduler, kernel page directory’sini ring-3 task’a vermeyi reddediyor; sahiplik kaydı bulunmayan bir user fault da sessizce devam etmek yerine fail-closed panic ile duruyor.
 - Scheduler slotları generation tabanlı PID üretiyor; ring-3 `GET_PID` ABI’si doğrulanarak ileride stale task-index sahiplik saldırılarını önleyecek kimlik temeli oluşturuluyor.
 - PID generation sayacı encoding sınırında sarma yapmıyor; tükenen slot güvenli kaynak kıtlığı olarak reddedilerek eski generation kimliğiyle çakışma önleniyor.
+- User-process cleanup kayıtları slot indeksiyle birlikte generation-PID eşleşmesi istiyor; stale cleanup çağrıları yeni sürecin adres alanına dokunamıyor.
 - Smoke test’i eski logları reddediyor ve seri çıktıyı gerçek süreç stdout’undan doğruluyor; boş loglar artık başarılı sayılmıyor.
 - Scheduler görevleri için 1–8 arası sınırlı öncelik zaman dilimleri ve zorunlu gönüllü `yield` geçişi eklendi.
 - FAT16 mount bozuk BPB/cluster geometrisini, aşırı cluster boyutunu ve LBA toplam taşmasını ayrı hata kodlarıyla fail-closed reddediyor.
