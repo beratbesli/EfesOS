@@ -252,10 +252,23 @@ if ((1 + $stage2Sectors + $kernelSectors) * 512 -gt $floppySize) {
 [System.Array]::Copy($kernelRawBytes, $kernelBytes, $kernelRawBytes.Length)
 [System.IO.File]::WriteAllBytes($kernelBinary, $kernelBytes)
 
-[uint64]$kernelChecksum = 0
-foreach ($byte in $kernelBytes) {
-    $kernelChecksum = ($kernelChecksum + [uint64]$byte) -band 0xFFFFFFFF
+function Get-Crc32 {
+    param([Parameter(Mandatory = $true)][byte[]]$Bytes)
+
+    [uint32]$crc = [uint32]4294967295
+    foreach ($byte in $Bytes) {
+        $crc = [uint32]($crc -bxor [uint32]$byte)
+        for ($bit = 0; $bit -lt 8; $bit++) {
+            if (($crc -band [uint32]1) -ne [uint32]0) {
+                $crc = [uint32](($crc -shr 1) -bxor [uint32]3988292384)
+            } else {
+                $crc = [uint32]($crc -shr 1)
+            }
+        }
+    }
+    return [uint32]($crc -bxor [uint32]4294967295)
 }
+[uint32]$kernelChecksum = Get-Crc32 $kernelBytes
 $kernelChecksumLiteral = '0x{0:X8}' -f [uint32]$kernelChecksum
 
 Invoke-Tool -Path $nasm -Arguments @('-w+error', '-D', "STAGE2_SECTORS=$stage2Sectors", '-f', 'bin', $bootSource, '-o', $bootBinary) -FailureMessage 'Stage-1 bootloader derlenemedi.'

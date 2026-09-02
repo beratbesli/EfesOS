@@ -29,7 +29,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - New user processes use one of eight bounded stack regions, reducing assumptions about a single fixed user-stack address
 - IPC syscalls (`IPC_SEND`, `IPC_RECEIVE`, `IPC_SEND_TO`, `IPC_RECEIVE_WAIT`, `EXIT`) with 16-message/64-byte bounds, generation-PID routing, scheduler wakeups, and validated user copies
 - Generation-based `GET_PID` syscall so reused task slots do not retain stale identities
-- Stage-2 kernel integrity checksum before protected-mode handoff (integrity, not authenticity)
+- Stage-2 CRC-32 kernel integrity check before protected-mode handoff (integrity, not authenticity)
 - Bounded user `EXIT` lifecycle with resource reclamation and scheduler slot reuse
 - E820-backed physical-memory allocation across the 32-bit address space
 - Null-page protection, read-only kernel code/data, dynamic page mapping and a guarded kernel heap
@@ -42,6 +42,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - NASM
 - Either `i686-elf-gcc`, `i686-elf-ld`, and `i686-elf-objcopy`, or LLVM (`clang`, `ld.lld`, and `llvm-objcopy`)
 - QEMU (`qemu-system-i386`)
+- Python 3 (Linux `make` build’inde kernel CRC-32 üretimi için)
 
 The Windows build script prefers the GNU cross-toolchain when it is available and otherwise uses Clang with the `i686-none-elf` target. Use tools obtained from trusted sources and verify their checksums before installing them. EfesOS does not download or vendor compiler binaries.
 

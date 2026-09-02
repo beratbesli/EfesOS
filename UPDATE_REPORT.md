@@ -37,7 +37,7 @@
 - FAT host testi 2.048 deterministik bozuk-imaj mutasyonunda mount/directory/file API’lerini çalıştırarak parser’ın bounded ret davranışını tarıyor.
 - FAT host testi üç kopyalı fixture ile üçüncü aynadaki cluster-chain ayrışmasını da doğruluyor.
 - ELF loader self-test’i artık bozuk program-header/segment offset, boyut, adres, flag, alignment ve entry fixture’larını da reddediyor; malformed image kabulü regresyon kapsamına alındı.
-- Stage-2, kernel yüklemesi sonrası build tarafından üretilen bounded byte-checksum’u doğruluyor; doğrulama başarısızsa protected mode’a geçmiyor ve başarı biti boot metadata üzerinden kernel tarafından zorunlu tutuluyor. Bu bütünlük kontrolüdür, kriptografik imza/kimlik doğrulaması değildir.
+- Stage-2, kernel yüklemesi sonrası build tarafından üretilen CRC-32 özetini doğruluyor; doğrulama başarısızsa protected mode’a geçmiyor ve başarı biti boot metadata üzerinden kernel tarafından zorunlu tutuluyor. Bu bütünlük kontrolüdür, kriptografik imza/kimlik doğrulaması değildir.
 - Stage-2 VGA font BIOS çağrısının CF ve fiziksel adres aralığını doğruluyor; geçersiz/eksik font artık grafik donanımı varmış gibi işaretlenmiyor.
 - E820 BIOS çağrısı, BIOS’un tampon işaretçisini değiştirmesine karşı kayıtlı giriş ofsetini koruyor; VGA kernel sürücüsü font adresi üst sınırını bağımsız olarak tekrar doğruluyor.
 - VGA sürücüsü PCI BAR/command yazmadan önce bilinen BGA vendor/device/class kimliğini ve BGA ID register’ını doğruluyor; farklı PCI donanımı yanlışlıkla değiştirilmiyor.

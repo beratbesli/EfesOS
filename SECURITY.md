@@ -37,7 +37,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Generation counters are bounded to the PID encoding width; an exhausted slot is never wrapped into an old identity and is rejected instead (fail-closed).
 - Each user address space leaves a page-sized unmapped guard below its user stack; stack underflow therefore terminates the task instead of overwriting another mapping.
 - User-process creation scans all bounded stack regions and refuses active-region reuse, so restart timing cannot create duplicate stack metadata or an avoidable spawn failure.
-- Stage-2 verifies a build-generated bounded kernel checksum before handoff and the kernel requires the verification bit; this detects corruption but is not a cryptographic secure-boot signature.
+- Stage-2 verifies a build-generated CRC-32 kernel digest before handoff and the kernel requires the verification bit; this detects accidental/tampering corruption better than a sum but is not a cryptographic secure-boot signature.
 - User `EXIT` follows the same ownership-checked cleanup path as faults, reclaiming user mappings before the scheduler can reuse the task slot.
 - Terminated task stacks are tracked in a bounded pending-reap mask, so concurrent faults/exits cannot overwrite one another’s deferred cleanup record.
 - Deferred kernel-stack cleanup verifies the unmapped guard and every recorded physical frame before freeing it; missing or mismatched ownership is fail-closed instead of silently leaking or freeing an unexpected page.

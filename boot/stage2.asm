@@ -150,15 +150,24 @@ verify_kernel_checksum:
     mov ds, ax
     mov esi, KERNEL_LOAD_SEGMENT
     shl esi, 4
-    xor eax, eax
-    xor edx, edx
+    mov eax, 0xFFFFFFFF
     mov ecx, KERNEL_SECTORS * 512
-.checksum_loop:
+.checksum_byte:
+    xor edx, edx
     mov dl, [ds:esi]
-    add eax, edx
+    xor eax, edx
+    mov ebx, 8
+.checksum_bit:
+    shr eax, 1
+    jnc .checksum_no_polynomial
+    xor eax, 0xEDB88320
+.checksum_no_polynomial:
+    dec ebx
+    jnz .checksum_bit
     inc esi
     dec ecx
-    jnz .checksum_loop
+    jnz .checksum_byte
+    not eax
     cmp eax, KERNEL_CHECKSUM
     jne .checksum_failed
     mov ax, 1
