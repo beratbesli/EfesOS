@@ -79,6 +79,12 @@ Run the bounded RAM filesystem test when changing RAMFS code:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ramfs-self-test.ps1
 ```
 
+For journal record format changes, run the CRC/commit validation test:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\journal-self-test.ps1
+```
+
 Run the standalone ELF validation test when changing process loading code:
 
 ```powershell

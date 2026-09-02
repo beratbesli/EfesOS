@@ -20,6 +20,7 @@
 #include "ipc.h"
 #include "vfs.h"
 #include "fat.h"
+#include "journal.h"
 #include "shell.h"
 #include "splash.h"
 #include "vga.h"
@@ -334,6 +335,10 @@ void kernel_main(const struct boot_info *boot_info)
         kernel_panic("RAM filesystem self-test failed.");
     }
     serial_write("EfesOS: RAM filesystem self-test passed.\n");
+    if (!journal_self_test()) {
+        kernel_panic("Journal record self-test failed.");
+    }
+    serial_write("EfesOS: journal record self-test passed.\n");
     ipc_init();
     if (!ipc_self_test()) {
         kernel_panic("IPC queue self-test failed.");

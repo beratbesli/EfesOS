@@ -28,6 +28,7 @@ $successMarkers = @(
     'EfesOS: ELF loader runtime self-test passed.',
     'EfesOS: kernel heap self-test passed.',
     'EfesOS: RAM filesystem self-test passed.',
+    'EfesOS: journal record self-test passed.',
     'EfesOS: bounded IPC queue self-test passed.',
     'EfesOS: user stack guard self-test passed.',
     'EfesOS: user address-space isolation self-test passed.',

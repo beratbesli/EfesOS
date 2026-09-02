@@ -79,6 +79,12 @@ RAM dosya sistemi değişikliklerinde bounded isim ve içerik testini çalışt�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ramfs-self-test.ps1
 ```
 
+Journal kayıt formatı değişikliklerinde CRC/commit doğrulama testini çalıştır:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\journal-self-test.ps1
+```
+
 Süreç yükleyici değişikliklerinde bağımsız ELF doğrulama testini çalıştır:
 
 ```powershell
