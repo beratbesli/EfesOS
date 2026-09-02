@@ -50,6 +50,16 @@ static void copy_bytes(unsigned char *destination, const unsigned char *source, 
     }
 }
 
+static void clear_user_page(unsigned int address)
+{
+    unsigned int *page = (unsigned int *)address;
+    unsigned int index;
+
+    for (index = 0U; index < PAGE_SIZE / sizeof(unsigned int); index++) {
+        page[index] = 0U;
+    }
+}
+
 static void set_u16(unsigned char *data, unsigned int offset, unsigned short value)
 {
     data[offset] = (unsigned char)(value & 0xFFU);
@@ -126,6 +136,7 @@ static int user_process_spawn_locked(const char *name, const void *image,
         !paging_map_page(stack_address, stack_frame, PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
         goto cleanup;
     }
+    clear_user_page(stack_address);
     stack_mapped = 1;
     image_loaded = elf_load_image(image, image_size, &entry, &loaded_base, &loaded_end);
     if (!image_loaded) {
