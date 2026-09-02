@@ -88,6 +88,7 @@
 - FAT ve ELF host testleri CI’da AddressSanitizer/UndefinedBehaviorSanitizer ile ikinci bir bellek güvenliği kapısından da geçiriliyor.
 - Linux Makefile imaj üretimi artık hedef floppy alanını her derlemede sıfırlıyor; daha kısa yeni kernel derlemelerinde eski sektör verisi artefakta taşınmıyor.
 - Ardışık iki build’in SHA-256 imaj özetini karşılaştıran reproducible-build self-test’i eklendi; build pipeline değişikliklerinde gizli/non-deterministic çıktı farkı yakalanıyor.
+- CI checkout action’ı doğrulanmış tam commit SHA’sına sabitlendi ve checkout credential kalıcılığı kapatıldı; workflow tedarik zinciri riski azaltıldı.
 - Build ve smoke doğrulaması artık 0x55AA boot imzasını zorunlu tutuyor ve tüm marker’lar bulunsa bile `KERNEL PANIC` çıktısını başarısız sayıyor.
 - IDT artık 256 vektörün tamamına ortak stub kuruyor; 129–255 arası beklenmeyen vektörler boş descriptor yerine fail-closed dispatcher’a ulaşıyor.
 - Breakpoint exception self-test’i artık yalnızca ring-0 çağrısında kabul ediliyor; ring-3 `int3` çağrıları diğer user exception’lar gibi izolasyonlu cleanup’a yönlendiriliyor.
