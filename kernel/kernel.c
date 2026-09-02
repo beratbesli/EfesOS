@@ -21,13 +21,13 @@
 #include "vfs.h"
 #include "fat.h"
 #include "journal.h"
+#include "persistent.h"
 #include "shell.h"
 #include "splash.h"
 #include "vga.h"
 
 #define USER_PROCESS_ALLOCATION_BLOCKS 9U
 #define USER_PROCESS_RESTART_TARGET 4U
-#define JOURNAL_REGION_SECTORS 65U
 
 static int scheduler_runtime_verified;
 static int user_runtime_verified;
@@ -67,37 +67,6 @@ static void verify_mounted_disk_read(void)
     serial_write("EfesOS: FAT directory/file read self-test passed (file=");
     serial_write(name);
     serial_write(").\n");
-}
-
-static void replay_persistent_ramfs(void)
-{
-    unsigned int region_start;
-    unsigned int data_sectors;
-    unsigned int applied;
-    unsigned char superblock[JOURNAL_SECTOR_SIZE];
-
-    if (!ata_present() || ata_sector_count() <= JOURNAL_REGION_SECTORS) {
-        return;
-    }
-    region_start = ata_sector_count() - JOURNAL_REGION_SECTORS;
-    if (!vfs_journal_region_available(region_start, JOURNAL_REGION_SECTORS)) {
-        /* Never interpret sectors owned by a mounted FAT volume as journal
-           records, even if their bytes happen to pass journal validation. */
-        return;
-    }
-    if (!ata_read_sectors(region_start, 1U, superblock) ||
-        !journal_superblock_decode(superblock, &data_sectors)) {
-        /* An unformatted tail is normal; no write or state mutation occurs. */
-        return;
-    }
-    if (data_sectors + 1U > JOURNAL_REGION_SECTORS ||
-        !journal_replay(ata_read_sectors, region_start, JOURNAL_REGION_SECTORS,
-            ramfs_apply_journal_entry, &applied)) {
-        kernel_panic("Persistent journal replay failed.");
-    }
-    serial_write("EfesOS: persistent journal replay passed records=");
-    serial_write_hex(applied);
-    serial_write(".\n");
 }
 
 static void kernel_wait_for_work(void);
@@ -363,7 +332,14 @@ void kernel_main(const struct boot_info *boot_info)
     scheduler_block_runtime_verified = 0;
     programs_init();
     ramfs_init();
-    replay_persistent_ramfs();
+    if (!persistent_ramfs_init()) {
+        kernel_panic("Persistent journal initialization failed.");
+    }
+    if (persistent_ramfs_is_enabled()) {
+        serial_write("EfesOS: persistent journal replay passed records=");
+        serial_write_hex(persistent_ramfs_replay_count());
+        serial_write(".\n");
+    }
     if (!ramfs_self_test()) {
         kernel_panic("RAM filesystem self-test failed.");
     }

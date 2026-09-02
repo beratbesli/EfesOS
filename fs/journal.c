@@ -365,6 +365,27 @@ int journal_replay(journal_read_fn read, unsigned int start_lba,
     return 1;
 }
 
+int journal_next_sequence(journal_read_fn read, unsigned int start_lba,
+    unsigned int sector_count, unsigned int *sequence)
+{
+    unsigned char superblock[JOURNAL_SECTOR_SIZE];
+    unsigned int data_sectors;
+    unsigned int record_count;
+    unsigned int last_sequence;
+
+    if (sequence == 0 || read == 0 || sector_count < 2U ||
+        sector_count > JOURNAL_MAX_DATA_SECTORS + 1U ||
+        !region_fits(start_lba, sector_count) || !read(start_lba, 1U, superblock) ||
+        !journal_superblock_decode(superblock, &data_sectors) ||
+        data_sectors + 1U > sector_count ||
+        !scan_log(read, start_lba, data_sectors, &record_count, &last_sequence) ||
+        last_sequence == 0xFFFFFFFFU) {
+        return 0;
+    }
+    *sequence = last_sequence + 1U;
+    return 1;
+}
+
 int journal_append(journal_read_fn read, journal_write_fn write,
     unsigned int start_lba, unsigned int sector_count, unsigned int operation,
     unsigned int sequence, const char *name, const void *content,

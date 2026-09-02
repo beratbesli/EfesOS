@@ -42,6 +42,7 @@ int persistent_ramfs_init(void)
     persistent_region_start = 0U;
     persistent_next_sequence = 0U;
     persistent_replay_records = 0U;
+    ata_disable_transactional_writes();
 
     if (!ata_present() || ata_sector_count() <= PERSISTENT_JOURNAL_REGION_SECTORS) {
         return 1;
@@ -57,10 +58,14 @@ int persistent_ramfs_init(void)
     if (data_sectors + 1U > PERSISTENT_JOURNAL_REGION_SECTORS ||
         !journal_replay(ata_read_sectors, persistent_region_start,
             PERSISTENT_JOURNAL_REGION_SECTORS, ramfs_apply_journal_entry,
-            &persistent_replay_records) ||
-        !journal_next_sequence(ata_read_sectors, persistent_region_start,
-            PERSISTENT_JOURNAL_REGION_SECTORS, &persistent_next_sequence)) {
+            &persistent_replay_records)) {
         return 0;
+    }
+    if (!journal_next_sequence(ata_read_sectors, persistent_region_start,
+        PERSISTENT_JOURNAL_REGION_SECTORS, &persistent_next_sequence)) {
+        /* A valid log whose sequence space is exhausted remains readable;
+           simply keep the persistent write capability disabled. */
+        return 1;
     }
     /* The ATA driver accepts writes only inside this validated journal
        region; FAT sectors can never be reached through the write callback. */
@@ -89,12 +94,17 @@ int persistent_ramfs_write_file(const char *name, const char *contents)
 
     if (!persistent_enabled || persistent_next_sequence == 0U ||
         !ramfs_can_write_file(name, contents, &content_length) ||
-        !journal_append(ata_read_sectors, ata_write_sectors,
-            persistent_region_start, PERSISTENT_JOURNAL_REGION_SECTORS,
-            JOURNAL_OPERATION_WRITE, persistent_next_sequence, name, contents,
-            content_length) ||
         !build_entry(JOURNAL_OPERATION_WRITE, persistent_next_sequence, name,
             contents, content_length, &entry)) {
+        return 0;
+    }
+    if (!journal_append(ata_read_sectors, ata_write_sectors,
+        persistent_region_start, PERSISTENT_JOURNAL_REGION_SECTORS,
+        JOURNAL_OPERATION_WRITE, persistent_next_sequence, name, contents,
+        content_length)) {
+        serial_write("EfesOS: persistent RAMFS write journal append failed status=");
+        serial_write_hex(ata_last_status());
+        serial_write(".\n");
         return 0;
     }
     if (!ramfs_apply_journal_entry(&entry)) {
@@ -110,11 +120,16 @@ int persistent_ramfs_remove_file(const char *name)
 
     if (!persistent_enabled || persistent_next_sequence == 0U ||
         ramfs_file_contents(name) == 0 ||
-        !journal_append(ata_read_sectors, ata_write_sectors,
-            persistent_region_start, PERSISTENT_JOURNAL_REGION_SECTORS,
-            JOURNAL_OPERATION_REMOVE, persistent_next_sequence, name, 0, 0U) ||
         !build_entry(JOURNAL_OPERATION_REMOVE, persistent_next_sequence, name,
             0, 0U, &entry)) {
+        return 0;
+    }
+    if (!journal_append(ata_read_sectors, ata_write_sectors,
+        persistent_region_start, PERSISTENT_JOURNAL_REGION_SECTORS,
+        JOURNAL_OPERATION_REMOVE, persistent_next_sequence, name, 0, 0U)) {
+        serial_write("EfesOS: persistent RAMFS remove journal append failed status=");
+        serial_write_hex(ata_last_status());
+        serial_write(".\n");
         return 0;
     }
     if (!ramfs_apply_journal_entry(&entry)) {

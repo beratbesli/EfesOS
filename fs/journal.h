@@ -29,6 +29,8 @@ int journal_superblock_encode(unsigned char *sector, unsigned int data_sectors);
 int journal_superblock_decode(const unsigned char *sector, unsigned int *data_sectors);
 int journal_replay(journal_read_fn read, unsigned int start_lba,
     unsigned int sector_count, journal_apply_fn apply, unsigned int *applied);
+int journal_next_sequence(journal_read_fn read, unsigned int start_lba,
+    unsigned int sector_count, unsigned int *sequence);
 int journal_append(journal_read_fn read, journal_write_fn write,
     unsigned int start_lba, unsigned int sector_count, unsigned int operation,
     unsigned int sequence, const char *name, const void *content,

@@ -147,13 +147,20 @@ int main(void)
     if (!journal_replay(read_disk, 0U, 5U, apply_entry, 0) || applied_count != 1U) {
         return 16;
     }
+    {
+        unsigned int next_sequence;
+        if (!journal_next_sequence(read_disk, 0U, 5U, &next_sequence) ||
+            next_sequence != 2U) {
+            return 17;
+        }
+    }
     overflow_read_calls = 0U;
     if (journal_replay(read_any, 0xFFFFFFFFU, 2U, apply_entry, 0) ||
         overflow_read_calls != 0U ||
         journal_append(read_any, write_disk, 0xFFFFFFFFU, 2U,
             JOURNAL_OPERATION_WRITE, 1U, "A", "one", 3U) ||
         overflow_read_calls != 0U) {
-        return 17;
+        return 18;
     }
     puts("Journal host self-test passed.");
     return 0;

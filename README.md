@@ -18,8 +18,9 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Deferred event loop; shell and games never run inside hardware IRQ handlers
 - PCI configuration-space enumeration with a bounded `pci` diagnostic command
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
-- ATA raw writes disabled by default until a transactional filesystem layer is available
+- ATA raw writes remain disabled by default; only a validated journal window can be transactionally enabled
 - Read-only FAT16 VFS mount with bounded 8.3 directory and file reads (`diskls`, `diskcat`); validated ELF launch from disk (`run NAME`)
+- When a validated journal region exists outside the FAT volume, shell `write`/`rm` operations are committed transactionally to persistent RAMFS; unformatted disks remain safely volatile/read-only
 - Bounded ELF32 segment loader with BSS initialization, W^X checks and page-permission finalization
 - Software execute metadata for ELF code pages with EIP checks at scheduler/syscall boundaries (not a full replacement for hardware NX in non-PAE mode)
 - Bounded user-buffer validation for the data-carrying serial syscall, including overflow and permission checks
@@ -85,6 +86,12 @@ For journal record format changes, run the CRC/commit validation test:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\journal-self-test.ps1
 ```
 
+Exercise persistent RAMFS journal append, reboot replay and idempotent removal with an in-memory ATA backend:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\persistent-self-test.ps1
+```
+
 Run the standalone ELF validation test when changing process loading code:
 
 ```powershell
@@ -110,6 +117,12 @@ Exercise the interactive shell-to-ring-3 disk ELF path as well:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1
+```
+
+To additionally exercise an actual journal-window write on the QEMU test disk:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1 -TestPersistentWrite
 ```
 
 Check that two consecutive image builds are byte-for-byte reproducible:

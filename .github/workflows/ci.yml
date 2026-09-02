@@ -43,6 +43,8 @@ jobs:
         run: clang -std=c11 -Wall -Wextra -Werror -Ifs tests/ramfs_host_test.c fs/ramfs.c -o build/ramfs-host-test && build/ramfs-host-test
       - name: Journal host test
         run: clang -std=c11 -Wall -Wextra -Werror -Ifs tests/journal_host_test.c fs/journal.c -o build/journal-host-test && build/journal-host-test
+      - name: Persistent RAMFS host test
+        run: clang -std=c11 -Wall -Wextra -Werror -Iinclude -Ifs -Ikernel -Icpu tests/persistent_host_test.c fs/persistent.c fs/journal.c fs/ramfs.c -o build/persistent-host-test && build/persistent-host-test
       - name: Sanitized filesystem and ELF host tests
         run: |
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Ifs tests/fat_host_test.c fs/fat.c -o build/fat-host-sanitize
@@ -53,6 +55,8 @@ jobs:
           build/ramfs-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Ifs tests/journal_host_test.c fs/journal.c -o build/journal-host-sanitize
           build/journal-host-sanitize
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iinclude -Ifs -Ikernel -Icpu tests/persistent_host_test.c fs/persistent.c fs/journal.c fs/ramfs.c -o build/persistent-host-sanitize
+          build/persistent-host-sanitize
       - name: QEMU boot smoke test
         run: |
           timeout 20s qemu-system-i386 -display none -monitor none -serial stdio -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a > build/ci-serial.log 2> build/ci-qemu-error.log || true

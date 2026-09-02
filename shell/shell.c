@@ -248,7 +248,7 @@ static void write_file_command(void)
 {
     char *name = input + 6;
     char *separator = name;
-    int written;
+    int write_failed;
 
     while (*separator != '\0' && *separator != ' ') {
         separator++;
@@ -258,10 +258,10 @@ static void write_file_command(void)
         return;
     }
     *separator = '\0';
-    written = persistent_ramfs_is_enabled() ?
+    write_failed = persistent_ramfs_is_enabled() ?
         !persistent_ramfs_write_file(name, separator + 1) :
         !ramfs_write_file(name, separator + 1);
-    if (written) {
+    if (write_failed) {
         vga_write("Write rejected (name/content too long or filesystem full).\n");
     } else if (persistent_ramfs_is_enabled()) {
         vga_write("Persistent write committed.\n");
@@ -374,10 +374,10 @@ static void execute_command(void)
     } else if (string_starts_with(input, "write ")) {
         write_file_command();
     } else if (string_starts_with(input, "rm ")) {
-        int removed = persistent_ramfs_is_enabled() ?
+        int remove_failed = persistent_ramfs_is_enabled() ?
             !persistent_ramfs_remove_file(input + 3) :
             !ramfs_remove_file(input + 3);
-        if (removed) {
+        if (remove_failed) {
             vga_write("File not found or invalid name.\n");
         } else if (persistent_ramfs_is_enabled()) {
             vga_write("Persistent remove committed.\n");

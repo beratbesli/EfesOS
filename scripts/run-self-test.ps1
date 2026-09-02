@@ -2,7 +2,8 @@
 param(
     [ValidateRange(1, 120)][int]$TimeoutSeconds = 30,
     [ValidateRange(1024, 65535)][int]$MonitorPort = 4555,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$TestPersistentWrite
 )
 
 $ErrorActionPreference = 'Stop'
@@ -126,6 +127,26 @@ try {
         throw "QEMU monitor baglantisi kurulamadi: $MonitorPort"
     }
 
+    if ($TestPersistentWrite) {
+        foreach ($key in @('w','r','i','t','e','spc','p','e','r','s','i','s','t','2','spc','d','u','r','a','b','l','e','ret')) {
+            Send-Key $stream $key
+        }
+        while ([DateTime]::UtcNow -lt $deadline) {
+            $serial = Read-Serial
+            if ($serial.IndexOf('EfesOS: persistent RAMFS write committed.') -ge 0) {
+                break
+            }
+            if ($serial.IndexOf('KERNEL PANIC:') -ge 0 -or $process.HasExited) {
+                break
+            }
+            Start-Sleep -Milliseconds 100
+            $process.Refresh()
+        }
+        # QEMU can keep a write-back cache until the guest is stopped. The
+        # final sector check after the finally block is the authoritative proof.
+        Start-Sleep -Milliseconds 500
+    }
+
     foreach ($key in @('r','u','n','spc','r','u','n','dot','e','l','f','ret')) {
         Send-Key $stream $key
     }
@@ -144,6 +165,19 @@ try {
         $process.Refresh()
     }
 } finally {
+    if ($null -ne $stream -and !$process.HasExited) {
+        try {
+            $quitBytes = [Text.Encoding]::ASCII.GetBytes("quit`r`n")
+            $stream.Write($quitBytes, 0, $quitBytes.Length)
+            $quitDeadline = [DateTime]::UtcNow.AddSeconds(3)
+            while (!$process.HasExited -and [DateTime]::UtcNow -lt $quitDeadline) {
+                Start-Sleep -Milliseconds 100
+                $process.Refresh()
+            }
+        } catch {
+            # Fall back to forceful cleanup below if the monitor is gone.
+        }
+    }
     if ($null -ne $stream) { $stream.Dispose() }
     if ($null -ne $monitor) { $monitor.Dispose() }
     if (!$process.HasExited) {
@@ -156,6 +190,24 @@ if (!$passed) {
     $serialOutput = Read-Serial
     $qemuError = if (Test-Path -LiteralPath $qemuErrorLog) { Get-Content -LiteralPath $qemuErrorLog -Raw } else { '<no qemu error output>' }
     throw "Disk ELF run self-test basarisiz oldu.`nSerial:`n$serialOutput`nQEMU:`n$qemuError"
+}
+
+if ($TestPersistentWrite) {
+    [byte[]]$diskBytes = [IO.File]::ReadAllBytes($testDiskPath)
+    $sectorSize = 512
+    $journalSectors = 65
+    $journalStart = ($diskBytes.Length / $sectorSize) - $journalSectors
+    $recordOffset = ($journalStart + 2) * $sectorSize
+    if ($recordOffset + $sectorSize -gt $diskBytes.Length -or
+        [BitConverter]::ToUInt32($diskBytes, $recordOffset) -ne 0x314A5346 -or
+        [BitConverter]::ToUInt16($diskBytes, $recordOffset + 6) -ne 1 -or
+        [BitConverter]::ToUInt16($diskBytes, $recordOffset + 12) -ne 8 -or
+        [BitConverter]::ToUInt16($diskBytes, $recordOffset + 14) -ne 7 -or
+        [Text.Encoding]::ASCII.GetString($diskBytes, $recordOffset + 20, 8) -ne 'persist2' -or
+        [Text.Encoding]::ASCII.GetString($diskBytes, $recordOffset + 52, 7) -ne 'durable' -or
+        [BitConverter]::ToUInt32($diskBytes, $recordOffset + 508) -ne 3235780589) {
+        throw 'Persistent journal disk kaydi beklenen formatta degil.'
+    }
 }
 
 Write-Host 'Disk ELF run self-test passed.'

@@ -39,10 +39,11 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - FAT16 mount validates the reserved entries in every mirrored FAT copy before exposing directory/file reads.
 - FAT cluster-chain reads compare each consumed FAT entry with every mirrored copy and fail closed on divergence.
 - Persistent journal replay is allowed only in a bounded region that does not overlap the mounted FAT volume; a valid-looking tail inside filesystem data is ignored.
-- The ATA raw-write path starts write-protected on every boot and remains disabled until a future transactional/journaled storage layer explicitly replaces this policy.
+- The ATA raw-write path starts write-protected on every boot and is released only for a validated journal window after replay/sequence checks; unformatted media remains write-protected.
 - Journal records use bounded fields, strict name validation, a CRC over header/payload and a terminal commit marker; malformed, torn, or reserved-byte mutations are rejected before replay, while a valid commit-cleared terminal record is safely ignored as an incomplete append.
 - Journal replay validates the complete contiguous log and its monotonic sequence twice before invoking a consumer; invalid holes or later non-empty sectors cannot cause partial state application.
 - The journal append API publishes each record in two phases (commit cleared, then terminal commit) and reads it back before success; a failed second write leaves only an ignored terminal record, so earlier committed records remain replayable and no partial operation is applied.
+- Persistent RAMFS writes perform a RAMFS capacity/format preflight before journal append, apply only after read-back-verified commit, and replay into a fresh RAMFS after reboot; remove operations are idempotent.
 - GitHub Actions dependencies are pinned to a verified commit and checkout credentials are not persisted in the worktree, reducing CI supply-chain and token-leakage risk.
 - Dependabot is configured to propose weekly GitHub Actions updates so pinned workflow dependencies receive security fixes without reverting to mutable tags.
 - CI runs Clang’s static analyzer across kernel C sources (excluding intentional fixed-address hardware accesses) so new pointer and memory diagnostics fail before merge.

@@ -21,7 +21,7 @@
 #define ATA_STATUS_DF 0x20U
 #define ATA_STATUS_RDY 0x40U
 #define ATA_STATUS_BSY 0x80U
-#define ATA_TIMEOUT 1000U
+#define ATA_TIMEOUT 100000U
 #define ATA_LBA28_LIMIT 0x10000000U
 #define ATA_WRITES_PROTECTED_BY_DEFAULT 1
 
@@ -240,6 +240,13 @@ int ata_enable_transactional_writes(uint32_t start_lba, uint32_t sector_count)
     return 1;
 }
 
+void ata_disable_transactional_writes(void)
+{
+    write_window_start = 0U;
+    write_window_sectors = 0U;
+    writes_protected = 1;
+}
+
 int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
 {
     const uint8_t *source = (const uint8_t *)buffer;
@@ -248,6 +255,7 @@ int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
 
     if (writes_protected || !valid_request(lba, count, buffer) ||
         lba < write_window_start ||
+        lba - write_window_start >= write_window_sectors ||
         (uint32_t)count > write_window_sectors - (lba - write_window_start)) {
         return 0;
     }
