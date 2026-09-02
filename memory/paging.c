@@ -188,6 +188,11 @@ int paging_protect_page(paging_u32_t virtual_address, paging_u32_t flags)
     if ((entry & PAGE_PRESENT) == 0U) {
         return 0;
     }
+    /* A mapping cannot silently cross the kernel/user ownership boundary;
+       doing so would orphan a claimed user frame or expose a kernel frame. */
+    if ((entry & PAGE_FLAG_USER) != (flags & PAGE_FLAG_USER)) {
+        return 0;
+    }
     if ((flags & PAGE_FLAG_USER) != 0U &&
         !pmm_block_is_user_owned(entry & PAGE_ADDRESS_MASK)) {
         return 0;
