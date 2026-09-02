@@ -22,6 +22,7 @@ int paging_copy_to_user(paging_u32_t destination, const void *source, paging_u32
 paging_u32_t paging_kernel_directory(void);
 paging_u32_t paging_current_directory(void);
 paging_u32_t paging_create_address_space(void);
+int paging_address_space_is_valid(paging_u32_t directory);
 int paging_switch_address_space(paging_u32_t directory);
 int paging_destroy_address_space(paging_u32_t directory);
 

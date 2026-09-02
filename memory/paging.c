@@ -12,6 +12,7 @@
 #define VBE_FRAMEBUFFER_PAGES 768U
 #define USER_ADDRESS_LIMIT 0xC0000000U
 #define USER_MAPPING_MIN 0x00400000U
+#define PAGING_MAX_ADDRESS_SPACES 16U
 
 extern unsigned char __text_start;
 extern unsigned char __rodata_end;
@@ -20,6 +21,8 @@ static paging_u32_t *page_directory;
 static paging_u32_t page_directory_physical;
 static paging_u32_t *kernel_page_directory;
 static paging_u32_t kernel_page_directory_physical;
+static paging_u32_t address_spaces[PAGING_MAX_ADDRESS_SPACES];
+static unsigned int address_space_count;
 static int paging_enabled;
 
 static void clear_page(paging_u32_t *page)
@@ -43,6 +46,21 @@ static void flush_tlb(void)
     if (paging_enabled) {
         __asm__ volatile ("mov %0, %%cr3" : : "r"(page_directory_physical) : "memory");
     }
+}
+
+static int address_space_is_registered(paging_u32_t directory)
+{
+    unsigned int index;
+
+    if (directory == kernel_page_directory_physical) {
+        return 1;
+    }
+    for (index = 0U; index < address_space_count; index++) {
+        if (address_spaces[index] == directory) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 static paging_u32_t *get_page_table(paging_u32_t virtual_address)
@@ -291,7 +309,7 @@ paging_u32_t paging_create_address_space(void)
     paging_u32_t *directory;
     paging_u32_t index;
 
-    if (kernel_page_directory == 0) {
+    if (kernel_page_directory == 0 || address_space_count == PAGING_MAX_ADDRESS_SPACES) {
         return 0;
     }
     physical = pmm_alloc_block_below(LOW_IDENTITY_LIMIT);
@@ -302,13 +320,23 @@ paging_u32_t paging_create_address_space(void)
     for (index = 0; index < PAGE_TABLE_ENTRIES; index++) {
         directory[index] = kernel_page_directory[index];
     }
+    address_spaces[address_space_count++] = physical;
     return physical;
+}
+
+int paging_address_space_is_valid(paging_u32_t directory)
+{
+    return directory != 0U && (directory & (PAGE_SIZE - 1U)) == 0U &&
+        address_space_is_registered(directory);
 }
 
 int paging_switch_address_space(paging_u32_t directory)
 {
     if (directory == 0U || (directory & (PAGE_SIZE - 1U)) != 0U ||
-        directory == page_directory_physical) {
+        !address_space_is_registered(directory)) {
+        return 0;
+    }
+    if (directory == page_directory_physical) {
         return directory == page_directory_physical;
     }
     page_directory_physical = directory;
@@ -323,7 +351,7 @@ int paging_destroy_address_space(paging_u32_t directory)
     paging_u32_t index;
 
     if (directory == 0U || directory == kernel_page_directory_physical ||
-        directory == page_directory_physical || (directory & (PAGE_SIZE - 1U)) != 0U) {
+        directory == page_directory_physical || !paging_address_space_is_valid(directory)) {
         return 0;
     }
     space = (paging_u32_t *)directory;
@@ -344,6 +372,14 @@ int paging_destroy_address_space(paging_u32_t directory)
         pmm_free_block((paging_u32_t)table);
     }
     pmm_free_block(directory);
+    for (index = 0U; index < address_space_count; index++) {
+        if (address_spaces[index] == directory) {
+            address_spaces[index] = address_spaces[address_space_count - 1U];
+            address_spaces[address_space_count - 1U] = 0U;
+            address_space_count--;
+            break;
+        }
+    }
     return 1;
 }
 
@@ -394,6 +430,7 @@ int paging_init(const struct boot_info *boot_info)
     page_directory = (paging_u32_t *)page_directory_physical;
     kernel_page_directory = page_directory;
     kernel_page_directory_physical = page_directory_physical;
+    address_space_count = 0U;
     identity_table = (paging_u32_t *)identity_table_physical;
     clear_page(page_directory);
     clear_page(identity_table);
@@ -439,6 +476,7 @@ int paging_self_test(void)
 
     __asm__ volatile ("mov %%cr0, %0" : "=r"(cr0));
     if (paging_is_mapped(0U) || paging_is_mapped(test_virtual) || text_table == 0 ||
+        paging_switch_address_space(0x00400000U) ||
         !paging_is_mapped(PAGE_SIZE) || paging_unmap_page(PAGE_SIZE) != 0U ||
         !paging_is_mapped(PAGE_SIZE) ||
         (text_table[(text_address >> 12U) & 0x3FFU] & PAGE_FLAG_WRITABLE) != 0U ||
