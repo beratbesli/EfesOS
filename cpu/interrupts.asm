@@ -59,7 +59,7 @@ VECTOR_NO_ERROR vector
 %endrep
 
 %assign vector 50
-%rep 79
+%rep 206
 VECTOR_NO_ERROR vector
 %assign vector vector + 1
 %endrep
@@ -114,7 +114,7 @@ section .rodata
 global interrupt_stub_table
 interrupt_stub_table:
 %assign vector 0
-%rep 129
+%rep 256
     dd interrupt_stub_%+vector
 %assign vector vector + 1
 %endrep

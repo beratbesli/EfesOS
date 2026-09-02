@@ -40,6 +40,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Terminated task stacks are tracked in a bounded pending-reap mask, so concurrent faults/exits cannot overwrite one another’s deferred cleanup record.
 - Scheduler task names are copied into a bounded 15-character buffer; callers cannot leave dangling name pointers or overflow scheduler metadata.
 - Diagnostic serial messages are emitted with interrupts disabled so preemptive task switches cannot splice security/test records.
+- All 256 IDT vectors now have a kernel stub; unexpected high vectors reach the common fail-closed dispatcher instead of an empty descriptor/triple fault, while only `int 0x80` is user-callable.
 
 This remains a learning kernel. It has no authentication, secure boot, signed modules, ASLR, SMP isolation, comprehensive validation for every future syscall ABI, or a fully validated persistent filesystem. Do not treat it as a production security boundary until those items are implemented and audited.
 

@@ -11,7 +11,6 @@
 typedef unsigned short idt_u16_t;
 
 #define IDT_ENTRY_COUNT 256U
-#define INSTALLED_VECTOR_COUNT 129U
 #define PIC_MASTER_COMMAND 0x20U
 #define PIC_MASTER_DATA 0x21U
 #define PIC_SLAVE_COMMAND 0xA0U
@@ -129,7 +128,7 @@ void idt_init(void)
         idt_entries[vector].type_attributes = 0;
         idt_entries[vector].offset_high = 0;
     }
-    for (vector = 0; vector < INSTALLED_VECTOR_COUNT; vector++) {
+    for (vector = 0; vector < IDT_ENTRY_COUNT; vector++) {
         idt_set_gate((uint8_t)vector, (interrupt_u32_t)interrupt_stub_table[vector]);
     }
     idt_set_user_gate(0x80U, (interrupt_u32_t)interrupt_stub_table[0x80U]);
