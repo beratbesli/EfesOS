@@ -71,6 +71,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - A boot self-test attempts exactly such a guard-overlapping ELF and requires the spawn to fail with complete resource cleanup.
 - User-process creation scans all bounded stack regions and refuses active-region reuse, so restart timing cannot create duplicate stack metadata or an avoidable spawn failure.
 - Stage-2 verifies a build-generated SHA-256 kernel digest before handoff and the kernel requires the verification bit; this detects image corruption, but the build-time digest is not authenticated and therefore is not a cryptographic secure-boot signature.
+- Release tooling can produce and verify an external RSA-3072 signature over the complete image; CI checks both a valid signature and a mutated-image rejection. The key must be trusted out-of-band, and the BIOS floppy path does not itself enforce that signature.
 - User `EXIT` follows the same ownership-checked cleanup path as faults, reclaiming user mappings before the scheduler can reuse the task slot.
 - Terminated task stacks are tracked in a bounded pending-reap mask, so concurrent faults/exits cannot overwrite one another’s deferred cleanup record.
 - Deferred kernel-stack cleanup verifies the unmapped guard and every recorded physical frame before freeing it; missing or mismatched ownership is fail-closed instead of silently leaking or freeing an unexpected page.

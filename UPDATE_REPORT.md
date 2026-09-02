@@ -59,6 +59,7 @@
 - FAT host testi üç kopyalı fixture ile üçüncü aynadaki cluster-chain ayrışmasını da doğruluyor.
 - ELF loader self-test’i artık bozuk program-header/segment offset, boyut, adres, flag, alignment ve entry fixture’larını da reddediyor; malformed image kabulü regresyon kapsamına alındı.
 - Stage-2, kernel yüklemesi sonrası build tarafından üretilen SHA-256 özetini doğruluyor; doğrulama başarısızsa protected mode’a geçmiyor ve başarı biti boot metadata üzerinden kernel tarafından zorunlu tutuluyor. Bu bütünlük kontrolüdür; build özeti imzalı olmadığı için kriptografik secure-boot/kimlik doğrulaması değildir.
+- Release için tam imaj üzerinde RSA-3072 detached signature üretme/doğrulama PowerShell araçları eklendi; CI geçerli imzayı ve tek bayt değiştirilmiş imajın reddini doğruluyor. Public key dış güven köküyle dağıtılmadıkça bu yalnızca doğrulama mekanizmasıdır; BIOS floppy loader imzayı runtime’da zorunlu tutmaz.
 - Stage-2 VGA font BIOS çağrısının CF ve fiziksel adres aralığını doğruluyor; geçersiz/eksik font artık grafik donanımı varmış gibi işaretlenmiyor.
 - E820 BIOS çağrısı, BIOS’un tampon işaretçisini değiştirmesine karşı kayıtlı giriş ofsetini koruyor; VGA kernel sürücüsü font adresi üst sınırını bağımsız olarak tekrar doğruluyor.
 - VGA sürücüsü PCI BAR/command yazmadan önce bilinen BGA vendor/device/class kimliğini ve BGA ID register’ını doğruluyor; farklı PCI donanımı yanlışlıkla değiştirilmiyor.

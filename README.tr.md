@@ -56,6 +56,15 @@ Tedarik zinciri güvenliği için derleme betiği depo içindeki `tools` dizinin
 
 Host bütünlük regresyonunu (tek bayt bozulma negatif testi dahil) derlemeden sonra `make sha256-self-test` komutuyla çalıştırabilirsin. `make sha256-boot-negative-test` ayrıca bozuk imajı boot edip stage-2’nin kernel girişinden önce reddettiğini kontrol eder.
 
+Yayın imajını dağıtmadan önce güvenilir bir dış RSA-3072 anahtarıyla imzalayıp doğrula:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\sign-release.ps1 -PrivateKeyPath .\release-key.pem -SignaturePath .\build\efesos.img.sig
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-release-signature.ps1 -PublicKeyPath .\release-key.pub.pem -SignaturePath .\build\efesos.img.sig
+```
+
+Bu yalnızca public key dışarıdan güvenilir biçimde dağıtılmışsa yayın artefaktını doğrular; BIOS floppy loader imzayı runtime’da zorunlu tutmaz.
+
 ## Windows'ta derleme ve çalıştırma
 
 Depo kök klasöründe PowerShell açıp şu komutu çalıştır:

@@ -56,6 +56,15 @@ For supply-chain safety, the build script does not search the repository's `tool
 
 To run the host-side integrity regression (including a one-byte corruption negative case), run `make sha256-self-test` after building. `make sha256-boot-negative-test` additionally boots a corrupted image and checks that stage-2 rejects it before kernel entry.
 
+For release distribution, sign the complete image with a trusted external RSA-3072 key and verify it before publishing or booting:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\sign-release.ps1 -PrivateKeyPath .\release-key.pem -SignaturePath .\build\efesos.img.sig
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-release-signature.ps1 -PublicKeyPath .\release-key.pub.pem -SignaturePath .\build\efesos.img.sig
+```
+
+This authenticates a release artifact only when the public key is trusted out-of-band; the BIOS floppy loader still does not provide hardware secure boot.
+
 ## Build and run on Windows
 
 From PowerShell in the repository root:

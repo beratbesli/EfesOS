@@ -23,6 +23,15 @@ jobs:
         run: make sha256-self-test
       - name: SHA-256 boot rejection test
         run: make sha256-boot-negative-test
+      - name: Release signature verification
+        run: |
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out build/ci-release-key.pem 2>/dev/null
+          openssl rsa -in build/ci-release-key.pem -pubout -out build/ci-release-key.pub.pem 2>/dev/null
+          openssl dgst -sha256 -sign build/ci-release-key.pem -out build/ci-release.sig build/efesos.img
+          openssl dgst -sha256 -verify build/ci-release-key.pub.pem -signature build/ci-release.sig build/efesos.img
+          cp build/efesos.img build/ci-release-mutated.img
+          printf '\001' | dd of=build/ci-release-mutated.img bs=1 seek=4096 conv=notrunc status=none
+          if openssl dgst -sha256 -verify build/ci-release-key.pub.pem -signature build/ci-release.sig build/ci-release-mutated.img; then exit 1; fi
       - name: Static analyzer
         run: |
           clang --target=i686-none-elf -m32 -std=c11 -ffreestanding -fno-builtin -fno-pic -fno-pie -fno-stack-protector -nostdlib \
