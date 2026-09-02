@@ -29,6 +29,18 @@ struct user_process_record {
 static struct user_process_record processes[USER_PROCESS_MAX];
 static unsigned int process_reaps;
 
+static int user_stack_region_in_use(unsigned int stack_address)
+{
+    unsigned int index;
+
+    for (index = 0U; index < USER_PROCESS_MAX; index++) {
+        if (processes[index].active && processes[index].stack_address == stack_address) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static void copy_bytes(unsigned char *destination, const unsigned char *source, unsigned int length)
 {
     unsigned int index;
@@ -62,6 +74,8 @@ static int user_process_spawn_locked(const char *name, const void *image,
     unsigned int stack_frame = 0U;
     unsigned int stack_address = 0U;
     unsigned int stack_guard_address;
+    unsigned int region_offset;
+    unsigned int region_index;
     unsigned int process_index;
     unsigned int kernel_directory = paging_kernel_directory();
     unsigned int physical;
@@ -81,13 +95,25 @@ static int user_process_spawn_locked(const char *name, const void *image,
         return 0;
     }
 
-    stack_guard_address = USER_STACK_REGION_BASE +
-        (((process_reaps + process_index) % USER_STACK_REGION_COUNT) * USER_STACK_REGION_STRIDE);
-    stack_address = stack_guard_address + PAGE_SIZE;
+    region_index = USER_STACK_REGION_COUNT;
+    for (region_offset = 0U; region_offset < USER_STACK_REGION_COUNT; region_offset++) {
+        unsigned int candidate = (process_reaps + process_index + region_offset) %
+            USER_STACK_REGION_COUNT;
+        unsigned int candidate_guard = USER_STACK_REGION_BASE +
+            (candidate * USER_STACK_REGION_STRIDE);
+        unsigned int candidate_stack = candidate_guard + PAGE_SIZE;
 
-    if (paging_is_mapped(stack_guard_address) || paging_is_mapped(stack_address)) {
+        if (!user_stack_region_in_use(candidate_stack) &&
+            !paging_is_mapped(candidate_guard) && !paging_is_mapped(candidate_stack)) {
+            region_index = candidate;
+            break;
+        }
+    }
+    if (region_index == USER_STACK_REGION_COUNT) {
         return 0;
     }
+    stack_guard_address = USER_STACK_REGION_BASE + (region_index * USER_STACK_REGION_STRIDE);
+    stack_address = stack_guard_address + PAGE_SIZE;
     address_space = paging_create_address_space();
     if (address_space == 0U || !paging_switch_address_space(address_space)) {
         if (address_space != 0U && paging_current_directory() == kernel_directory) {

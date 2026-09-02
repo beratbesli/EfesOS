@@ -60,6 +60,7 @@
 - Süreç fault/exit’inde sender tarafında kalan orphan IPC mesajları da siliniyor; hem alıcı hem gönderici yönündeki kuyruk kaynakları generation-PID ile temizleniyor.
 - Kullanıcı yığını artık ayrılmış bir guard sayfasının üstünde kuruluyor; yığın aşağı taşarsa komşu sayfaya yazmak yerine izole user fault yoluna giriyor.
 - Her yeni kullanıcı süreci, sekiz bounded stack bölgesinden generation/reap durumuna göre farklı bir stack bölgesi alıyor; stack adresi process kaydında tutulup cleanup sırasında aynı adrese göre doğrulanıyor.
+- Kullanıcı süreç spawn’ı artık aktif kayıtları tarayarak boş stack bölgesini seçiyor; yeniden başlatma zamanlaması etkin stack adresi çakışması oluşturmuyor ve bölge yoksa oluşturma fail-closed reddediliyor.
 - `EXIT` syscall’i gerçek demo akışında doğrulandı; normal çıkan user task’ın adres alanı/yığını fault yolu ile aynı fail-closed cleanup’tan geçiyor ve slot güvenle yeniden kullanılıyor.
 - GitHub Actions; build, imaj doğrulama, FAT/boot/ELF host testleri ve QEMU ring-3 smoke testini çalıştırıyor.
 - ELF yükleyici doğrulaması artık paging/PMM stub’larıyla bağımsız host testinde ve CI’da da çalıştırılıyor.

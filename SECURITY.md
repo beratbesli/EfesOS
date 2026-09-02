@@ -31,6 +31,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - The kernel-only `user_process_spawn` path caps image size, requires a kernel address-space context, and records ELF/stack ownership for fail-closed cleanup.
 - Generation counters are bounded to the PID encoding width; an exhausted slot is never wrapped into an old identity and is rejected instead (fail-closed).
 - Each user address space leaves a page-sized unmapped guard below its user stack; stack underflow therefore terminates the task instead of overwriting another mapping.
+- User-process creation scans all bounded stack regions and refuses active-region reuse, so restart timing cannot create duplicate stack metadata or an avoidable spawn failure.
 - Stage-2 verifies a build-generated bounded kernel checksum before handoff and the kernel requires the verification bit; this detects corruption but is not a cryptographic secure-boot signature.
 - User `EXIT` follows the same ownership-checked cleanup path as faults, reclaiming user mappings before the scheduler can reuse the task slot.
 - Terminated task stacks are tracked in a bounded pending-reap mask, so concurrent faults/exits cannot overwrite one another’s deferred cleanup record.
