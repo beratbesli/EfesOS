@@ -62,6 +62,7 @@
 - PMM başlangıcı, linker’ın bildirdiği kernel başlangıç/bitiş aralığını doğruluyor; ters veya boş aralıkta bellek serbest bırakılmadan fail-closed duruyor.
 - ATA ham yazma yolu her boot’ta write-protected başlıyor ve kernel bunu zorunlu kontrol ediyor; journaling/transaction katmanı olmadan fiziksel disk değişikliği gerçekleşmiyor.
 - Kalıcı depolama için ilk journal kayıt sözleşmesi eklendi: bounded isim/içerik alanları, CRC, terminal commit işareti ve ayrılmış alan doğrulaması var; bozuk veya yarım kayıtlar replay edilmeden reddediliyor. ATA yazması hâlâ kapalı.
+- Journal replay katmanı iki geçişli tasarlandı: superblock, contiguous log, artan sequence ve boşluk sonrası sektörler önce tamamen doğrulanıyor; ancak tüm kayıtlar geçerliyse tüketiciye uygulanıyor. Host testi bozuk kayıt ve kısmi replay senaryosunu doğruluyor.
 - Kernel, write-protected ATA yolunu gerçek `ata_write_sectors` çağrısıyla self-test ediyor; koruma açıkken kabul edilen bir yazma artık boot smoke testini fail-closed düşürüyor.
 - FAT kök dizini taraması artık BPB’de belirtilen gerçek entry sayısının dışına çıkmıyor; son sektör artıkları dosya gibi kabul edilmiyor ve host fixture ile doğrulanıyor.
 - FAT dosya zinciri cycle testi strict bounded guard ile doğrulanıyor; döngülü cluster zinciri dosya okumasını fail-closed durduruyor.

@@ -3,6 +3,8 @@
 #define JOURNAL_MAGIC 0x314A5346U
 #define JOURNAL_VERSION 1U
 #define JOURNAL_COMMIT 0xC0DE17EDU
+#define JOURNAL_SUPERBLOCK_MAGIC 0x314A5346U
+#define JOURNAL_SUPERBLOCK_VERSION 1U
 #define JOURNAL_HEADER_SIZE 20U
 #define JOURNAL_PAYLOAD_SIZE (JOURNAL_NAME_MAX + JOURNAL_CONTENT_MAX)
 #define JOURNAL_COMMIT_OFFSET (JOURNAL_SECTOR_SIZE - sizeof(unsigned int))
@@ -52,6 +54,14 @@ static unsigned int record_crc(const unsigned char *sector)
 
     crc = crc32_update(crc, sector, 16U);
     crc = crc32_update(crc, sector + JOURNAL_HEADER_SIZE, JOURNAL_PAYLOAD_SIZE);
+    return ~crc;
+}
+
+static unsigned int superblock_crc(const unsigned char *sector)
+{
+    unsigned int crc = 0xFFFFFFFFU;
+
+    crc = crc32_update(crc, sector, 12U);
     return ~crc;
 }
 
@@ -175,6 +185,123 @@ int journal_decode(const unsigned char *sector, struct journal_entry *entry)
     }
     for (index = 0U; index < JOURNAL_CONTENT_MAX; index++) {
         entry->content[index] = sector[JOURNAL_HEADER_SIZE + JOURNAL_NAME_MAX + index];
+    }
+    return 1;
+}
+
+int journal_superblock_encode(unsigned char *sector, unsigned int data_sectors)
+{
+    unsigned int index;
+
+    if (sector == 0 || data_sectors == 0U || data_sectors > JOURNAL_MAX_DATA_SECTORS) {
+        return 0;
+    }
+    for (index = 0U; index < JOURNAL_SECTOR_SIZE; index++) {
+        sector[index] = 0U;
+    }
+    write_u32(sector, 0U, JOURNAL_SUPERBLOCK_MAGIC);
+    write_u16(sector, 4U, JOURNAL_SUPERBLOCK_VERSION);
+    write_u16(sector, 6U, data_sectors);
+    write_u32(sector, 8U, 0U);
+    write_u32(sector, 12U, superblock_crc(sector));
+    write_u32(sector, JOURNAL_COMMIT_OFFSET, JOURNAL_COMMIT);
+    return 1;
+}
+
+int journal_superblock_decode(const unsigned char *sector, unsigned int *data_sectors)
+{
+    unsigned int index;
+    unsigned int count;
+
+    if (sector == 0 || read_u32(sector, 0U) != JOURNAL_SUPERBLOCK_MAGIC ||
+        read_u16(sector, 4U) != JOURNAL_SUPERBLOCK_VERSION ||
+        read_u32(sector, JOURNAL_COMMIT_OFFSET) != JOURNAL_COMMIT) {
+        return 0;
+    }
+    count = read_u16(sector, 6U);
+    if (count == 0U || count > JOURNAL_MAX_DATA_SECTORS ||
+        read_u32(sector, 8U) != 0U || read_u32(sector, 12U) != superblock_crc(sector)) {
+        return 0;
+    }
+    for (index = 16U; index < JOURNAL_COMMIT_OFFSET; index++) {
+        if (sector[index] != 0U) {
+            return 0;
+        }
+    }
+    if (data_sectors != 0) {
+        *data_sectors = count;
+    }
+    return 1;
+}
+
+static int sector_is_empty(const unsigned char *sector)
+{
+    unsigned int index;
+
+    for (index = 0U; index < JOURNAL_SECTOR_SIZE; index++) {
+        if (sector[index] != 0U) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int sequence_is_newer(unsigned int sequence, unsigned int previous)
+{
+    return sequence != 0U && sequence > previous;
+}
+
+int journal_replay(journal_read_fn read, unsigned int start_lba,
+    unsigned int sector_count, journal_apply_fn apply, unsigned int *applied)
+{
+    unsigned char sector[JOURNAL_SECTOR_SIZE];
+    struct journal_entry entry;
+    unsigned int data_sectors;
+    unsigned int previous_sequence = 0U;
+    unsigned int record_count = 0U;
+    unsigned int index;
+
+    if (applied != 0) {
+        *applied = 0U;
+    }
+    if (read == 0 || apply == 0 || sector_count < 2U ||
+        sector_count > JOURNAL_MAX_DATA_SECTORS + 1U ||
+        !read(start_lba, 1U, sector) || !journal_superblock_decode(sector, &data_sectors) ||
+        data_sectors + 1U > sector_count) {
+        return 0;
+    }
+    /* First pass: validate the complete prefix without invoking the consumer.
+       A non-empty invalid sector makes the entire replay fail closed. */
+    for (index = 0U; index < data_sectors; index++) {
+        if (!read(start_lba + 1U + index, 1U, sector)) {
+            return 0;
+        }
+        if (sector_is_empty(sector)) {
+            break;
+        }
+        if (!journal_decode(sector, &entry) ||
+            !sequence_is_newer(entry.sequence, previous_sequence)) {
+            return 0;
+        }
+        previous_sequence = entry.sequence;
+        record_count++;
+    }
+    if (index < data_sectors) {
+        for (; index < data_sectors; index++) {
+            if (!read(start_lba + 1U + index, 1U, sector) || !sector_is_empty(sector)) {
+                return 0;
+            }
+        }
+    }
+    /* Second pass: only now mutate the consumer state. */
+    for (index = 0U; index < record_count; index++) {
+        if (!read(start_lba + 1U + index, 1U, sector) ||
+            !journal_decode(sector, &entry) || !apply(&entry)) {
+            return 0;
+        }
+    }
+    if (applied != 0) {
+        *applied = record_count;
     }
     return 1;
 }

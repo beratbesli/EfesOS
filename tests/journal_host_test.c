@@ -3,6 +3,28 @@
 
 #include "journal.h"
 
+static unsigned char disk[(JOURNAL_MAX_DATA_SECTORS + 1U) * JOURNAL_SECTOR_SIZE];
+static unsigned int applied_count;
+
+static int read_disk(unsigned int lba, unsigned char count, void *buffer)
+{
+    if (count == 0U || lba >= JOURNAL_MAX_DATA_SECTORS + 1U ||
+        count > JOURNAL_MAX_DATA_SECTORS + 1U - lba) {
+        return 0;
+    }
+    memcpy(buffer, disk + (lba * JOURNAL_SECTOR_SIZE), count * JOURNAL_SECTOR_SIZE);
+    return 1;
+}
+
+static int apply_entry(const struct journal_entry *entry)
+{
+    if (entry == 0 || entry->sequence == 0U) {
+        return 0;
+    }
+    applied_count++;
+    return 1;
+}
+
 int main(void)
 {
     unsigned char sector[JOURNAL_SECTOR_SIZE];
@@ -29,6 +51,23 @@ int main(void)
     if (journal_encode(sector, JOURNAL_OPERATION_REMOVE, 8U, "CONFIG", 0, 0U) == 0 ||
         !journal_decode(sector, &entry) || entry.operation != JOURNAL_OPERATION_REMOVE) {
         return 3;
+    }
+    memset(disk, 0, sizeof(disk));
+    if (!journal_superblock_encode(disk, 4U) ||
+        !journal_encode(disk + JOURNAL_SECTOR_SIZE, JOURNAL_OPERATION_WRITE, 1U,
+            "A", "one", 3U) ||
+        !journal_encode(disk + (2U * JOURNAL_SECTOR_SIZE), JOURNAL_OPERATION_REMOVE,
+            2U, "A", 0, 0U)) {
+        return 4;
+    }
+    applied_count = 0U;
+    if (!journal_replay(read_disk, 0U, 5U, apply_entry, 0) || applied_count != 2U) {
+        return 5;
+    }
+    disk[JOURNAL_SECTOR_SIZE + 1U] ^= 0x01U;
+    applied_count = 0U;
+    if (journal_replay(read_disk, 0U, 5U, apply_entry, 0) || applied_count != 0U) {
+        return 6;
     }
     puts("Journal host self-test passed.");
     return 0;
