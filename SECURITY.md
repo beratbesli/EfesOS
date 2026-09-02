@@ -23,6 +23,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Each ring-3 task has a private page directory with shared kernel mappings; scheduler CR3 switches prevent user mappings from being shared between processes.
 - User-task registration rejects a CR3 already owned by another active user task, preventing accidental address-space reuse through the internal scheduler API.
 - Newly allocated user stack frames are zeroed before the task is runnable, preventing physical-page reuse from exposing prior process or kernel data.
+- Physical memory now keeps a bounded user-frame ownership class: user mappings may only use frames allocated by `pmm_alloc_user_block` from a non-identity-mapped range, and private address-space destruction preflights that ownership before freeing pages.
 - Newly allocated kernel-task stack pages are also zeroed before their initial frame is installed, preventing stale kernel locals from crossing task-slot reuse.
 - Page-directory creation is tracked in a bounded registry; CR3 switches and destruction reject unregistered physical addresses.
 - The paging API rejects user permissions below the protected user mapping floor, preventing identity-mapped kernel pages from being exposed accidentally.

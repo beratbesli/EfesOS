@@ -223,7 +223,7 @@ int elf_load_image(const void *image, unsigned int size, unsigned int *entry,
                 release_pages(mapped_pages, mapped_count);
                 return 0;
             }
-            physical = pmm_alloc_block();
+            physical = pmm_alloc_user_block();
             if (physical == 0U || !paging_map_page(page, physical,
                 PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
                 if (physical != 0U) {
@@ -425,6 +425,7 @@ int elf_loader_runtime_self_test(void)
     unsigned int loaded_base;
     unsigned int loaded_end;
     unsigned int index;
+    paging_u32_t kernel_frame;
     paging_u32_t kernel_directory;
     paging_u32_t test_directory;
     unsigned char *loaded;
@@ -444,6 +445,19 @@ int elf_loader_runtime_self_test(void)
         paging_unmap_page(PAGE_SIZE) != 0U) {
         goto cleanup;
     }
+
+    kernel_frame = pmm_alloc_block();
+    if (kernel_frame == 0U || paging_map_page(0x01000000U, kernel_frame,
+        PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
+        if (kernel_frame != 0U) {
+            if (paging_is_mapped(0x01000000U)) {
+                paging_unmap_page(0x01000000U);
+            }
+            pmm_free_block(kernel_frame);
+        }
+        goto cleanup;
+    }
+    pmm_free_block(kernel_frame);
 
     for (index = 0; index < sizeof(image); index++) {
         image[index] = 0;

@@ -10,6 +10,8 @@ typedef unsigned int pmm_u32_t;
 int pmm_init(const struct boot_info *boot_info);
 pmm_u32_t pmm_alloc_block(void);
 pmm_u32_t pmm_alloc_block_below(pmm_u32_t limit);
+pmm_u32_t pmm_alloc_user_block(void);
+int pmm_block_is_user_owned(pmm_u32_t address);
 void pmm_free_block(pmm_u32_t address);
 void pmm_reserve_range(pmm_u32_t address, pmm_u32_t length);
 pmm_u32_t pmm_total_blocks(void);

@@ -84,6 +84,7 @@
 - Kullanıcı süreç spawn’ı ELF yüklemesinden sonra ayrılmış stack-guard sayfasının hâlâ unmapped olduğunu zorunlu doğruluyor; guard’ı tüketen imaj fail-closed cleanup ile reddediliyor.
 - Boot self-test’i guard adresini segment olarak kullanan ELF’i bilerek reddettiriyor ve cleanup sonrasında sistemi normal süreç başlatmaya devam ettiriyor.
 - Kullanıcı stack frame’i süreç çalıştırılmadan önce tamamen sıfırlanıyor; fiziksel frame yeniden kullanımı önceki süreç/kernel verisini sızdıramıyor.
+- Fiziksel bellek yöneticisi artık kullanıcı çerçeveleri için bounded sahiplik sınıfı tutuyor; kullanıcı eşlemeleri yalnızca identity-map dışı aralıktan `pmm_alloc_user_block` ile alınan frame’leri kabul ediyor ve özel adres alanı yıkımı serbest bırakmadan önce tüm sahipliği preflight ediyor.
 - Scheduler kernel stack sayfaları da ilk frame kurulmadan önce sıfırlanıyor; görev slotu yeniden kullanımında eski kernel local verisi taşınmıyor.
 - Her yeni kullanıcı süreci, on altı bounded stack bölgesinden generation/reap durumuna göre farklı bir stack bölgesi alıyor; stack adresi process kaydında tutulup cleanup sırasında aynı adrese göre doğrulanıyor.
 - Kullanıcı süreç spawn’ı artık aktif kayıtları tarayarak boş stack bölgesini seçiyor; yeniden başlatma zamanlaması etkin stack adresi çakışması oluşturmuyor ve bölge yoksa oluşturma fail-closed reddediliyor.

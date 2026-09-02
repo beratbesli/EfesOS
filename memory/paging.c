@@ -136,6 +136,7 @@ int paging_map_page(paging_u32_t virtual_address, paging_u32_t physical_address,
         (flags & ~PAGE_ALLOWED_FLAGS) != 0U ||
         (flags & (PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE)) ==
             (PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE) ||
+        ((flags & PAGE_FLAG_USER) != 0U && !pmm_block_is_user_owned(physical_address)) ||
         (page_directory == kernel_page_directory && (flags & PAGE_FLAG_USER) != 0U) ||
         uses_shared_kernel_table(virtual_address) ||
         ((flags & PAGE_FLAG_USER) != 0U &&
@@ -181,6 +182,10 @@ int paging_protect_page(paging_u32_t virtual_address, paging_u32_t flags)
     table_index = (virtual_address >> 12U) & 0x3FFU;
     entry = table[table_index];
     if ((entry & PAGE_PRESENT) == 0U) {
+        return 0;
+    }
+    if ((flags & PAGE_FLAG_USER) != 0U &&
+        !pmm_block_is_user_owned(entry & PAGE_ADDRESS_MASK)) {
         return 0;
     }
     table[table_index] = (entry & PAGE_ADDRESS_MASK) | PAGE_PRESENT | flags;
@@ -402,6 +407,30 @@ int paging_destroy_address_space(paging_u32_t directory)
         return 0;
     }
     space = (paging_u32_t *)directory;
+    /* Preflight all private mappings before freeing anything. A malformed
+       page table must never make cleanup release a kernel-owned frame. */
+    for (index = 1U; index < (USER_ADDRESS_LIMIT >> 22U); index++) {
+        paging_u32_t entry = space[index];
+        paging_u32_t *table;
+        paging_u32_t table_index;
+
+        if ((entry & PAGE_PRESENT) == 0U ||
+            ((kernel_page_directory[index] & PAGE_PRESENT) != 0U &&
+             (entry & PAGE_ADDRESS_MASK) ==
+                 (kernel_page_directory[index] & PAGE_ADDRESS_MASK))) {
+            continue;
+        }
+        if ((entry & PAGE_FLAG_USER) == 0U) {
+            return 0;
+        }
+        table = (paging_u32_t *)(entry & PAGE_ADDRESS_MASK);
+        for (table_index = 0; table_index < PAGE_TABLE_ENTRIES; table_index++) {
+            if ((table[table_index] & PAGE_PRESENT) != 0U &&
+                !pmm_block_is_user_owned(table[table_index] & PAGE_ADDRESS_MASK)) {
+                return 0;
+            }
+        }
+    }
     for (index = 1; index < (USER_ADDRESS_LIMIT >> 22U); index++) {
         paging_u32_t entry = space[index];
         paging_u32_t *table;

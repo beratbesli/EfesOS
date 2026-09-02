@@ -130,7 +130,7 @@ static int user_process_spawn_locked(const char *name, const void *image,
         }
         return 0;
     }
-    stack_frame = pmm_alloc_block();
+    stack_frame = pmm_alloc_user_block();
     if (stack_frame == 0U ||
         !paging_map_page(stack_address, stack_frame, PAGE_FLAG_USER | PAGE_FLAG_WRITABLE)) {
         goto cleanup;

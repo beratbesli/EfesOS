@@ -18,6 +18,17 @@ paging_u32_t pmm_alloc_block(void)
     return 0U;
 }
 
+paging_u32_t pmm_alloc_user_block(void)
+{
+    return 0U;
+}
+
+int pmm_block_is_user_owned(pmm_u32_t address)
+{
+    (void)address;
+    return 0;
+}
+
 void pmm_free_block(pmm_u32_t address)
 {
     (void)address;
