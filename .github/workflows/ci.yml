@@ -34,10 +34,14 @@ jobs:
           if openssl dgst -sha256 -verify build/ci-release-key.pub.pem -signature build/ci-release.sig build/ci-release-mutated.img; then exit 1; fi
       - name: Static analyzer
         run: |
+          fixed_address_args=()
+          if clang --analyze -x c /dev/null -Xanalyzer -analyzer-checker-help 2>&1 | grep -q 'core.FixedAddressDereference'; then
+            fixed_address_args=(-Xanalyzer -analyzer-disable-checker=core.FixedAddressDereference)
+          fi
           clang --target=i686-none-elf -m32 -std=c11 -ffreestanding -fno-builtin -fno-pic -fno-pie -fno-stack-protector -nostdlib \
             -Iinclude -Icpu -Ikernel -Imemory -Iprocess -Ishell -Ifs -Igames \
             --analyze -Xanalyzer -analyzer-output=text \
-            -Xanalyzer -analyzer-disable-checker=core.FixedAddressDereference \
+            "${fixed_address_args[@]}" \
             $(find . -name '*.c' -not -path './tests/*' -not -path './build/*' -print)
       - name: Reproducible image build
         run: |
