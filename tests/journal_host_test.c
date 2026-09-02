@@ -123,8 +123,29 @@ int main(void)
     }
     fail_write_number = 0U;
     applied_count = 0U;
-    if (journal_replay(read_disk, 0U, 5U, apply_entry, 0) || applied_count != 0U) {
+    if (!journal_replay(read_disk, 0U, 5U, apply_entry, 0) || applied_count != 0U) {
         return 12;
+    }
+    memset(disk, 0, sizeof(disk));
+    if (!journal_superblock_encode(disk, 4U)) {
+        return 13;
+    }
+    write_count = 0U;
+    fail_write_number = 0U;
+    if (!journal_append(read_disk, write_disk, 0U, 5U, JOURNAL_OPERATION_WRITE,
+        1U, "A", "one", 3U)) {
+        return 14;
+    }
+    write_count = 0U;
+    fail_write_number = 2U;
+    if (journal_append(read_disk, write_disk, 0U, 5U, JOURNAL_OPERATION_WRITE,
+        2U, "B", "two", 3U)) {
+        return 15;
+    }
+    fail_write_number = 0U;
+    applied_count = 0U;
+    if (!journal_replay(read_disk, 0U, 5U, apply_entry, 0) || applied_count != 1U) {
+        return 16;
     }
     overflow_read_calls = 0U;
     if (journal_replay(read_any, 0xFFFFFFFFU, 2U, apply_entry, 0) ||
@@ -132,7 +153,7 @@ int main(void)
         journal_append(read_any, write_disk, 0xFFFFFFFFU, 2U,
             JOURNAL_OPERATION_WRITE, 1U, "A", "one", 3U) ||
         overflow_read_calls != 0U) {
-        return 13;
+        return 17;
     }
     puts("Journal host self-test passed.");
     return 0;

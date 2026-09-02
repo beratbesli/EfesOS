@@ -142,7 +142,8 @@ int journal_encode(unsigned char *sector, unsigned int operation,
         content_length, 1);
 }
 
-int journal_decode(const unsigned char *sector, struct journal_entry *entry)
+static int journal_decode_internal(const unsigned char *sector,
+    struct journal_entry *entry, int require_commit)
 {
     unsigned int name_length;
     unsigned int content_length;
@@ -150,7 +151,8 @@ int journal_decode(const unsigned char *sector, struct journal_entry *entry)
 
     if (sector == 0 || entry == 0 || read_u32(sector, 0U) != JOURNAL_MAGIC ||
         read_u16(sector, 4U) != JOURNAL_VERSION || read_u32(sector, 8U) == 0U ||
-        read_u32(sector, JOURNAL_COMMIT_OFFSET) != JOURNAL_COMMIT) {
+        (require_commit ? read_u32(sector, JOURNAL_COMMIT_OFFSET) != JOURNAL_COMMIT :
+            read_u32(sector, JOURNAL_COMMIT_OFFSET) != 0U)) {
         return 0;
     }
     if (read_u16(sector, 6U) != JOURNAL_OPERATION_WRITE &&
@@ -195,6 +197,17 @@ int journal_decode(const unsigned char *sector, struct journal_entry *entry)
         entry->content[index] = sector[JOURNAL_HEADER_SIZE + JOURNAL_NAME_MAX + index];
     }
     return 1;
+}
+
+int journal_decode(const unsigned char *sector, struct journal_entry *entry)
+{
+    return journal_decode_internal(sector, entry, 1);
+}
+
+static int journal_decode_prepared(const unsigned char *sector,
+    struct journal_entry *entry)
+{
+    return journal_decode_internal(sector, entry, 0);
 }
 
 int journal_superblock_encode(unsigned char *sector, unsigned int data_sectors)
@@ -285,6 +298,17 @@ static int scan_log(journal_read_fn read, unsigned int start_lba,
         }
         if (!journal_decode(sector, &entry) ||
             !sequence_is_newer(entry.sequence, previous_sequence)) {
+            struct journal_entry prepared;
+
+            /* A valid, commit-cleared record can only be a terminal torn
+               append. Ignore that tail after proving all following sectors
+               are empty; malformed records never get this recovery path. */
+            if (read_u32(sector, JOURNAL_COMMIT_OFFSET) == 0U &&
+                journal_decode_prepared(sector, &prepared) &&
+                sequence_is_newer(prepared.sequence, previous_sequence)) {
+                index++;
+                break;
+            }
             return 0;
         }
         previous_sequence = entry.sequence;
