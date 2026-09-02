@@ -9,6 +9,7 @@
 #include "programs.h"
 #include "ramfs.h"
 #include "scheduler.h"
+#include "serial.h"
 #include "shell.h"
 #include "system.h"
 #include "vga.h"
@@ -190,12 +191,18 @@ static void run_disk_file_command(void)
     const char *name = input + 4;
     unsigned int size;
 
-    if (!vfs_read_file(name, process_image, sizeof(process_image), &size) ||
-        !user_process_spawn(name, process_image, size)) {
+    if (!vfs_read_file(name, process_image, sizeof(process_image), &size)) {
         vga_write("Process rejected (missing, invalid ELF, or process capacity full).\n");
+        serial_write("EfesOS: disk ELF process rejected (read).\n");
+        return;
+    }
+    if (!user_process_spawn(name, process_image, size)) {
+        vga_write("Process rejected (missing, invalid ELF, or process capacity full).\n");
+        serial_write("EfesOS: disk ELF process rejected (spawn).\n");
         return;
     }
     vga_write("User process started.\n");
+    serial_write("EfesOS: disk ELF process started.\n");
 }
 
 static void print_history(void)

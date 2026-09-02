@@ -54,6 +54,8 @@ Set-Word ($rootOffset + 26) 2
 $contents = [Text.Encoding]::ASCII.GetBytes("EfesOS disk!`r`n")
 Set-Dword ($rootOffset + 28) $contents.Length
 Set-Bytes (67 * $sectorSize) $contents
+Set-Bytes ($rootOffset + 32) ([Text.Encoding]::ASCII.GetBytes('EFESOS     '))
+$image[$rootOffset + 32 + 11] = 0x08
 
 # A small position-independent ELF probe for the shell's `run NAME` path.
 $runImage = New-Object byte[] $sectorSize
@@ -79,6 +81,7 @@ $runCode = [byte[]](
     0xEB, 0xFE
 )
 $runPayload = $runCode + $runMessage
+$runFileSize = 116 + $runPayload.Length
 $runImage[0] = 0x7F
 $runImage[1] = [byte][char]'E'
 $runImage[2] = [byte][char]'L'
@@ -106,7 +109,7 @@ $runEntryOffset = $rootOffset + 64
 Set-Bytes $runEntryOffset ([Text.Encoding]::ASCII.GetBytes('RUN     ELF'))
 $image[$runEntryOffset + 11] = 0x20
 Set-Word ($runEntryOffset + 26) 3
-Set-Dword ($runEntryOffset + 28) $runPayload.Length
+Set-Dword ($runEntryOffset + 28) $runFileSize
 Set-Bytes (68 * $sectorSize) $runImage
 
 $parent = Split-Path -Parent $OutputPath
