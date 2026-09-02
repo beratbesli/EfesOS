@@ -12,8 +12,11 @@
 #define ATA_CONTROL 0x3F6U
 #define ATA_CMD_IDENTIFY 0xECU
 #define ATA_CMD_READ 0x20U
+#define ATA_CMD_READ_EXT 0x24U
 #define ATA_CMD_WRITE 0x30U
+#define ATA_CMD_WRITE_EXT 0x34U
 #define ATA_CMD_FLUSH 0xE7U
+#define ATA_CMD_FLUSH_EXT 0xEAU
 #define ATA_CONTROL_SOFT_RESET 0x04U
 #define ATA_STATUS_ERR 0x01U
 #define ATA_STATUS_DRQ 0x08U
@@ -29,6 +32,7 @@ static int device_present;
 static uint32_t sectors;
 static uint8_t last_status;
 static uint16_t identify_type;
+static int lba48_supported;
 static int writes_protected;
 static uint32_t write_window_start;
 static uint32_t write_window_sectors;
@@ -94,7 +98,12 @@ static void ata_soft_reset(void)
     wait_status(0, ATA_STATUS_BSY);
 }
 
-static void select_lba(uint32_t lba, uint8_t count)
+static int request_needs_lba48(uint32_t lba, uint8_t count)
+{
+    return lba >= ATA_LBA28_LIMIT || (uint32_t)count > ATA_LBA28_LIMIT - lba;
+}
+
+static void select_lba28(uint32_t lba, uint8_t count)
 {
     outb(ATA_DRIVE, (uint8_t)(0xE0U | ((lba >> 24U) & 0x0FU)));
     ata_400ns_delay();
@@ -102,6 +111,35 @@ static void select_lba(uint32_t lba, uint8_t count)
     outb(ATA_LBA_LOW, (uint8_t)(lba & 0xFFU));
     outb(ATA_LBA_MID, (uint8_t)((lba >> 8U) & 0xFFU));
     outb(ATA_LBA_HIGH, (uint8_t)((lba >> 16U) & 0xFFU));
+}
+
+static void select_lba48(uint32_t lba, uint8_t count)
+{
+    /* ATA-6 requires the high-order task-file bytes before the low-order
+       bytes. The 32-bit public LBA API leaves the upper 16 bits zero. */
+    outb(ATA_DRIVE, 0xE0U);
+    ata_400ns_delay();
+    outb(ATA_SECTOR_COUNT, 0U);
+    outb(ATA_LBA_LOW, (uint8_t)((lba >> 24U) & 0xFFU));
+    outb(ATA_LBA_MID, 0U);
+    outb(ATA_LBA_HIGH, 0U);
+    outb(ATA_SECTOR_COUNT, count);
+    outb(ATA_LBA_LOW, (uint8_t)(lba & 0xFFU));
+    outb(ATA_LBA_MID, (uint8_t)((lba >> 8U) & 0xFFU));
+    outb(ATA_LBA_HIGH, (uint8_t)((lba >> 16U) & 0xFFU));
+}
+
+static int select_request(uint32_t lba, uint8_t count)
+{
+    if (request_needs_lba48(lba, count)) {
+        if (!lba48_supported) {
+            return 0;
+        }
+        select_lba48(lba, count);
+        return 1;
+    }
+    select_lba28(lba, count);
+    return 1;
 }
 
 static int valid_request(uint32_t lba, uint8_t count, const void *buffer)
@@ -123,6 +161,7 @@ void ata_init(void)
     sectors = 0;
     last_status = 0;
     identify_type = 0;
+    lba48_supported = 0;
     writes_protected = ATA_WRITES_PROTECTED_BY_DEFAULT;
     write_window_start = 0U;
     write_window_sectors = 0U;
@@ -145,11 +184,23 @@ void ata_init(void)
     if ((identify[49] & 0x0200U) == 0U) {
         return;
     }
-    sectors = ((uint32_t)identify[61] << 16U) | identify[60];
-    /* This driver emits only 28-bit PIO commands. Reject capacities that
-       would alias when select_lba masks the high nibble. */
-    if (sectors == 0U || sectors > ATA_LBA28_LIMIT) {
-        sectors = 0U;
+    if ((identify[83] & 0x0400U) != 0U) {
+        /* Keep the public 32-bit LBA contract explicit. A device larger than
+           that cannot be addressed safely by this API and is rejected. */
+        if (identify[103] != 0U || identify[102] != 0U) {
+            sectors = 0U;
+            return;
+        }
+        sectors = ((uint32_t)identify[101] << 16U) | identify[100];
+        lba48_supported = sectors != 0U;
+    } else {
+        sectors = ((uint32_t)identify[61] << 16U) | identify[60];
+        if (sectors == 0U || sectors > ATA_LBA28_LIMIT) {
+            sectors = 0U;
+            return;
+        }
+    }
+    if (sectors == 0U) {
         return;
     }
     device_present = 1;
@@ -182,8 +233,10 @@ static int ata_read_sectors_once(uint32_t lba, uint8_t count, void *buffer)
     /* Use one bounded multi-sector PIO command. Re-selecting the device for
        every sector is needlessly slow and makes journal validation depend on
        hundreds of controller state transitions. */
-    select_lba(lba, count);
-    outb(ATA_COMMAND, ATA_CMD_READ);
+    if (!select_request(lba, count)) {
+        return 0;
+    }
+    outb(ATA_COMMAND, request_needs_lba48(lba, count) ? ATA_CMD_READ_EXT : ATA_CMD_READ);
     ata_400ns_delay();
     for (sector = 0; sector < count; sector++) {
         if (!wait_status(ATA_STATUS_DRQ, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
@@ -268,8 +321,12 @@ int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
         return 0;
     }
     for (sector = 0; sector < count; sector++) {
-        select_lba(lba + sector, 1);
-        outb(ATA_COMMAND, ATA_CMD_WRITE);
+        if (!select_request(lba + sector, 1)) {
+            irq_restore(flags);
+            return 0;
+        }
+        outb(ATA_COMMAND, request_needs_lba48(lba + sector, 1) ?
+            ATA_CMD_WRITE_EXT : ATA_CMD_WRITE);
         ata_400ns_delay();
         if (!wait_status(ATA_STATUS_DRQ, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
             irq_restore(flags);
@@ -288,7 +345,7 @@ int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer)
             return 0;
         }
     }
-    outb(ATA_COMMAND, ATA_CMD_FLUSH);
+    outb(ATA_COMMAND, lba48_supported ? ATA_CMD_FLUSH_EXT : ATA_CMD_FLUSH);
     if (!wait_status(0, ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF)) {
         irq_restore(flags);
         return 0;
@@ -305,4 +362,9 @@ uint8_t ata_last_status(void)
 uint16_t ata_identify_type(void)
 {
     return identify_type;
+}
+
+int ata_lba48_supported(void)
+{
+    return lba48_supported;
 }

@@ -15,5 +15,6 @@ void ata_disable_transactional_writes(void);
 int ata_write_protected(void);
 uint8_t ata_last_status(void);
 uint16_t ata_identify_type(void);
+int ata_lba48_supported(void);
 
 #endif

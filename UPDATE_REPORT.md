@@ -90,7 +90,7 @@
 - Scheduler için güvenli bloklama/uyandırma primitive’leri eklendi; mevcut görev bloklanırken başka runnable görev yoksa bloklama reddediliyor ve yaşam döngüsü self-test’i boot sırasında çalışıyor.
 - Scheduler’ın görev durumu, PID sahipliği ve wake/block geçişleri artık IRQ-korumalı kritik bölümlerde yürütülüyor; IPC gönderimi ile timer preemption arasındaki yarış penceresi kapatıldı.
 - Ring-3 task oluşturma API’si entry ve user stack-top adreslerini 4 MiB–3 GiB kullanıcı aralığına sınırlandırıyor; kernel adresleri için negatif boot self-test’i eklendi.
-- ATA kapasitesi 28-bit PIO adresleme sınırına bağlandı; daha büyük veya taşmış IDENTIFY kapasitesi aygıtı sessiz LBA sarmalaması yerine güvenli biçimde reddediyor. Doğrudan ATA okuma çağrıları da sınırlı kanal reseti sonrası üç denemeye kadar retry yapıyor; kısmi yazmayı çoğaltmamak için yazma retry edilmiyor.
+- ATA, IDENTIFY 48-bit desteği ilan ettiğinde 48-bit PIO komutlarını kullanıyor; 32-bit LBA API’sinin temsil edemediği daha büyük kapasite fail-closed reddediliyor. Doğrudan ATA okuma çağrıları da sınırlı kanal reseti sonrası üç denemeye kadar retry yapıyor; kısmi yazmayı çoğaltmamak için yazma retry edilmiyor.
 - Sabit BGA framebuffer penceresi PMM’de paging öncesi rezerve edildi; yüksek RAM’li makinelerde MMIO sayfalarının kernel/user tahsisleriyle alias olması engellendi.
 - VFS, FAT BPB volume geometrisini gerçek ATA sektör kapasitesiyle mount sırasında karşılaştırıyor; fiziksel aygıtı aşan volume artık sonradan hata vermek yerine fail-closed reddediliyor.
 - Sabit boyutlu, kesme güvenli ve taşma kontrollü kernel IPC mesaj kuyruğu eklendi; FIFO, kapasite ve aşırı uzun mesaj reddi boot self-test’iyle doğrulanıyor. `IPC_SEND`/`IPC_RECEIVE` syscall’leri yalnızca 64 baytlık bounded mesajlar ve doğrulanmış kullanıcı aralıklarıyla sunuluyor.
@@ -149,7 +149,7 @@
 
 ## Bilinen sınırlar
 
-ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; çok-sektörlü okumalar tek bounded PIO komutuyla, aygıt-hazırlık yarışında timeout içi polling, üç denemeli bounded retry ve 28-bit kapasite reddiyle yürütülüyor. Disk yazmaları yalnızca doğrulanmış journal window ile sınırlı; FAT metadata yazımı hâlâ kapalı. IPC bounded beklemeli receive, generation-PID hedefleme ve scheduler uyandırma desteğine sahip; en fazla sekiz bounded kullanıcı süreci destekleniyor. Authentication, secure boot, imzalı modüller, tam ASLR, ağ/USB/SMP ve tam VFS sonraki aşamalardır.
+ATA IDENTIFY ve QEMU IDE PIO okuması doğrulandı; 48-bit destekli aygıtlarda yüksek LBA istekleri için EXT komutları hazır, 32-bit LBA API sınırı üzerindeki kapasite fail-closed reddediliyor. Çok-sektörlü okumalar tek bounded PIO komutuyla, aygıt-hazırlık yarışında timeout içi polling ve üç denemeli bounded retry ile yürütülüyor; kısmi yazmayı çoğaltmamak için yazma retry edilmiyor. Disk yazmaları yalnızca doğrulanmış journal window ile sınırlı; FAT metadata yazımı hâlâ kapalı. IPC bounded beklemeli receive, generation-PID hedefleme ve scheduler uyandırma desteğine sahip; en fazla sekiz bounded kullanıcı süreci destekleniyor. Authentication, secure boot, imzalı modüller, tam ASLR, ağ/USB/SMP ve tam VFS sonraki aşamalardır.
 
 ## Öncelikli sonraki geliştirmeler
 

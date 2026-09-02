@@ -274,11 +274,13 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write_hex(ata_present());
     serial_write(" sectors=");
     serial_write_hex(ata_sector_count());
-    serial_write(" status=");
-    serial_write_hex(ata_last_status());
-    serial_write(" type=");
-    serial_write_hex(ata_identify_type());
-    serial_write(" write-protected=");
+        serial_write(" status=");
+        serial_write_hex(ata_last_status());
+        serial_write(" type=");
+        serial_write_hex(ata_identify_type());
+        serial_write(" lba48=");
+        serial_write_hex((unsigned int)ata_lba48_supported());
+        serial_write(" write-protected=");
     serial_write_hex(ata_write_protected());
     serial_write("\n");
     vfs_init();
