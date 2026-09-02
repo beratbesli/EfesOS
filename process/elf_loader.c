@@ -100,6 +100,7 @@ int elf_validate_image(const void *image, unsigned int size, unsigned int *entry
         unsigned int segment_end;
         unsigned int page_start;
         unsigned int page_end;
+        unsigned int segment_pages;
 
         if (type != ELF_PT_LOAD) {
             continue;
@@ -124,8 +125,12 @@ int elf_validate_image(const void *image, unsigned int size, unsigned int *entry
         segment_end = virtual_address + memory_size;
         page_start = virtual_address & ELF_PAGE_MASK;
         page_end = (segment_end + PAGE_SIZE - 1U) & ELF_PAGE_MASK;
-        if (page_end < segment_end || page_start < USER_MIN_ADDRESS || page_end > USER_MAX_ADDRESS ||
-            load_pages > ELF_MAX_IMAGE_PAGES - ((page_end - page_start) / PAGE_SIZE)) {
+        if (page_end < segment_end || page_start < USER_MIN_ADDRESS || page_end > USER_MAX_ADDRESS) {
+            return 0;
+        }
+        segment_pages = (page_end - page_start) / PAGE_SIZE;
+        if (segment_pages > ELF_MAX_IMAGE_PAGES ||
+            load_pages > ELF_MAX_IMAGE_PAGES - segment_pages) {
             return 0;
         }
         if (alignment == 0x1000U && (file_offset & (PAGE_SIZE - 1U)) !=
@@ -347,12 +352,13 @@ int elf_loader_self_test(void)
             ELF32_HEADER_SIZE + ELF_PT_VADDR_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_FILESZ_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_MEMSZ_OFFSET,
+            ELF32_HEADER_SIZE + ELF_PT_MEMSZ_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_FLAGS_OFFSET,
             ELF32_HEADER_SIZE + ELF_PT_ALIGN_OFFSET, ELF_ENTRY_OFFSET
         };
         static const unsigned int malformed_values[] = {
             0xFFFFFFFFU, 0U, 0U, 0xFFFFFFFFU, 0x003FF000U, 0xFFFFFFFFU,
-            0xFFFFFFFFU, 3U, 8U, 2U, USER_MIN_ADDRESS + PAGE_SIZE
+            0xFFFFFFFFU, 3U, 0x01000000U, 8U, 2U, USER_MIN_ADDRESS + PAGE_SIZE
         };
         unsigned int malformed_index;
 
