@@ -13,6 +13,18 @@ static unsigned int persistent_region_start;
 static unsigned int persistent_next_sequence;
 static unsigned int persistent_replay_records;
 
+static int sector_is_empty(const unsigned char *sector)
+{
+    unsigned int index;
+
+    for (index = 0U; index < JOURNAL_SECTOR_SIZE; index++) {
+        if (sector[index] != 0U) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static int build_entry(unsigned int operation, unsigned int sequence,
     const char *name, const char *content, unsigned int content_length,
     struct journal_entry *entry)
@@ -74,6 +86,44 @@ int persistent_ramfs_init(void)
         return 0;
     }
     persistent_enabled = 1;
+    return 1;
+}
+
+int persistent_ramfs_format(void)
+{
+    unsigned char sector[JOURNAL_SECTOR_SIZE];
+    unsigned int index;
+    unsigned int data_sectors;
+
+    if (persistent_enabled || !ata_present() ||
+        ata_sector_count() <= PERSISTENT_JOURNAL_REGION_SECTORS) {
+        return 0;
+    }
+    persistent_region_start = ata_sector_count() - PERSISTENT_JOURNAL_REGION_SECTORS;
+    if (!vfs_journal_region_available(persistent_region_start,
+        PERSISTENT_JOURNAL_REGION_SECTORS)) {
+        return 0;
+    }
+    /* Never overwrite an existing or partially-used tail. */
+    for (index = 0U; index < PERSISTENT_JOURNAL_REGION_SECTORS; index++) {
+        if (!ata_read_sectors(persistent_region_start + index, 1U, sector) ||
+            !sector_is_empty(sector)) {
+            return 0;
+        }
+    }
+    if (!journal_superblock_encode(sector,
+        PERSISTENT_JOURNAL_REGION_SECTORS - 1U) ||
+        !ata_enable_transactional_writes(persistent_region_start,
+            PERSISTENT_JOURNAL_REGION_SECTORS) ||
+        !ata_write_sectors(persistent_region_start, 1U, sector) ||
+        !ata_read_sectors(persistent_region_start, 1U, sector) ||
+        !journal_superblock_decode(sector, &data_sectors)) {
+        ata_disable_transactional_writes();
+        return 0;
+    }
+    persistent_enabled = 1;
+    persistent_next_sequence = 1U;
+    persistent_replay_records = 0U;
     return 1;
 }
 

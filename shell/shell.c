@@ -71,10 +71,10 @@ static void print_help(void)
 {
     if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
         vga_write("Komutlar: help clear about mem heap input uptime ps demo pci disk diskls diskcat run counter snake slot\n");
-        vga_write("echo history color ls cat write rm reboot shutdown tr en\n");
+        vga_write("echo history color ls cat write rm pformat reboot shutdown tr en\n");
     } else {
         vga_write("Commands: help clear about mem heap input uptime ps demo pci disk diskls diskcat run counter snake slot\n");
-        vga_write("echo history color ls cat write rm reboot shutdown tr en\n");
+        vga_write("echo history color ls cat write rm pformat reboot shutdown tr en\n");
     }
 }
 
@@ -381,6 +381,12 @@ static void execute_command(void)
             vga_write("File not found or invalid name.\n");
         } else if (persistent_ramfs_is_enabled()) {
             vga_write("Persistent remove committed.\n");
+        }
+    } else if (string_equals(input, "pformat")) {
+        if (persistent_ramfs_format()) {
+            vga_write("Persistent RAMFS journal formatted.\n");
+        } else {
+            vga_write("Journal region is not empty, unavailable, or already formatted.\n");
         }
     } else if (string_starts_with(input, "echo ")) {
         vga_write(input + 5);

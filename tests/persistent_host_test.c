@@ -13,6 +13,15 @@ static unsigned char disk[DISK_SECTORS * JOURNAL_SECTOR_SIZE];
 static unsigned int enabled_start;
 static unsigned int enabled_count;
 
+static void clear_disk(void)
+{
+    unsigned int index;
+
+    for (index = 0U; index < sizeof(disk); index++) {
+        disk[index] = 0U;
+    }
+}
+
 int ata_present(void)
 {
     return 1;
@@ -101,17 +110,31 @@ int main(void)
 {
     const char *value;
 
+    clear_disk();
+    ramfs_init();
+    if (!persistent_ramfs_init() || persistent_ramfs_is_enabled() ||
+        !persistent_ramfs_format() || !persistent_ramfs_is_enabled() ||
+        !persistent_ramfs_write_file("FORMATTED", "ok")) {
+        return 1;
+    }
+    ramfs_init();
+    if (!persistent_ramfs_init() ||
+        !ramfs_file_contents("FORMATTED")) {
+        return 2;
+    }
+
+    clear_disk();
     seed_journal();
     ramfs_init();
     if (!persistent_ramfs_init() || !persistent_ramfs_is_enabled() ||
         persistent_ramfs_replay_count() != 1U ||
         !ramfs_file_contents("PERSIST")) {
-        return 1;
+        return 3;
     }
     if (!persistent_ramfs_write_file("NEW", "durable") ||
         !persistent_ramfs_remove_file("PERSIST") ||
         ramfs_file_contents("PERSIST") != 0) {
-        return 2;
+        return 4;
     }
 
     /* Reinitialize the volatile view to model a reboot and replay the disk. */
@@ -120,14 +143,14 @@ int main(void)
         ramfs_file_contents("PERSIST") != 0 ||
         (value = ramfs_file_contents("NEW")) == 0 ||
         value[0] != 'd') {
-        return 3;
+        return 5;
     }
     {
         unsigned char sector[JOURNAL_SECTOR_SIZE] = {0};
 
         if (!ata_enable_transactional_writes(10U, 2U) ||
             ata_write_sectors(12U, 1U, sector)) {
-            return 4;
+            return 6;
         }
     }
     puts("Persistent RAMFS host self-test passed.");

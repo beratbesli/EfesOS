@@ -20,7 +20,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Zaman aşımı ve hata denetimli ATA PIO birincil disk erişimi; disk yokluğu açıkça raporlanır
 - ATA ham yazmaları varsayılan olarak boot’ta korumalıdır; yalnızca doğrulanmış journal penceresi transaction için açılabilir
 - Sınırlı 8.3 dizin/dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat`); doğrulanmış ELF’i diskten başlatma (`run NAME`)
-- FAT volume dışında doğrulanmış journal bölgesi varsa shell `write`/`rm` işlemleri kalıcı RAMFS journal’ına transaction olarak yazılır; biçimlendirilmemiş diskler güvenli biçimde volatile/salt-okunur kalır
+- FAT volume dışında doğrulanmış journal bölgesi varsa shell `write`/`rm` işlemleri kalıcı RAMFS journal’ına transaction olarak yazılır; `pformat` yalnızca tamamen boş journal tail’ini açıkça biçimlendirir
 - BSS sıfırlama, W^X denetimi ve son sayfa izinleriyle sınırlı ELF32 segment yükleyicisi
 - ELF executable sayfaları için yazılım execute biti ve scheduler/syscall sınırlarında EIP doğrulaması (non-PAE donanım NX’in yerine tamamen geçmez)
 - Veri taşıyan seri syscall için taşma ve izin kontrolleri yapan sınırlı kullanıcı tamponu doğrulaması
@@ -124,6 +124,9 @@ QEMU test diskinde gerçek journal-window yazmasını da denemek için:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1 -TestPersistentWrite
 ```
+
+Kasten boş ve FAT ile çakışmayan disk tail’inde shell’e `pformat` yazarak
+kalıcı RAMFS’i başlatabilirsin. Dolu veya zaten biçimli bölgeler reddedilir.
 
 Ardışık iki imaj derlemesinin byte düzeyinde aynı olduğunu doğrulamak için:
 

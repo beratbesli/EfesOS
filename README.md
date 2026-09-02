@@ -20,7 +20,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
 - ATA raw writes remain disabled by default; only a validated journal window can be transactionally enabled
 - Read-only FAT16 VFS mount with bounded 8.3 directory and file reads (`diskls`, `diskcat`); validated ELF launch from disk (`run NAME`)
-- When a validated journal region exists outside the FAT volume, shell `write`/`rm` operations are committed transactionally to persistent RAMFS; unformatted disks remain safely volatile/read-only
+- When a validated journal region exists outside the FAT volume, shell `write`/`rm` operations are committed transactionally to persistent RAMFS; `pformat` explicitly formats an entirely empty journal tail
 - Bounded ELF32 segment loader with BSS initialization, W^X checks and page-permission finalization
 - Software execute metadata for ELF code pages with EIP checks at scheduler/syscall boundaries (not a full replacement for hardware NX in non-PAE mode)
 - Bounded user-buffer validation for the data-carrying serial syscall, including overflow and permission checks
@@ -124,6 +124,10 @@ To additionally exercise an actual journal-window write on the QEMU test disk:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1 -TestPersistentWrite
 ```
+
+On a deliberately empty, non-overlapping disk tail, type `pformat` in the shell
+to initialize persistent RAMFS. Formatting refuses non-empty or already
+formatted regions.
 
 Check that two consecutive image builds are byte-for-byte reproducible:
 
