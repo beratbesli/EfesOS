@@ -26,7 +26,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Sekize kadar bounded kullanıcı süreci özel page directory alır; scheduler adres alanlarını CR3 ile değiştirir ve fault sonrası slotları yeniden kullanır
 - Kernel’e özel bounded `user_process_spawn` API’si doğrulanmış ELF imajlarını sahiplikli adres alanlarına yükler; stack ve cleanup otomatik yönetilir
 - Kullanıcı yığınlarının altında eşlenmemiş guard sayfası bulunur; aşağı yönlü stack taşması komşu eşlemelere ulaşmadan fault üretir
-- Yeni kullanıcı süreçleri sekiz bounded stack bölgesinden birini kullanır; tek bir sabit kullanıcı stack adresine bağımlılık azaltılır
+- Yeni kullanıcı süreçleri on altı bounded stack bölgesinden birini kullanır; tek bir sabit kullanıcı stack adresine bağımlılık azaltılır
 - 16 mesaj/64 bayt sınırları, generation-PID hedefleme, scheduler uyandırma ve usercopy doğrulaması olan IPC syscall’leri (`IPC_SEND`, `IPC_RECEIVE`, `IPC_SEND_TO`, `IPC_RECEIVE_WAIT`, `EXIT`)
 - Slot yeniden kullanımında stale kimlikleri önleyen generation tabanlı `GET_PID` syscall’i
 - Protected mode’a geçmeden önce stage-2 CRC-32 kernel bütünlük doğrulaması (bütünlük, kimlik doğrulama değil)
