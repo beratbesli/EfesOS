@@ -19,6 +19,7 @@ $successMarkers = @(
     'EfesOS: stage-2 kernel integrity check passed.',
     'EfesOS: PCI devices discovered=',
     'EfesOS: ATA primary-master present=',
+    'EfesOS: ATA write path fail-closed self-test passed.',
     'EfesOS: FAT volume mounted=',
     'EfesOS: syscall ABI self-test passed.',
     'EfesOS: interrupt self-tests passed.',

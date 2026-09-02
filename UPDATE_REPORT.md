@@ -43,6 +43,7 @@
 - PMM, hizasız yüksek adresli E820 aralıklarını taşmasız yuvarlıyor; 64-bit taban adresi ekleme taşması düşük fiziksel blokları yanlışlıkla kullanılabilir yapamıyor.
 - PMM başlangıcı, linker’ın bildirdiği kernel başlangıç/bitiş aralığını doğruluyor; ters veya boş aralıkta bellek serbest bırakılmadan fail-closed duruyor.
 - ATA ham yazma yolu her boot’ta write-protected başlıyor ve kernel bunu zorunlu kontrol ediyor; journaling/transaction katmanı olmadan fiziksel disk değişikliği gerçekleşmiyor.
+- Kernel, write-protected ATA yolunu gerçek `ata_write_sectors` çağrısıyla self-test ediyor; koruma açıkken kabul edilen bir yazma artık boot smoke testini fail-closed düşürüyor.
 - FAT kök dizini taraması artık BPB’de belirtilen gerçek entry sayısının dışına çıkmıyor; son sektör artıkları dosya gibi kabul edilmiyor ve host fixture ile doğrulanıyor.
 - FAT dosya zinciri cycle testi strict bounded guard ile doğrulanıyor; döngülü cluster zinciri dosya okumasını fail-closed durduruyor.
 - FAT mount artık BPB’nin bildirdiği cluster sayısının FAT tablosu kapasitesine sığdığını doğruluyor; eksik FAT girdileriyle yapılan taşma/yanlış sektör okuması host fixture ile reddediliyor.
@@ -75,9 +76,9 @@
 
 - `scripts/build.ps1` başarılı.
 - `scripts/fat-self-test.ps1` başarılı.
-- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 34 kritik boot/runtime işaretçisi doğrulanıyor.
+- QEMU smoke testi 16 MiB ve 128 MiB ile başarılı; 35 kritik boot/runtime işaretçisi doğrulanıyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
-- Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT uçtan uca testi başarılı; mount, kök dizin ve dosya okuması dahil 35 işaretçi doğrulanıyor.
+- Deterministik 4 MiB FAT16 imajıyla QEMU ATA/FAT uçtan uca testi başarılı; mount, kök dizin ve dosya okuması dahil 36 işaretçi doğrulanıyor.
 - Değişiklikler `codex/core-hardening` dalında checkpoint commit’leriyle kaydedildi.
 
 ## Bilinen sınırlar

@@ -27,6 +27,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - FAT16 mount validates the reserved entries in every mirrored FAT copy before exposing directory/file reads.
 - FAT cluster-chain reads compare each consumed FAT entry with every mirrored copy and fail closed on divergence.
 - The ATA raw-write path starts write-protected on every boot and remains disabled until a future transactional/journaled storage layer explicitly replaces this policy.
+- Boot self-test invokes the raw write API while protection is active and requires the call to fail, guarding the write-protected invariant against future call-path regressions.
 - IPC uses a fixed 16-message, 64-byte-per-message queue with interrupt-safe FIFO operations. `IPC_SEND_TO` binds delivery to an active user generation-PID (while legacy `IPC_SEND` remains broadcast), `IPC_RECEIVE_WAIT` blocks safely until a sender wakes the task, and exited-task messages are purged; ring-3 calls validate all user buffers and return bounded `E2BIG`/`EFAULT`/`EAGAIN` errors.
 - Scheduler task IDs include a per-slot generation and are exposed through the bounded `GET_PID` syscall, so a reused slot does not silently retain its previous identity.
 - User-process ownership records require both the task slot and its generation-PID during cleanup, preventing a stale slot callback from reclaiming a replacement process.

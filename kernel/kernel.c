@@ -242,6 +242,14 @@ void kernel_main(const struct boot_info *boot_info)
     if (!ata_write_protected()) {
         kernel_panic("ATA write protection is not active.");
     }
+    {
+        unsigned char write_probe[512];
+
+        if (ata_write_sectors(0U, 1U, write_probe)) {
+            kernel_panic("ATA write-protected path accepted a write.");
+        }
+        serial_write("EfesOS: ATA write path fail-closed self-test passed.\n");
+    }
     serial_write("EfesOS: ATA primary-master present=");
     serial_write_hex(ata_present());
     serial_write(" sectors=");
