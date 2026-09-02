@@ -26,7 +26,7 @@
 #include "splash.h"
 #include "vga.h"
 
-#define USER_PROCESS_ALLOCATION_BLOCKS 9U
+#define USER_PROCESS_ALLOCATION_BLOCKS 13U
 #define USER_PROCESS_RESTART_TARGET 4U
 
 static int scheduler_runtime_verified;

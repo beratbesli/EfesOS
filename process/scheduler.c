@@ -8,7 +8,7 @@
 #include "user_process.h"
 
 #define SCHEDULER_MAX_TASKS 16U
-#define SCHEDULER_STACK_PAGES 4U
+#define SCHEDULER_STACK_PAGES 8U
 #define SCHEDULER_STACK_STRIDE (PAGE_SIZE * (SCHEDULER_STACK_PAGES + 1U))
 #define SCHEDULER_STACK_BASE 0xC0000000U
 #define TASK_RUNNABLE SCHEDULER_TASK_RUNNABLE
@@ -22,6 +22,7 @@
 #define SCHEDULER_MAX_PRIORITY 8U
 #define SCHEDULER_MAX_GENERATION 0x00FFFFFFU
 #define SCHEDULER_NAME_MAX 16U
+#define SCHEDULER_STACK_CANARY 0x51ACCE55U
 
 struct scheduler_task {
     char name[SCHEDULER_NAME_MAX];
@@ -29,6 +30,7 @@ struct scheduler_task {
     struct interrupt_frame *frame;
     unsigned int stack_base;
     unsigned int stack_frames[SCHEDULER_STACK_PAGES];
+    unsigned int stack_canary;
     unsigned int user_entry;
     unsigned int user_stack_top;
     unsigned int address_space;
@@ -50,6 +52,7 @@ static unsigned int last_added_task;
 static unsigned int slot_generation[SCHEDULER_MAX_TASKS];
 
 static void scheduler_task_trampoline(void);
+static void verify_stack_canary(const struct scheduler_task *task);
 
 static void clear_kernel_page(unsigned int address)
 {
@@ -115,6 +118,7 @@ static void reap_task_stack(struct scheduler_task *task)
     if (task == 0 || task->stack_base == 0U) {
         return;
     }
+    verify_stack_canary(task);
     if (paging_is_mapped(task->stack_base)) {
         kernel_panic("Kernel task stack guard page is mapped.");
     }
@@ -179,6 +183,7 @@ static void clear_task(struct scheduler_task *task)
     for (index = 0; index < SCHEDULER_STACK_PAGES; index++) {
         task->stack_frames[index] = 0;
     }
+    task->stack_canary = 0U;
     task->entry = 0;
     task->frame = 0;
     task->stack_base = 0;
@@ -221,6 +226,9 @@ static int allocate_task_stack(struct scheduler_task *task, unsigned int slot)
         clear_kernel_page(virtual_address);
     }
 
+    task->stack_canary = SCHEDULER_STACK_CANARY ^ base ^ slot;
+    *(unsigned int *)(base + PAGE_SIZE) = task->stack_canary;
+
     task->frame = (struct interrupt_frame *)(base + SCHEDULER_STACK_STRIDE - sizeof(struct interrupt_frame) - 8U);
     task->frame->gs = task->mode == TASK_USER ? 0x23U : 0x10U;
     task->frame->fs = task->mode == TASK_USER ? 0x23U : 0x10U;
@@ -245,6 +253,19 @@ static int allocate_task_stack(struct scheduler_task *task, unsigned int slot)
         return_words[1] = 0x23U;
     }
     return 1;
+}
+
+static void verify_stack_canary(const struct scheduler_task *task)
+{
+    /* The bootstrap task runs on the loader's fixed stack and has no
+       scheduler-owned allocation to instrument. */
+    if (task == 0 || task->stack_base == 0U) {
+        return;
+    }
+    if (task->stack_canary == 0U ||
+        *(const unsigned int *)(task->stack_base + PAGE_SIZE) != task->stack_canary) {
+        kernel_panic("Scheduler stack canary corrupted.");
+    }
 }
 
 static unsigned int find_next_runnable(void)
@@ -311,6 +332,7 @@ static struct interrupt_frame *schedule_from_frame(struct interrupt_frame *frame
     if (!scheduler_started || task_count == 0U || frame == 0) {
         return frame;
     }
+    verify_stack_canary(&tasks[current_task]);
     reap_pending_stacks();
     if (tasks[current_task].mode == TASK_USER && tasks[current_task].state == TASK_RUNNABLE &&
         (frame->cs & 3U) == 3U && !paging_validate_user_execute(frame->eip)) {

@@ -35,6 +35,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - ELF segment page accounting rejects requests exceeding the bounded 1024-page image budget before subtraction, preventing unsigned-capacity wraparound and avoidable allocator exhaustion.
 - ELF executable pages carry a software execute bit, and scheduler plus syscall boundaries reject a ring-3 EIP that is not on a user executable page; user stacks also receive bounded per-boot layout diversification. These are defense-in-depth only: hardware NX and full ASLR remain unavailable in non-PAE mode.
 - Ring-3 syscall returns are constrained to the known user code/data selectors, safe EFLAGS bits, a user SS, and a writable user stack pointer; malformed transition frames are isolated as user faults before dispatch.
+- Scheduler-owned kernel stacks have a guarded page, expanded bounded capacity, and a low-water canary checked before scheduling and reclamation; corruption fails closed instead of silently reusing a damaged stack.
 - The paging API enforces W^X for every mapping and protection operation, rejecting writable+executable combinations before they reach a page table.
 - ATA access is bounded, timeout-controlled, retries failed reads only after a bounded channel reset, and rejects capacities beyond the driver’s 28-bit PIO addressing limit. FAT16 support is read-only; no shell command can write arbitrary disk sectors.
 - FAT16 mount validates the reserved entries in every mirrored FAT copy before exposing directory/file reads.
