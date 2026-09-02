@@ -16,7 +16,8 @@ $qemuErrorLog = Join-Path $buildDirectory 'run-qemu-error.log'
 
 function Get-QemuPath {
     $command = Get-Command 'qemu-system-i386' -ErrorAction SilentlyContinue
-    if ($null -ne $command) {
+    if ($null -ne $command -and $command.CommandType -eq 'Application' -and
+        ![string]::IsNullOrEmpty($command.Source)) {
         return $command.Source
     }
     foreach ($path in @(

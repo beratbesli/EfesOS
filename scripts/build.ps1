@@ -96,7 +96,8 @@ function Get-OptionalCommand {
     param([Parameter(Mandatory = $true)][string]$Name)
 
     $command = Get-Command $Name -ErrorAction SilentlyContinue
-    if ($null -ne $command) {
+    if ($null -ne $command -and $command.CommandType -eq 'Application' -and
+        ![string]::IsNullOrEmpty($command.Source)) {
         return $command.Source
     }
 

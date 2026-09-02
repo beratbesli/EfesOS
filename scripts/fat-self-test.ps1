@@ -5,7 +5,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $build = Join-Path $root 'build'
 $compiler = Get-Command clang -ErrorAction SilentlyContinue
-if ($null -eq $compiler) {
+if ($null -eq $compiler -or $compiler.CommandType -ne 'Application' -or
+    [string]::IsNullOrEmpty($compiler.Source)) {
     $fallback = Join-Path $env:ProgramFiles 'LLVM\bin\clang.exe'
     if (!(Test-Path -LiteralPath $fallback)) {
         throw 'clang bulunamadi.'
