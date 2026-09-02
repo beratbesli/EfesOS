@@ -255,9 +255,13 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("EfesOS: ELF loader validation self-test passed.\n");
 
     pci_init();
+    if (!pci_self_test()) {
+        kernel_panic("PCI BAR discovery self-test failed.");
+    }
     serial_write("EfesOS: PCI devices discovered=");
     serial_write_hex(pci_device_count());
     serial_write("\n");
+    serial_write("EfesOS: PCI BAR self-test passed.\n");
     ata_init();
     if (!ata_write_protected()) {
         kernel_panic("ATA write protection is not active.");

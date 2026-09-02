@@ -28,6 +28,7 @@ $successMarkers = @(
     'EfesOS: VMM self-test passed.',
     'EfesOS: paging mode=',
     'EfesOS: ELF loader validation self-test passed.',
+    'EfesOS: PCI BAR self-test passed.',
     'EfesOS: ELF loader runtime self-test passed.',
     'EfesOS: kernel heap self-test passed.',
     'EfesOS: RAM filesystem self-test passed.',

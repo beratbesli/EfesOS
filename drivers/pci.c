@@ -33,7 +33,9 @@ static int pci_is_present(uint8_t bus, uint8_t slot, uint8_t function)
 static void pci_record(uint8_t bus, uint8_t slot, uint8_t function)
 {
     uint32_t class_register;
+    uint32_t header_register;
     struct pci_device *device;
+    unsigned int bar_index;
 
     if (device_count == PCI_MAX_DEVICES || !pci_is_present(bus, slot, function)) {
         return;
@@ -41,6 +43,7 @@ static void pci_record(uint8_t bus, uint8_t slot, uint8_t function)
 
     device = &devices[device_count++];
     class_register = pci_config_read(bus, slot, function, 8);
+    header_register = pci_config_read(bus, slot, function, 0x0C);
     device->bus = bus;
     device->slot = slot;
     device->function = function;
@@ -51,6 +54,44 @@ static void pci_record(uint8_t bus, uint8_t slot, uint8_t function)
     device->subclass = (uint8_t)((class_register >> 16U) & 0xFFU);
     device->class_code = (uint8_t)((class_register >> 24U) & 0xFFU);
     device->interrupt_line = (uint8_t)(pci_config_read(bus, slot, function, 0x3C) & 0xFFU);
+    device->header_type = (uint8_t)((header_register >> 16U) & 0xFFU);
+    for (bar_index = 0U; bar_index < PCI_MAX_BARS; bar_index++) {
+        uint32_t raw = pci_config_read(bus, slot, function,
+            (uint8_t)(0x10U + bar_index * 4U));
+        struct pci_bar *bar = &device->bars[bar_index];
+
+        bar->base_low = 0U;
+        bar->base_high = 0U;
+        bar->flags = 0U;
+        bar->type = PCI_BAR_UNUSED;
+        /* BARs are defined for type-0 endpoints. Bridges have a different
+           header layout and must not be interpreted as endpoint BARs. */
+        if ((device->header_type & 0x7FU) != 0U || raw == 0U || raw == 0xFFFFFFFFU) {
+            continue;
+        }
+        bar->flags = raw & 0x0FU;
+        if ((raw & 1U) != 0U) {
+            bar->base_low = raw & ~0x3U;
+            bar->type = PCI_BAR_IO;
+            continue;
+        }
+        bar->base_low = raw & ~0x0FU;
+        if (((raw >> 1U) & 3U) == 2U) {
+            if (bar_index + 1U >= PCI_MAX_BARS) {
+                /* A truncated 64-bit pair is malformed; do not expose a
+                   guessed 32-bit resource to a future driver. */
+                bar->base_low = 0U;
+                bar->flags = 0U;
+                continue;
+            }
+            bar->base_high = pci_config_read(bus, slot, function,
+                (uint8_t)(0x10U + (bar_index + 1U) * 4U));
+            bar->type = PCI_BAR_MEMORY64;
+            bar_index++;
+        } else {
+            bar->type = PCI_BAR_MEMORY32;
+        }
+    }
 }
 
 void pci_init(void)
@@ -77,6 +118,42 @@ void pci_init(void)
             }
         }
     }
+}
+
+int pci_self_test(void)
+{
+    unsigned int device_index;
+
+    for (device_index = 0U; device_index < device_count; device_index++) {
+        const struct pci_device *device = &devices[device_index];
+        unsigned int bar_index;
+
+        if (device->vendor_id == 0xFFFFU ||
+            (device->header_type & 0x7FU) > 2U) {
+            return 0;
+        }
+        for (bar_index = 0U; bar_index < PCI_MAX_BARS; bar_index++) {
+            const struct pci_bar *bar = &device->bars[bar_index];
+
+            if (bar->type == PCI_BAR_UNUSED) {
+                continue;
+            }
+            if (bar->type == PCI_BAR_IO) {
+                if ((bar->base_low & 0x3U) != 0U) {
+                    return 0;
+                }
+            } else if (bar->type == PCI_BAR_MEMORY32 ||
+                bar->type == PCI_BAR_MEMORY64) {
+                if ((bar->base_low & 0xFU) != 0U ||
+                    (bar->type == PCI_BAR_MEMORY64 && bar->base_high == 0xFFFFFFFFU)) {
+                    return 0;
+                }
+            } else {
+                return 0;
+            }
+        }
+    }
+    return 1;
 }
 
 unsigned int pci_device_count(void)

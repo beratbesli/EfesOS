@@ -17,7 +17,8 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Koruma sayfalı görev yığınları ve PIT tabanlı bağlam değişimi olan öncelikli kernel-thread scheduler
 - Açık `yield` desteğiyle sınırlı öncelik zaman dilimleri
 - Shell ve oyunları donanım IRQ'ları dışında çalıştıran ertelenmiş olay döngüsü
-- Sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
+- Salt-okunur type-0 BAR ayrıştırması ve sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
+- PCI BAR kayıtları sürücülere açılmadan önce çekirdek içinde tür/hizalama self-test’inden geçer
 - Zaman aşımı ve hata denetimli ATA PIO birincil disk erişimi; disk yokluğu açıkça raporlanır
 - ATA ham yazmaları varsayılan olarak boot’ta korumalıdır; yalnızca doğrulanmış journal penceresi transaction için açılabilir
 - Sınırlı 8.3 kök/alt-dizin dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); doğrulanmış ELF’i diskten başlatma (`run NAME`)

@@ -17,7 +17,8 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Preemptive kernel-thread scheduler with guarded per-task stacks and timer-driven context switching
 - Bounded priority time slices with explicit voluntary-yield handling
 - Deferred event loop; shell and games never run inside hardware IRQ handlers
-- PCI configuration-space enumeration with a bounded `pci` diagnostic command
+- PCI configuration-space enumeration with read-only type-0 BAR decoding and a bounded `pci` diagnostic command
+- PCI BAR records pass an in-kernel alignment/type self-test before device drivers consume them
 - Timeout-bounded ATA PIO primary-master block I/O with explicit disk absence reporting
 - ATA raw writes remain disabled by default; only a validated journal window can be transactionally enabled
 - Read-only FAT16 VFS mount with bounded 8.3 root/subdirectory file reads (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); validated ELF launch from disk (`run NAME`)

@@ -143,6 +143,27 @@ static void print_pci(void)
         vga_write_unsigned(device->class_code);
         vga_write_char('/');
         vga_write_unsigned(device->subclass);
+        {
+            unsigned int bar_index;
+
+            for (bar_index = 0U; bar_index < PCI_MAX_BARS; bar_index++) {
+                const struct pci_bar *bar = &device->bars[bar_index];
+
+                if (bar->type == PCI_BAR_UNUSED) {
+                    continue;
+                }
+                vga_write(" bar");
+                vga_write_unsigned(bar_index);
+                vga_write(" base=");
+                vga_write_unsigned(bar->base_low);
+                if (bar->type == PCI_BAR_MEMORY64) {
+                    vga_write(" high=");
+                    vga_write_unsigned(bar->base_high);
+                }
+                vga_write(" type=");
+                vga_write_unsigned(bar->type);
+            }
+        }
         vga_write_char('\n');
     }
 }
