@@ -134,6 +134,8 @@ int paging_map_page(paging_u32_t virtual_address, paging_u32_t physical_address,
         (virtual_address & (PAGE_SIZE - 1U)) != 0U ||
         (physical_address & (PAGE_SIZE - 1U)) != 0U ||
         (flags & ~PAGE_ALLOWED_FLAGS) != 0U ||
+        (flags & (PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE)) ==
+            (PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE) ||
         (page_directory == kernel_page_directory && (flags & PAGE_FLAG_USER) != 0U) ||
         uses_shared_kernel_table(virtual_address) ||
         ((flags & PAGE_FLAG_USER) != 0U &&
@@ -163,6 +165,8 @@ int paging_protect_page(paging_u32_t virtual_address, paging_u32_t flags)
 
     if (page_directory == 0 || virtual_address < PAGE_SIZE ||
         (virtual_address & (PAGE_SIZE - 1U)) != 0U ||
+        (flags & (PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE)) ==
+            (PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE) ||
         (page_directory == kernel_page_directory && (flags & PAGE_FLAG_USER) != 0U) ||
         uses_shared_kernel_table(virtual_address) ||
         ((flags & PAGE_FLAG_USER) != 0U &&
@@ -296,8 +300,8 @@ int paging_validate_user_execute(paging_u32_t virtual_address)
         return 0;
     }
     entry = table[(virtual_address >> 12U) & 0x3FFU];
-    return (entry & (PAGE_PRESENT | PAGE_FLAG_USER | PAGE_FLAG_EXECUTABLE)) ==
-        (PAGE_PRESENT | PAGE_FLAG_USER | PAGE_FLAG_EXECUTABLE);
+    return (entry & (PAGE_PRESENT | PAGE_FLAG_USER | PAGE_FLAG_WRITABLE |
+        PAGE_FLAG_EXECUTABLE)) == (PAGE_PRESENT | PAGE_FLAG_USER | PAGE_FLAG_EXECUTABLE);
 }
 
 int paging_copy_from_user(void *destination, paging_u32_t source, paging_u32_t length)
@@ -581,10 +585,17 @@ int paging_self_test(void)
     frame = pmm_alloc_block();
     if (frame == 0U || paging_map_page(test_virtual, 0U, PAGE_FLAG_WRITABLE) ||
         paging_map_page(test_virtual, frame, 0x008U) ||
+        paging_map_page(test_virtual, frame, PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE) ||
         !paging_map_page(test_virtual, frame, PAGE_FLAG_WRITABLE)) {
         if (frame != 0U) {
             pmm_free_block(frame);
         }
+        return 0;
+    }
+
+    if (paging_protect_page(test_virtual, PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE)) {
+        paging_unmap_page(test_virtual);
+        pmm_free_block(frame);
         return 0;
     }
 

@@ -14,6 +14,7 @@
 - ELF doğrulaması artık `e_ehsize` alanını ve sanal adresin üst sınırını açıkça denetliyor; yüksek adres unsigned taşması malformed image olarak reddediliyor.
 - ELF segment sayfası hesabı artık unsigned kapasite taşmasına karşı açıkça sınırlandırılıyor; 1024 sayfadan büyük BSS istekleri doğrulama aşamasında reddediliyor.
 - ELF yükleyici executable sayfaları yazılım execute bitiyle işaretliyor; scheduler ve syscall sınırlarında ring-3 EIP’in executable kullanıcı sayfasında olduğu doğrulanıyor. Bu, non-PAE donanım NX eksikliğini tamamen çözmez ancak veri/yığın sayfasından çalıştırmayı daraltır.
+- Paging map/protect API’leri de writable+executable birleşimini reddediyor; W^X artık yalnızca ELF girdisinin iyi niyetine bağlı değil ve VMM self-test’inde negatif fixture ile korunuyor.
 - Veri taşıyan `write` syscall’i için kullanıcı sayfa/izin/taşma doğrulaması, bounded kernel kopyası ve geçersiz pointer reddi eklendi.
 - Tanımsız syscall çağrıları adsız `0xFFFFFFFF` yerine açık `ENOSYS` kodu döndürüyor; ABI self-test’i bu sözleşmeyi kilitliyor.
 - Kullanıcı page fault sonrası ELF ve kullanıcı yığını kaynaklarının scheduler’a dönmeden geri kazanılması eklendi.
