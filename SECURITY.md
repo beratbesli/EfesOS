@@ -40,6 +40,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - The ATA raw-write path starts write-protected on every boot and remains disabled until a future transactional/journaled storage layer explicitly replaces this policy.
 - GitHub Actions dependencies are pinned to a verified commit and checkout credentials are not persisted in the worktree, reducing CI supply-chain and token-leakage risk.
 - Dependabot is configured to propose weekly GitHub Actions updates so pinned workflow dependencies receive security fixes without reverting to mutable tags.
+- CI runs Clang’s static analyzer across kernel C sources (excluding intentional fixed-address hardware accesses) so new pointer and memory diagnostics fail before merge.
 - PowerShell build and self-test scripts accept PATH-resolved tools only when `Get-Command` reports a real `Application` with a non-empty source; profile functions and aliases cannot silently replace compiler or QEMU binaries.
 - Boot self-test invokes the raw write API while protection is active and requires the call to fail, guarding the write-protected invariant against future call-path regressions.
 - IPC uses a fixed 16-message, 64-byte-per-message queue with interrupt-safe FIFO operations. `IPC_SEND_TO` binds delivery to an active user generation-PID (while legacy `IPC_SEND` remains broadcast), `IPC_RECEIVE_WAIT` blocks safely until a sender wakes the task, and exited-task messages are purged; ring-3 calls validate all user buffers and return bounded `E2BIG`/`EFAULT`/`EAGAIN` errors.

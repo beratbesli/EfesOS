@@ -19,6 +19,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y clang lld nasm qemu-system-x86 make python3
       - name: Build and verify image
         run: make verify
+      - name: Static analyzer
+        run: |
+          clang --target=i686-none-elf -m32 -std=c11 -ffreestanding -fno-builtin -fno-pic -fno-pie -fno-stack-protector -nostdlib \
+            -Iinclude -Icpu -Ikernel -Imemory -Iprocess -Ishell -Ifs -Igames \
+            --analyze -Xanalyzer -analyzer-output=text \
+            -Xanalyzer -analyzer-disable-checker=core.FixedAddressDereference \
+            $(find . -name '*.c' -not -path './tests/*' -not -path './build/*' -print)
       - name: Reproducible image build
         run: |
           sha256sum build/efesos.img > /tmp/efesos-first.sha256
