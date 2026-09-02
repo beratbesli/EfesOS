@@ -414,8 +414,20 @@ int elf_loader_runtime_self_test(void)
     unsigned int loaded_base;
     unsigned int loaded_end;
     unsigned int index;
+    paging_u32_t kernel_directory;
+    paging_u32_t test_directory;
     unsigned char *loaded;
     int image_loaded;
+    int result = 0;
+
+    kernel_directory = paging_kernel_directory();
+    test_directory = paging_create_address_space();
+    if (test_directory == 0U || !paging_switch_address_space(test_directory)) {
+        if (test_directory != 0U && paging_current_directory() == kernel_directory) {
+            paging_destroy_address_space(test_directory);
+        }
+        return 0;
+    }
 
     for (index = 0; index < sizeof(image); index++) {
         image[index] = 0;
@@ -450,17 +462,25 @@ int elf_loader_runtime_self_test(void)
     if (!image_loaded ||
         entry != 0x01000000U || loaded_base != 0x01000000U ||
         loaded_end != 0x01001000U || !paging_is_mapped(loaded_base)) {
-        if (image_loaded) {
-            elf_unload_image(loaded_base, loaded_end);
-        }
-        return 0;
+        goto cleanup;
     }
     loaded = virtual_pointer(entry);
     if (loaded[0] != 0xC3 || loaded[1] != 0xEF || loaded[2] != 0x05 || loaded[3] != 0xA5 ||
         loaded[4] != 0U || !elf_unload_image(loaded_base, loaded_end) ||
         paging_is_mapped(loaded_base)) {
-        elf_unload_image(loaded_base, loaded_end);
+        image_loaded = 0;
+        goto cleanup;
+    }
+    image_loaded = 0;
+    result = 1;
+
+cleanup:
+    if (image_loaded && !elf_unload_image(loaded_base, loaded_end)) {
+        result = 0;
+    }
+    if (!paging_switch_address_space(kernel_directory) ||
+        !paging_destroy_address_space(test_directory)) {
         return 0;
     }
-    return 1;
+    return result;
 }

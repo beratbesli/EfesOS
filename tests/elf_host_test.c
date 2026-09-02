@@ -44,6 +44,39 @@ int paging_protect_page(paging_u32_t virtual_address, paging_u32_t flags)
     return 0;
 }
 
+paging_u32_t paging_kernel_directory(void)
+{
+    return 0U;
+}
+
+paging_u32_t paging_current_directory(void)
+{
+    return 0U;
+}
+
+paging_u32_t paging_create_address_space(void)
+{
+    return 0U;
+}
+
+int paging_address_space_is_valid(paging_u32_t directory)
+{
+    (void)directory;
+    return 0;
+}
+
+int paging_switch_address_space(paging_u32_t directory)
+{
+    (void)directory;
+    return 0;
+}
+
+int paging_destroy_address_space(paging_u32_t directory)
+{
+    (void)directory;
+    return 0;
+}
+
 int main(void)
 {
     if (!elf_loader_self_test()) {

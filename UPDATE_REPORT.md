@@ -27,6 +27,7 @@
 - Paging map API’si artık tanımsız izin flag’lerini sessizce kırpmıyor; bilinmeyen bitler reddediliyor ve VMM negatif self-test’iyle korunuyor.
 - Paging map API’si null fiziksel frame’i reddediyor; kernel düşük identity eşlemelerini yanlışlıkla unmap etmeye izin vermiyor ve iki koşul VMM self-test’inde doğrulanıyor.
 - Paging, kernel page-table’ı paylaşan bir PDE üzerinde kullanıcı bayrağını etkinleştirmiyor; address-space cleanup fiziksel tablo kimliğiyle paylaşılan kernel tablolarını koruyor ve bu kural VMM self-test’inde doğrulanıyor.
+- Kernel page directory’sinde kullanıcı bayrağıyla map/protect işlemleri tamamen reddediliyor; ELF runtime self-test’i de bu politika ile uyumlu olarak geçici özel adres alanında çalışıyor.
 - CR3 geçişi ve adres alanı yok etme artık yalnızca kayıtlı page directory’lerle yapılabiliyor; rastgele fiziksel adresler fail-closed reddediliyor.
 - Adres alanı geçişi/yıkımı başarısız olursa cleanup sessizce devam etmiyor; kernel fail-closed panic ile duruyor.
 - Kullanıcı ELF veya stack unmap cleanup’ı başarısız olursa artık fiziksel kaynak kaybını gizlemeden fail-closed panic uygulanıyor.
