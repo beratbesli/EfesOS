@@ -25,6 +25,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Page-directory creation is tracked in a bounded registry; CR3 switches and destruction reject unregistered physical addresses.
 - The paging API rejects user permissions below the protected user mapping floor, preventing identity-mapped kernel pages from being exposed accidentally.
 - ELF32 validation and loading reject malformed ranges, integer-overflowable sizes, unsupported machines and writable/executable segments before mapping user pages; loaded pages are zero-initialized and finalized with segment permissions.
+- ELF validation also requires the canonical 32-bit header size and rejects virtual addresses at or above the user ceiling before unsigned range arithmetic, preventing high-address wraparound during loading.
 - ATA access is bounded, timeout-controlled and rejects capacities beyond the driver’s 28-bit PIO addressing limit. FAT16 support is read-only; no shell command can write arbitrary disk sectors.
 - FAT16 mount validates the reserved entries in every mirrored FAT copy before exposing directory/file reads.
 - FAT cluster-chain reads compare each consumed FAT entry with every mirrored copy and fail closed on divergence.
