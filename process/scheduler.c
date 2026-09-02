@@ -484,8 +484,10 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
         entry >= SCHEDULER_USER_ADDRESS_LIMIT ||
         user_stack_top < SCHEDULER_USER_MIN_ADDRESS ||
         user_stack_top > SCHEDULER_USER_ADDRESS_LIMIT ||
+        (user_stack_top & (PAGE_SIZE - 1U)) != 0U ||
         !paging_address_space_is_valid(address_space) ||
-        address_space == paging_kernel_directory()) {
+        address_space == paging_kernel_directory() ||
+        paging_current_directory() != paging_kernel_directory()) {
         return 0;
     }
     flags = scheduler_irq_save();

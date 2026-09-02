@@ -29,6 +29,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - Scheduler task IDs include a per-slot generation and are exposed through the bounded `GET_PID` syscall, so a reused slot does not silently retain its previous identity.
 - User-process ownership records require both the task slot and its generation-PID during cleanup, preventing a stale slot callback from reclaiming a replacement process.
 - The kernel-only `user_process_spawn` path caps image size, requires a kernel address-space context, and records ELF/stack ownership for fail-closed cleanup.
+- User-task registration also requires the caller to be in the kernel address space and the user stack top to be page-aligned, preventing malformed context creation through internal APIs.
 - Generation counters are bounded to the PID encoding width; an exhausted slot is never wrapped into an old identity and is rejected instead (fail-closed).
 - Each user address space leaves a page-sized unmapped guard below its user stack; stack underflow therefore terminates the task instead of overwriting another mapping.
 - User-process creation scans all bounded stack regions and refuses active-region reuse, so restart timing cannot create duplicate stack metadata or an avoidable spawn failure.
