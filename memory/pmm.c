@@ -157,11 +157,17 @@ static void release_e820_entry(const struct boot_memory_map_entry *entry)
 
 void pmm_reserve_range(pmm_u32_t address, pmm_u32_t length)
 {
-    pmm_u64_t end = (pmm_u64_t)address + length;
-    pmm_u32_t first_block = address / PMM_BLOCK_SIZE;
-    pmm_u32_t end_block = clamp_block_index((end + PMM_BLOCK_SIZE - 1U) >> 12U);
+    pmm_u64_t end;
+    pmm_u32_t first_block;
+    pmm_u32_t end_block;
     pmm_u32_t block;
 
+    if (length == 0U) {
+        return;
+    }
+    end = (pmm_u64_t)address + length;
+    first_block = address / PMM_BLOCK_SIZE;
+    end_block = clamp_block_index((end + PMM_BLOCK_SIZE - 1U) >> 12U);
     for (block = first_block; block < end_block; block++) {
         mark_block_reserved(block);
     }
