@@ -379,6 +379,14 @@ void kernel_main(const struct boot_info *boot_info)
         0x00801000U, user_process_address_space())) {
         kernel_panic("Kernel entry accepted for user task.");
     }
+    if (scheduler_add_user_task_in_space("invalid-unmapped-entry", 0x00500000U,
+        0x00801000U, user_process_address_space())) {
+        kernel_panic("Unmapped user entry accepted for user task.");
+    }
+    if (scheduler_add_user_task_in_space("invalid-unmapped-stack", 0x00400000U,
+        0x00A00000U, user_process_address_space())) {
+        kernel_panic("Unmapped user stack accepted for user task.");
+    }
     if (scheduler_add_user_task_in_space("invalid-shared-space", 0x00400000U,
         0x00801000U, user_process_address_space())) {
         kernel_panic("User address space was shared between tasks.");

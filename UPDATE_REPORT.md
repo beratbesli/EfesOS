@@ -26,6 +26,7 @@
 - Shell’e `run NAME` eklendi; salt-okunur FAT’tan alınan dosya yalnızca bounded ELF doğrulamasından geçerse ring-3 süreci olarak başlatılıyor ve mevcut ownership/cleanup zincirini kullanıyor.
 - Deterministik FAT16 fixture artık geçerli bir `RUN.ELF` içeriyor; QEMU monitor ile `run RUN.ELF` komutu gönderilerek FAT okuma → ELF doğrulama/yükleme → ring-3 `WRITE`/`EXIT` zinciri uçtan uca doğrulanıyor.
 - Scheduler kullanıcı görev kayıtları kernel CR3 bağlamını ve sayfa hizalı kullanıcı stack üstünü zorunlu kılıyor; hatalı iç API çağrıları fail-closed reddediliyor.
+- Scheduler user-task kayıtları artık aday CR3’e IRQ’lar kapalıyken geçip entry sayfasının executable, başlangıç stack sayfasının tamamen writable olduğunu doğruluyor; hatalı bağlam slot tahsis edilmeden reddediliyor ve boot self-test’iyle korunuyor.
 - Seri tanılama çıktısı kritik bölümlerde atomikleştirildi; preemption sırasında log satırlarının bölünmesi engellendi.
 - Paging API’si kullanıcı bayrağını korunan taban adresin altında reddediyor; bu kural VMM self-test’iyle doğrulanıyor.
 - Paging map API’si artık tanımsız izin flag’lerini sessizce kırpmıyor; bilinmeyen bitler reddediliyor ve VMM negatif self-test’iyle korunuyor.

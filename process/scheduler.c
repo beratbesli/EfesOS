@@ -539,6 +539,7 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
     struct scheduler_task *new_task;
     unsigned int slot;
     unsigned int flags;
+    int user_context_valid;
 
     if (name == 0 || entry < SCHEDULER_USER_MIN_ADDRESS ||
         entry >= SCHEDULER_USER_ADDRESS_LIMIT ||
@@ -551,6 +552,22 @@ int scheduler_add_user_task_in_space(const char *name, unsigned int entry,
         return 0;
     }
     flags = scheduler_irq_save();
+    /* Validate the supplied user context in its own CR3 before registering a
+       runnable task. This prevents an internal caller from creating a task
+       whose entry is data/unmapped or whose initial stack is not writable. */
+    if (!paging_switch_address_space(address_space)) {
+        scheduler_irq_restore(flags);
+        return 0;
+    }
+    user_context_valid = paging_validate_user_execute(entry) &&
+        paging_validate_user_range(user_stack_top - PAGE_SIZE, PAGE_SIZE, 1);
+    if (!paging_switch_address_space(paging_kernel_directory())) {
+        kernel_panic("Failed to restore kernel address space after user validation.");
+    }
+    if (!user_context_valid) {
+        scheduler_irq_restore(flags);
+        return 0;
+    }
     slot = find_task_slot();
     if (slot == SCHEDULER_MAX_TASKS) {
         scheduler_irq_restore(flags);
