@@ -1,4 +1,5 @@
 #include "pmm.h"
+#include "e820.h"
 
 typedef unsigned long long pmm_u64_t;
 
@@ -115,10 +116,8 @@ static pmm_u32_t clamp_block_index(pmm_u64_t value)
     return (pmm_u32_t)value;
 }
 
-static void release_e820_entry(const struct boot_memory_map_entry *entry)
+static void release_e820_range(e820_u64_t base, e820_u64_t length, void *context)
 {
-    pmm_u64_t base;
-    pmm_u64_t length;
     pmm_u64_t end;
     pmm_u64_t first_block_64;
     pmm_u64_t end_block_64;
@@ -126,12 +125,7 @@ static void release_e820_entry(const struct boot_memory_map_entry *entry)
     pmm_u32_t end_block;
     pmm_u32_t block;
 
-    if (entry->type != BOOT_MEMORY_AVAILABLE || (entry->attributes & 1U) == 0U) {
-        return;
-    }
-
-    base = ((pmm_u64_t)entry->base_high << 32U) | entry->base_low;
-    length = ((pmm_u64_t)entry->length_high << 32U) | entry->length_low;
+    (void)context;
     end = base + length;
     if (length == 0U || end < base) {
         return;
@@ -152,6 +146,31 @@ static void release_e820_entry(const struct boot_memory_map_entry *entry)
 
     for (block = first_block; block < end_block; block++) {
         mark_block_available(block);
+    }
+}
+
+static void reserve_e820_range(e820_u64_t base, e820_u64_t length, void *context)
+{
+    pmm_u64_t end = base + length;
+    pmm_u64_t first_block_64;
+    pmm_u64_t end_block_64;
+    pmm_u32_t first_block;
+    pmm_u32_t end_block;
+    pmm_u32_t block;
+
+    (void)context;
+    if (length == 0U || end < base) {
+        return;
+    }
+    first_block_64 = base >> 12U;
+    end_block_64 = end >> 12U;
+    if ((end & (PMM_BLOCK_SIZE - 1U)) != 0U) {
+        end_block_64++;
+    }
+    first_block = clamp_block_index(first_block_64);
+    end_block = clamp_block_index(end_block_64);
+    for (block = first_block; block < end_block; block++) {
+        mark_block_reserved(block);
     }
 }
 
@@ -176,7 +195,6 @@ void pmm_reserve_range(pmm_u32_t address, pmm_u32_t length)
 int pmm_init(const struct boot_info *boot_info)
 {
     pmm_u32_t word;
-    pmm_u32_t index;
     pmm_u32_t kernel_start = (pmm_u32_t)&__kernel_start;
     pmm_u32_t kernel_end = (pmm_u32_t)&__kernel_end;
 
@@ -196,8 +214,9 @@ int pmm_init(const struct boot_info *boot_info)
     managed_blocks = 0;
     used_managed_blocks = 0;
 
-    for (index = 0; index < boot_info->memory_map_entry_count; index++) {
-        release_e820_entry(&boot_info->memory_map[index]);
+    if (!e820_apply_memory_map(boot_info, release_e820_range,
+        reserve_e820_range, 0)) {
+        return 0;
     }
 
     pmm_reserve_range(0, PMM_BOOTSTRAP_RESERVED_END);
