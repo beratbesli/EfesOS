@@ -37,6 +37,7 @@
 - CR3 geçişi ve adres alanı yok etme artık yalnızca kayıtlı page directory’lerle yapılabiliyor; rastgele fiziksel adresler fail-closed reddediliyor.
 - Adres alanı geçişi/yıkımı başarısız olursa cleanup sessizce devam etmiyor; kernel fail-closed panic ile duruyor.
 - Kullanıcı ELF veya stack unmap cleanup’ı başarısız olursa artık fiziksel kaynak kaybını gizlemeden fail-closed panic uygulanıyor.
+- Kullanıcı stack cleanup’i unmap edilen fiziksel frame’i kayıtlı `stack_frame` sahibiyle karşılaştırıyor; eşleşmeyen metadata beklenmeyen frame’i serbest bırakmadan panic ile duruyor.
 - ELF unload cleanup’i artık tüm image sayfalarını önce preflight ediyor; eksik mapping veya başarısız unmap başarı gibi raporlanmıyor ve ikinci unload negatif self-test’iyle doğrulanıyor.
 - Kısmi ELF yükleme rollback’i de unmap başarısızlığını fail-closed panic olarak ele alıyor; hâlâ eşlenmiş frame’in yanlışlıkla serbest bırakılması önleniyor.
 - Scheduler, kernel page directory’sini ring-3 task’a vermeyi reddediyor; sahiplik kaydı bulunmayan bir user fault da sessizce devam etmek yerine fail-closed panic ile duruyor.

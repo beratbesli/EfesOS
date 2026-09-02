@@ -41,6 +41,7 @@ EfesOS is an educational kernel with a deliberately small ring-3 demonstration b
 - IPC uses a fixed 16-message, 64-byte-per-message queue with interrupt-safe FIFO operations. `IPC_SEND_TO` binds delivery to an active user generation-PID (while legacy `IPC_SEND` remains broadcast), `IPC_RECEIVE_WAIT` blocks safely until a sender wakes the task, and exited-task messages are purged; ring-3 calls validate all user buffers and return bounded `E2BIG`/`EFAULT`/`EAGAIN` errors.
 - Scheduler task IDs include a per-slot generation and are exposed through the bounded `GET_PID` syscall, so a reused slot does not silently retain its previous identity.
 - User-process ownership records require both the task slot and its generation-PID during cleanup, preventing a stale slot callback from reclaiming a replacement process.
+- User-stack cleanup compares the unmapped physical frame with the recorded owner before freeing it, preventing corrupted metadata from releasing an unexpected frame.
 - ELF image cleanup preflights every owned page and rejects missing mappings instead of silently reporting a partial/unowned unload as successful.
 - Partial ELF-load rollback panics on an unexpected unmap failure instead of freeing a still-mapped frame or hiding a resource leak.
 - The kernel-only `user_process_spawn` path caps image size, requires a kernel address-space context, and records ELF/stack ownership for fail-closed cleanup.

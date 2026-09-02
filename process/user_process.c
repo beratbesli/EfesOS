@@ -171,8 +171,8 @@ cleanup:
     }
     if (stack_mapped) {
         physical = paging_unmap_page(stack_address);
-        if (physical == 0U) {
-            kernel_panic("Failed to unmap user stack during spawn cleanup.");
+        if (physical == 0U || physical != stack_frame) {
+            kernel_panic("User stack ownership mismatch during spawn cleanup.");
         }
         pmm_free_block(physical);
     } else if (stack_frame != 0U) {
@@ -297,8 +297,8 @@ int user_process_reap_task(unsigned int task_index, unsigned int task_id)
             kernel_panic("User stack mapping disappeared before cleanup.");
         }
         physical = paging_unmap_page(process->stack_address);
-        if (physical == 0U) {
-            kernel_panic("Failed to unmap user stack.");
+        if (physical == 0U || physical != process->stack_frame) {
+            kernel_panic("User stack ownership mismatch.");
         }
         pmm_free_block(physical);
     }
