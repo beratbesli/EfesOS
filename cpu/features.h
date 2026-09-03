@@ -7,6 +7,9 @@ struct cpu_features {
     unsigned int nx;
     unsigned int tsc;
     unsigned int rdrand;
+    unsigned int msr;
+    unsigned int apic;
+    unsigned int x2apic;
 };
 
 void cpu_features_init(void);

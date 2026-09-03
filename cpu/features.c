@@ -36,6 +36,9 @@ void cpu_features_init(void)
     detected_features.nx = 0U;
     detected_features.tsc = 0U;
     detected_features.rdrand = 0U;
+    detected_features.msr = 0U;
+    detected_features.apic = 0U;
+    detected_features.x2apic = 0U;
     if (!cpuid_supported()) {
         return;
     }
@@ -46,6 +49,9 @@ void cpu_features_init(void)
         detected_features.pae = (edx & (1U << 6U)) != 0U;
         detected_features.tsc = (edx & (1U << 4U)) != 0U;
         detected_features.rdrand = (ecx & (1U << 30U)) != 0U;
+        detected_features.x2apic = (ecx & (1U << 21U)) != 0U;
+        detected_features.msr = (edx & (1U << 5U)) != 0U;
+        detected_features.apic = (edx & (1U << 9U)) != 0U;
     }
     read_cpuid(0x80000000U, &extended_maximum_leaf, &ebx, &ecx, &edx);
     if (extended_maximum_leaf >= 0x80000001U) {

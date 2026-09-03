@@ -229,6 +229,12 @@ void kernel_main(const struct boot_info *boot_info)
         serial_write_hex(features->tsc);
         serial_write(" rdrand=");
         serial_write_hex(features->rdrand);
+        serial_write(" msr=");
+        serial_write_hex(features->msr);
+        serial_write(" apic=");
+        serial_write_hex(features->apic);
+        serial_write(" x2apic=");
+        serial_write_hex(features->x2apic);
         serial_write(" (reported; paging mode is selected after capability checks).\n");
     }
     tss_init();
