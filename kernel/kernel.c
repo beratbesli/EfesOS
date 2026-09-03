@@ -1,5 +1,6 @@
 #include "boot_info.h"
 #include "features.h"
+#include "acpi.h"
 #include "ata.h"
 #include "idt.h"
 #include "games.h"
@@ -427,6 +428,24 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write(" hardware-nx=");
     serial_write_hex((unsigned int)paging_uses_hardware_nx());
     serial_write(".\n");
+    if (acpi_init(boot_info)) {
+        serial_write("EfesOS: ACPI root table validated.\n");
+        if (acpi_hpet_available()) {
+            const struct acpi_hpet_info *hpet = acpi_hpet_get();
+
+            serial_write("EfesOS: ACPI HPET table validated base=");
+            serial_write_hex(hpet->physical_address);
+            serial_write(" id=");
+            serial_write_hex(hpet->event_timer_block_id);
+            serial_write(" minimum-tick=");
+            serial_write_hex(hpet->minimum_tick);
+            serial_write(".\n");
+        } else {
+            serial_write("EfesOS: ACPI HPET table unavailable.\n");
+        }
+    } else {
+        serial_write("EfesOS: ACPI root table unavailable or invalid.\n");
+    }
     if (!elf_loader_runtime_self_test()) {
         kernel_panic("ELF loader runtime self-test failed.");
     }

@@ -137,6 +137,15 @@ int main(void)
     }
     make_valid(&info);
     info.memory_map[0].attributes |= 4U;
+    if (boot_info_is_valid(&info)) {
+        return 1;
+    }
+    make_valid(&info);
+    info.acpi_rsdp_address = 0x000E0010U;
+    if (!boot_info_is_valid(&info)) {
+        return 1;
+    }
+    info.acpi_rsdp_address++;
     if (boot_info_is_valid(&info) || !mutation_scan()) {
         return 1;
     }

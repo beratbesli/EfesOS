@@ -120,6 +120,7 @@ jobs:
           grep -F "EfesOS: syscall ABI self-test passed." build/ci-serial.log
           grep -F "EfesOS: interrupt self-tests passed." build/ci-serial.log
           grep -F "EfesOS: VMM self-test passed." build/ci-serial.log
+          grep -F "EfesOS: ACPI root table validated." build/ci-serial.log
           grep -F "EfesOS: ELF loader validation self-test passed." build/ci-serial.log
           grep -F "EfesOS: kernel heap self-test passed." build/ci-serial.log
           grep -F "EfesOS: RAM filesystem self-test passed." build/ci-serial.log
@@ -153,6 +154,18 @@ jobs:
           grep -F "EfesOS: RTC calendar self-test passed." build/ci-rtc-serial.log
           grep -F "EfesOS: RTC stable read passed year=0x000007E8 month=0x00000002 day=0x0000001D hour=0x00000017 minute=0x0000003A" build/ci-rtc-serial.log
           if grep -F "KERNEL PANIC:" build/ci-rtc-serial.log; then exit 1; fi
+      - name: QEMU ACPI HPET discovery smoke test
+        run: |
+          timeout 20s qemu-system-i386 -machine pc,hpet=on -display none -monitor none -serial file:build/ci-hpet-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
+          grep -F "EfesOS: ACPI root table validated." build/ci-hpet-serial.log
+          grep -F "EfesOS: ACPI HPET table validated base=0xFED00000" build/ci-hpet-serial.log
+          if grep -F "KERNEL PANIC:" build/ci-hpet-serial.log; then exit 1; fi
+      - name: QEMU ACPI absence fallback smoke test
+        run: |
+          timeout 20s qemu-system-i386 -machine pc,acpi=off -display none -monitor none -serial file:build/ci-no-acpi-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
+          grep -F "EfesOS: ACPI root table unavailable or invalid." build/ci-no-acpi-serial.log
+          grep -F "EfesOS: ELF loader runtime self-test passed." build/ci-no-acpi-serial.log
+          if grep -F "KERNEL PANIC:" build/ci-no-acpi-serial.log; then exit 1; fi
       - name: QEMU ATA IRQ14 smoke test
         run: |
           truncate -s 4M build/ci-ata.img

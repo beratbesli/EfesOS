@@ -66,12 +66,14 @@ int acpi_parse_rsdp(const unsigned char *bytes, unsigned int available,
         }
     }
     info->rsdt_address = rsdt_address;
+    info->xsdt_address_low = revision >= 2U ? read_u32(bytes + 24U) : 0U;
+    info->xsdt_address_high = revision >= 2U ? read_u32(bytes + 28U) : 0U;
     info->revision = revision;
     info->length = length;
     return 1;
 }
 
-int acpi_parse_sdt(const unsigned char *bytes, unsigned int available,
+int acpi_sdt_peek_length(const unsigned char *bytes, unsigned int available,
     const char signature[4], unsigned int *length)
 {
     unsigned int table_length;
@@ -83,8 +85,20 @@ int acpi_parse_sdt(const unsigned char *bytes, unsigned int available,
     }
     table_length = read_u32(bytes + 4U);
     if (table_length < ACPI_SDT_HEADER_LENGTH ||
-        table_length > ACPI_MAX_SDT_LENGTH || table_length > available ||
-        !acpi_checksum_valid(bytes, table_length)) {
+        table_length > ACPI_MAX_SDT_LENGTH) {
+        return 0;
+    }
+    *length = table_length;
+    return 1;
+}
+
+int acpi_parse_sdt(const unsigned char *bytes, unsigned int available,
+    const char signature[4], unsigned int *length)
+{
+    unsigned int table_length;
+
+    if (!acpi_sdt_peek_length(bytes, available, signature, &table_length) ||
+        table_length > available || !acpi_checksum_valid(bytes, table_length)) {
         return 0;
     }
     *length = table_length;
@@ -117,6 +131,38 @@ int acpi_rsdt_entry_at(const unsigned char *bytes, unsigned int available,
     return 1;
 }
 
+int acpi_xsdt_entry_at(const unsigned char *bytes, unsigned int available,
+    unsigned int index, unsigned int *physical_address_low,
+    unsigned int *physical_address_high, unsigned int *entry_count)
+{
+    unsigned int length;
+    unsigned int count;
+    unsigned int offset;
+    unsigned int low;
+    unsigned int high;
+
+    if (physical_address_low == 0 || physical_address_high == 0 ||
+        entry_count == 0 ||
+        !acpi_parse_sdt(bytes, available, "XSDT", &length) ||
+        ((length - ACPI_SDT_HEADER_LENGTH) & 7U) != 0U) {
+        return 0;
+    }
+    count = (length - ACPI_SDT_HEADER_LENGTH) / 8U;
+    if (count == 0U || count > ACPI_MAX_RSDT_ENTRIES || index >= count) {
+        return 0;
+    }
+    offset = ACPI_SDT_HEADER_LENGTH + index * 8U;
+    low = read_u32(bytes + offset);
+    high = read_u32(bytes + offset + 4U);
+    if (low < 0x1000U && high == 0U) {
+        return 0;
+    }
+    *physical_address_low = low;
+    *physical_address_high = high;
+    *entry_count = count;
+    return 1;
+}
+
 int acpi_parse_hpet_table(const unsigned char *bytes, unsigned int available,
     struct acpi_hpet_table_info *info)
 {
@@ -139,7 +185,8 @@ int acpi_parse_hpet_table(const unsigned char *bytes, unsigned int available,
     address_high = read_u32(bytes + 48U);
     page_protection = bytes[55];
     if ((block_id & (1U << 14U)) != 0U || vendor == 0U || vendor == 0xFFFFU ||
-        bytes[40] != 0U || bytes[41] != 64U || bytes[42] != 0U ||
+        bytes[40] != 0U || (bytes[41] != 0U && bytes[41] != 64U) ||
+        bytes[42] != 0U ||
         (access_size != 0U && access_size != 4U) || address_high != 0U ||
         address_low < 0x1000U || (address_low & 0x3FFU) != 0U ||
         address_low > 0xFFFFFFFFU - 1023U || page_protection > 2U) {

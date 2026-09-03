@@ -38,6 +38,7 @@ static void make_rsdp(unsigned char rsdp[ACPI_RSDP_V2_LENGTH])
     rsdp[15] = 2U;
     write_u32(rsdp + 16U, 0x00123000U);
     write_u32(rsdp + 20U, ACPI_RSDP_V2_LENGTH);
+    write_u32(rsdp + 24U, 0x00124000U);
     set_checksum(rsdp, ACPI_RSDP_V1_LENGTH, 8U);
     set_checksum(rsdp, ACPI_RSDP_V2_LENGTH, 32U);
 }
@@ -57,17 +58,21 @@ int main(void)
 {
     unsigned char rsdp[ACPI_RSDP_V2_LENGTH];
     unsigned char rsdt[ACPI_SDT_HEADER_LENGTH + 8U];
+    unsigned char xsdt[ACPI_SDT_HEADER_LENGTH + 16U];
     unsigned char hpet[ACPI_HPET_TABLE_MIN_LENGTH];
     struct acpi_rsdp_info rsdp_info;
     struct acpi_hpet_table_info hpet_info;
     unsigned int length;
     unsigned int address;
     unsigned int count;
+    unsigned int high;
     unsigned int index;
 
     make_rsdp(rsdp);
     if (!acpi_parse_rsdp(rsdp, sizeof(rsdp), &rsdp_info) ||
         rsdp_info.rsdt_address != 0x00123000U || rsdp_info.revision != 2U ||
+        rsdp_info.xsdt_address_low != 0x00124000U ||
+        rsdp_info.xsdt_address_high != 0U ||
         rsdp_info.length != ACPI_RSDP_V2_LENGTH) {
         return 1;
     }
@@ -86,14 +91,28 @@ int main(void)
     set_checksum(rsdt, sizeof(rsdt), 9U);
     if (!acpi_rsdt_entry_at(rsdt, sizeof(rsdt), 1U, &address, &count) ||
         address != 0x00201000U || count != 2U ||
+        !acpi_sdt_peek_length(rsdt, ACPI_SDT_HEADER_LENGTH, "RSDT", &length) ||
+        length != sizeof(rsdt) ||
         acpi_rsdt_entry_at(rsdt, sizeof(rsdt), 2U, &address, &count)) {
+        return 1;
+    }
+
+    make_sdt(xsdt, sizeof(xsdt), "XSDT");
+    write_u32(xsdt + ACPI_SDT_HEADER_LENGTH, 0x00300000U);
+    write_u32(xsdt + ACPI_SDT_HEADER_LENGTH + 4U, 0U);
+    write_u32(xsdt + ACPI_SDT_HEADER_LENGTH + 8U, 0x00400000U);
+    write_u32(xsdt + ACPI_SDT_HEADER_LENGTH + 12U, 1U);
+    set_checksum(xsdt, sizeof(xsdt), 9U);
+    if (!acpi_xsdt_entry_at(xsdt, sizeof(xsdt), 1U, &address, &high,
+            &count) || address != 0x00400000U || high != 1U || count != 2U ||
+        acpi_xsdt_entry_at(xsdt, sizeof(xsdt), 2U, &address, &high, &count)) {
         return 1;
     }
 
     make_sdt(hpet, sizeof(hpet), "HPET");
     write_u32(hpet + 36U, 0x80860101U);
     hpet[40] = 0U;
-    hpet[41] = 64U;
+    hpet[41] = 0U;
     hpet[42] = 0U;
     hpet[43] = 0U;
     write_u32(hpet + 44U, 0xFED00000U);
@@ -106,6 +125,16 @@ int main(void)
         hpet_info.physical_address != 0xFED00000U ||
         hpet_info.event_timer_block_id != 0x80860101U ||
         hpet_info.minimum_tick != 128U || hpet_info.sequence_number != 0U) {
+        return 1;
+    }
+    hpet[41] = 32U;
+    set_checksum(hpet, sizeof(hpet), 9U);
+    if (acpi_parse_hpet_table(hpet, sizeof(hpet), &hpet_info)) {
+        return 1;
+    }
+    hpet[41] = 64U;
+    set_checksum(hpet, sizeof(hpet), 9U);
+    if (!acpi_parse_hpet_table(hpet, sizeof(hpet), &hpet_info)) {
         return 1;
     }
     hpet[48] = 1U;

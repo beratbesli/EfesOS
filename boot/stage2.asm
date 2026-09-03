@@ -14,6 +14,7 @@ BOOT_INFO_HEADER_SIZE equ 24
 BOOT_KERNEL_INTEGRITY_VERIFIED equ 2
 E820_ENTRY_SIZE       equ 24
 E820_MAX_ENTRIES      equ 32
+BOOT_INFO_ACPI_RSDP   equ BOOT_INFO_ADDRESS + BOOT_INFO_HEADER_SIZE + (E820_MAX_ENTRIES * E820_ENTRY_SIZE)
 STAGE2_SERIAL_DATA    equ 0x03F8
 STAGE2_SERIAL_LCR     equ 0x03FB
 STAGE2_SERIAL_FCR     equ 0x03FA
@@ -58,6 +59,7 @@ stage2_start:
     sti
     call initialize_boot_info
     call collect_e820_map
+    call find_acpi_rsdp
     call enable_a20
     test ax, ax
     jz a20_error
@@ -85,6 +87,7 @@ initialize_boot_info:
     mov dword [BOOT_INFO_ADDRESS + 12], E820_ENTRY_SIZE
     mov dword [BOOT_INFO_ADDRESS + 16], 0
     mov dword [BOOT_INFO_ADDRESS + 20], 0
+    mov dword [BOOT_INFO_ACPI_RSDP], 0
     ret
 
 initialize_stage2_serial:
@@ -159,6 +162,60 @@ collect_e820_map:
     xor ax, ax
     mov ds, ax
     mov dword [BOOT_INFO_ADDRESS + 8], 0
+    ret
+
+find_acpi_rsdp:
+    xor ax, ax
+    mov ds, ax
+    mov ax, [0x040E]
+    cmp ax, 0x8000
+    jb .scan_bios
+    cmp ax, 0xA000
+    jae .scan_bios
+    mov es, ax
+    xor di, di
+    mov cx, 64
+    call scan_rsdp_region
+    jc .found
+.scan_bios:
+    mov ax, 0xE000
+    mov es, ax
+    xor di, di
+    mov cx, 4096
+    call scan_rsdp_region
+    jc .found
+    mov ax, 0xF000
+    mov es, ax
+    xor di, di
+    mov cx, 4096
+    call scan_rsdp_region
+    jnc .done
+.found:
+    xor eax, eax
+    mov ax, es
+    shl eax, 4
+    movzx edx, di
+    add eax, edx
+    mov [BOOT_INFO_ACPI_RSDP], eax
+.done:
+    xor ax, ax
+    mov ds, ax
+    mov es, ax
+    ret
+
+scan_rsdp_region:
+.next:
+    cmp dword [es:di], 0x20445352
+    jne .advance
+    cmp dword [es:di + 4], 0x20525450
+    je .found
+.advance:
+    add di, 16
+    loop .next
+    clc
+    ret
+.found:
+    stc
     ret
 
 enable_a20:

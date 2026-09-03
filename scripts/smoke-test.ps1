@@ -5,7 +5,9 @@ param(
     [switch]$SkipBuild,
     [string]$DiskImage = '',
     [string]$Cpu = '',
-    [string]$RtcBase = ''
+    [string]$RtcBase = '',
+    [switch]$RequireHpet,
+    [switch]$DisableAcpi
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,6 +35,7 @@ $successMarkers = @(
     'EfesOS: interrupt self-tests passed.',
     'EfesOS: VMM self-test passed.',
     'EfesOS: paging mode=',
+    'EfesOS: ACPI root table validated.',
     'EfesOS: ELF loader validation self-test passed.',
     'EfesOS: PCI BAR self-test passed.',
     'EfesOS: ELF loader runtime self-test passed.',
@@ -62,6 +65,10 @@ $successMarkers = @(
     'EfesOS: user exception isolated.',
     'EfesOS: preemptive scheduler runtime test passed.'
 )
+
+if ($RequireHpet -and $DisableAcpi) {
+    throw 'RequireHpet ve DisableAcpi birlikte kullanilamaz.'
+}
 
 function Get-QemuPath {
     $command = Get-Command 'qemu-system-i386' -ErrorAction SilentlyContinue
@@ -104,6 +111,15 @@ if ($DiskImage -ne '') {
     $successMarkers += 'EfesOS: FAT directory/file read self-test passed'
     $successMarkers += 'EfesOS: persistent journal replay passed records=0x00000001.'
 }
+if ($RequireHpet) {
+    $successMarkers += 'EfesOS: ACPI HPET table validated base=0xFED00000'
+}
+if ($DisableAcpi) {
+    $successMarkers = @($successMarkers | Where-Object {
+        $_ -ne 'EfesOS: ACPI root table validated.'
+    })
+    $successMarkers += 'EfesOS: ACPI root table unavailable or invalid.'
+}
 
 New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null
 Remove-Item -LiteralPath $serialLog, $qemuErrorLog -Force -ErrorAction SilentlyContinue
@@ -131,11 +147,17 @@ if ($Cpu -ne '') {
 if ($RtcBase -ne '') {
     $arguments += @('-rtc', "base=$RtcBase,clock=vm")
 }
+if ($RequireHpet) {
+    $arguments = @('-machine', 'pc,hpet=on') + $arguments
+}
+if ($DisableAcpi) {
+    $arguments = @('-machine', 'pc,acpi=off') + $arguments
+}
 if ($DiskImage -ne '') {
     $arguments += @('-drive', "`"file=$DiskImage,format=raw,if=ide`"")
 }
 
-$process = Start-Process -FilePath $qemu -ArgumentList $arguments -RedirectStandardOutput $serialLog -RedirectStandardError $qemuErrorLog -WindowStyle Hidden -PassThru
+$process = Start-Process -FilePath $qemu -ArgumentList $arguments -WorkingDirectory $projectRoot -RedirectStandardOutput $serialLog -RedirectStandardError $qemuErrorLog -WindowStyle Hidden -PassThru
 $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
 $passed = $false
 
