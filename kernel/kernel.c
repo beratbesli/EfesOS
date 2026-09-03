@@ -14,6 +14,7 @@
 #include "ramfs.h"
 #include "scheduler.h"
 #include "serial.h"
+#include "rtc.h"
 #include "syscall.h"
 #include "tss.h"
 #include "user_process.h"
@@ -239,6 +240,33 @@ void kernel_main(const struct boot_info *boot_info)
 
     serial_write("EfesOS: BIOS E820 entries available.\n");
     serial_write("EfesOS: stage-2 kernel integrity check passed.\n");
+    if (!rtc_self_test()) {
+        kernel_panic("RTC calendar self-test failed.");
+    }
+    serial_write("EfesOS: RTC calendar self-test passed.\n");
+    if (rtc_init()) {
+        struct rtc_time wall_clock;
+
+        if (rtc_read_time(&wall_clock)) {
+            serial_write("EfesOS: RTC stable read passed year=");
+            serial_write_hex(wall_clock.year);
+            serial_write(" month=");
+            serial_write_hex(wall_clock.month);
+            serial_write(" day=");
+            serial_write_hex(wall_clock.day);
+            serial_write(" hour=");
+            serial_write_hex(wall_clock.hour);
+            serial_write(" minute=");
+            serial_write_hex(wall_clock.minute);
+            serial_write(" second=");
+            serial_write_hex(wall_clock.second);
+            serial_write(".\n");
+        } else {
+            serial_write("EfesOS: RTC became unstable after initialization; wall clock disabled.\n");
+        }
+    } else {
+        serial_write("EfesOS: RTC unavailable or invalid; wall clock disabled.\n");
+    }
     if (!pmm_init(boot_info)) {
         kernel_panic("BIOS memory map contains no usable physical memory.");
     }

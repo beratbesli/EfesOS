@@ -4,7 +4,8 @@ param(
     [ValidateRange(16, 2048)][int]$MemoryMiB = 128,
     [switch]$SkipBuild,
     [string]$DiskImage = '',
-    [string]$Cpu = ''
+    [string]$Cpu = '',
+    [string]$RtcBase = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,6 +20,8 @@ $successMarkers = @(
     'EfesOS: CPU features cpuid=',
     'EfesOS: BIOS E820 entries available.',
     'EfesOS: stage-2 kernel integrity check passed.',
+    'EfesOS: RTC calendar self-test passed.',
+    'EfesOS: RTC stable read passed year=',
     'EfesOS: PCI devices discovered=',
     'EfesOS: ATA primary-master present=',
     'EfesOS: ATA IRQ mode enabled=',
@@ -124,6 +127,9 @@ $arguments = @(
 )
 if ($Cpu -ne '') {
     $arguments = @('-cpu', $Cpu) + $arguments
+}
+if ($RtcBase -ne '') {
+    $arguments += @('-rtc', "base=$RtcBase,clock=vm")
 }
 if ($DiskImage -ne '') {
     $arguments += @('-drive', "`"file=$DiskImage,format=raw,if=ide`"")

@@ -102,6 +102,7 @@ int rtc_read_time(struct rtc_time *time)
             return 1;
         }
     }
+    available = 0;
     return 0;
 }
 

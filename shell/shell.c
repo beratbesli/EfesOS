@@ -9,6 +9,7 @@
 #include "pit.h"
 #include "programs.h"
 #include "ramfs.h"
+#include "rtc.h"
 #include "scheduler.h"
 #include "serial.h"
 #include "shell.h"
@@ -70,10 +71,10 @@ static void print_prompt(void)
 static void print_help(void)
 {
     if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
-        vga_write("Komutlar: help clear about mem heap input uptime ps demo pci disk diskls diskcat run counter snake slot\n");
+        vga_write("Komutlar: help clear about mem heap input uptime date ps demo pci disk diskls diskcat run counter snake slot\n");
         vga_write("echo history color ls cat write rm pformat reboot shutdown tr en\n");
     } else {
-        vga_write("Commands: help clear about mem heap input uptime ps demo pci disk diskls diskcat run counter snake slot\n");
+        vga_write("Commands: help clear about mem heap input uptime date ps demo pci disk diskls diskcat run counter snake slot\n");
         vga_write("echo history color ls cat write rm pformat reboot shutdown tr en\n");
     }
 }
@@ -89,6 +90,45 @@ static void print_uptime(void)
     }
     vga_write_unsigned(ticks / 100U);
     vga_write(" s\n");
+}
+
+static void print_two_digits(unsigned int value)
+{
+    vga_write_char((char)('0' + (value / 10U) % 10U));
+    vga_write_char((char)('0' + value % 10U));
+}
+
+static void print_four_digits(unsigned int value)
+{
+    vga_write_char((char)('0' + (value / 1000U) % 10U));
+    vga_write_char((char)('0' + (value / 100U) % 10U));
+    print_two_digits(value);
+}
+
+static void print_date(void)
+{
+    struct rtc_time time;
+
+    if (!rtc_available() || !rtc_read_time(&time)) {
+        if (language_get() == SYSTEM_LANGUAGE_TURKISH) {
+            vga_write("RTC tarihi kullanilamiyor.\n");
+        } else {
+            vga_write("RTC date is unavailable.\n");
+        }
+        return;
+    }
+    print_four_digits(time.year);
+    vga_write_char('-');
+    print_two_digits(time.month);
+    vga_write_char('-');
+    print_two_digits(time.day);
+    vga_write_char(' ');
+    print_two_digits(time.hour);
+    vga_write_char(':');
+    print_two_digits(time.minute);
+    vga_write_char(':');
+    print_two_digits(time.second);
+    vga_write(" RTC\n");
 }
 
 static void print_processes(void)
@@ -364,6 +404,8 @@ static void execute_command(void)
         vga_write_char('\n');
     } else if (string_equals(input, "uptime")) {
         print_uptime();
+    } else if (string_equals(input, "date")) {
+        print_date();
     } else if (string_equals(input, "ps")) {
         print_processes();
     } else if (string_equals(input, "demo")) {

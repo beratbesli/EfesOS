@@ -104,6 +104,8 @@ jobs:
           grep -F "EfesOS: BIOS E820 entries available." build/ci-serial.log
           grep -F "EfesOS: ELF loader runtime self-test passed." build/ci-serial.log
           grep -F "EfesOS: stage-2 kernel integrity check passed." build/ci-serial.log
+          grep -F "EfesOS: RTC calendar self-test passed." build/ci-serial.log
+          grep -F "EfesOS: RTC stable read passed year=" build/ci-serial.log
           grep -F "EfesOS: PCI devices discovered=" build/ci-serial.log
           grep -F "EfesOS: ATA primary-master present=" build/ci-serial.log
           grep -F "EfesOS: ATA IRQ mode enabled=" build/ci-serial.log
@@ -141,6 +143,12 @@ jobs:
           grep -F "EfesOS: user exception isolated." build/ci-serial.log
           grep -F "EfesOS: preemptive scheduler runtime test passed." build/ci-serial.log
           if grep -F "KERNEL PANIC:" build/ci-serial.log; then exit 1; fi
+      - name: QEMU deterministic RTC smoke test
+        run: |
+          timeout 20s qemu-system-i386 -display none -monitor none -serial file:build/ci-rtc-serial.log -no-reboot -no-shutdown -m 128 -rtc base=2024-02-29T23:58:00,clock=vm -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
+          grep -F "EfesOS: RTC calendar self-test passed." build/ci-rtc-serial.log
+          grep -F "EfesOS: RTC stable read passed year=0x000007E8 month=0x00000002 day=0x0000001D hour=0x00000017 minute=0x0000003A" build/ci-rtc-serial.log
+          if grep -F "KERNEL PANIC:" build/ci-rtc-serial.log; then exit 1; fi
       - name: QEMU ATA IRQ14 smoke test
         run: |
           truncate -s 4M build/ci-ata.img
