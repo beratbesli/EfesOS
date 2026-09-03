@@ -15,7 +15,9 @@ struct acpi_mapped_region {
 static int initialized;
 static int available;
 static int hpet_available;
+static int madt_available;
 static struct acpi_hpet_info hpet_info;
+static struct acpi_madt_info madt_info;
 static unsigned int rsdt_entries[ACPI_MAX_RSDT_ENTRIES];
 
 static int signature_equal(const unsigned char *bytes, const char signature[4])
@@ -213,6 +215,73 @@ static int discover_hpet(unsigned int entry_count)
     return 0;
 }
 
+static void copy_madt_info(const struct acpi_madt_table_info *source)
+{
+    unsigned int index;
+
+    madt_info.local_apic_address = source->local_apic_address;
+    madt_info.flags = source->flags;
+    madt_info.enabled_local_apics = source->enabled_local_apics;
+    madt_info.enabled_x2apics = source->enabled_x2apics;
+    madt_info.io_apic_count = source->io_apic_count;
+    for (index = 0U; index < ACPI_MAX_IO_APICS; index++) {
+        madt_info.io_apics[index].id = source->io_apics[index].id;
+        madt_info.io_apics[index].physical_address =
+            source->io_apics[index].physical_address;
+        madt_info.io_apics[index].global_interrupt_base =
+            source->io_apics[index].global_interrupt_base;
+    }
+    for (index = 0U; index < ACPI_ISA_IRQ_COUNT; index++) {
+        madt_info.isa_overrides[index].global_interrupt =
+            source->isa_overrides[index].global_interrupt;
+        madt_info.isa_overrides[index].flags =
+            source->isa_overrides[index].flags;
+        madt_info.isa_overrides[index].present =
+            source->isa_overrides[index].present;
+    }
+}
+
+static int discover_madt(unsigned int entry_count)
+{
+    unsigned int index;
+    int found = 0;
+
+    for (index = 0U; index < entry_count; index++) {
+        struct acpi_mapped_region header;
+        int is_madt;
+
+        if (rsdt_entries[index] == 0U ||
+            !map_region(rsdt_entries[index], ACPI_SDT_HEADER_LENGTH,
+                &header)) {
+            continue;
+        }
+        is_madt = signature_equal(header.bytes, "APIC");
+        if (!unmap_region(&header)) {
+            return 0;
+        }
+        if (is_madt) {
+            struct acpi_mapped_region table;
+            struct acpi_madt_table_info parsed;
+            unsigned int length;
+
+            if (found || !map_sdt(rsdt_entries[index], "APIC", &table,
+                    &length)) {
+                return 0;
+            }
+            if (!acpi_parse_madt_table(table.bytes, length, &parsed)) {
+                unmap_region(&table);
+                return 0;
+            }
+            copy_madt_info(&parsed);
+            if (!unmap_region(&table)) {
+                return 0;
+            }
+            found = 1;
+        }
+    }
+    return found;
+}
+
 int acpi_init(const struct boot_info *boot_info)
 {
     const unsigned char *rsdp;
@@ -223,6 +292,7 @@ int acpi_init(const struct boot_info *boot_info)
     initialized = 1;
     available = 0;
     hpet_available = 0;
+    madt_available = 0;
     if (boot_info == 0 || boot_info->acpi_rsdp_address == 0U ||
         paging_current_directory() != paging_kernel_directory()) {
         return 0;
@@ -237,6 +307,7 @@ int acpi_init(const struct boot_info *boot_info)
     }
     available = 1;
     hpet_available = discover_hpet(entry_count);
+    madt_available = discover_madt(entry_count);
     return 1;
 }
 
@@ -253,4 +324,14 @@ int acpi_hpet_available(void)
 const struct acpi_hpet_info *acpi_hpet_get(void)
 {
     return acpi_hpet_available() ? &hpet_info : 0;
+}
+
+int acpi_madt_available(void)
+{
+    return initialized && available && madt_available;
+}
+
+const struct acpi_madt_info *acpi_madt_get(void)
+{
+    return acpi_madt_available() ? &madt_info : 0;
 }

@@ -60,6 +60,8 @@ jobs:
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude -Idrivers tests/rtc_host_test.c drivers/rtc_time.c -o build/rtc-host-test && build/rtc-host-test
       - name: ACPI table host test
         run: clang -std=c11 -Wall -Wextra -Werror -Idrivers tests/acpi_host_test.c drivers/acpi_tables.c -o build/acpi-host-test && build/acpi-host-test
+      - name: ACPI MADT host test
+        run: clang -std=c11 -Wall -Wextra -Werror -Idrivers tests/madt_host_test.c drivers/acpi_tables.c -o build/madt-host-test && build/madt-host-test
       - name: HPET time conversion host test
         run: clang -std=c11 -Wall -Wextra -Werror -Idrivers tests/hpet_host_test.c drivers/hpet_time.c -o build/hpet-host-test && build/hpet-host-test
       - name: FAT parser host test
@@ -92,6 +94,8 @@ jobs:
           build/rtc-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Idrivers tests/acpi_host_test.c drivers/acpi_tables.c -o build/acpi-host-sanitize
           build/acpi-host-sanitize
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Idrivers tests/madt_host_test.c drivers/acpi_tables.c -o build/madt-host-sanitize
+          build/madt-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Idrivers tests/hpet_host_test.c drivers/hpet_time.c -o build/hpet-host-sanitize
           build/hpet-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Ifs tests/fat_host_test.c fs/fat.c -o build/fat-host-sanitize
@@ -125,6 +129,7 @@ jobs:
           grep -F "EfesOS: interrupt self-tests passed." build/ci-serial.log
           grep -F "EfesOS: VMM self-test passed." build/ci-serial.log
           grep -F "EfesOS: ACPI root table validated." build/ci-serial.log
+          grep -F "EfesOS: ACPI MADT validated lapic=0xFEE00000" build/ci-serial.log
           grep -F "EfesOS: ELF loader validation self-test passed." build/ci-serial.log
           grep -F "EfesOS: kernel heap self-test passed." build/ci-serial.log
           grep -F "EfesOS: RAM filesystem self-test passed." build/ci-serial.log
@@ -162,6 +167,7 @@ jobs:
         run: |
           timeout 20s qemu-system-i386 -machine pc,hpet=on -display none -monitor none -serial file:build/ci-hpet-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
           grep -F "EfesOS: ACPI root table validated." build/ci-hpet-serial.log
+          grep -F "EfesOS: ACPI MADT validated lapic=0xFEE00000" build/ci-hpet-serial.log
           grep -F "EfesOS: ACPI HPET table validated base=0xFED00000" build/ci-hpet-serial.log
           grep -F "EfesOS: HPET monotonic counter self-test passed period-fs=" build/ci-hpet-serial.log
           if grep -F "KERNEL PANIC:" build/ci-hpet-serial.log; then exit 1; fi

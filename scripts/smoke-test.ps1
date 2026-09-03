@@ -36,6 +36,7 @@ $successMarkers = @(
     'EfesOS: VMM self-test passed.',
     'EfesOS: paging mode=',
     'EfesOS: ACPI root table validated.',
+    'EfesOS: ACPI MADT validated lapic=0xFEE00000',
     'EfesOS: ELF loader validation self-test passed.',
     'EfesOS: PCI BAR self-test passed.',
     'EfesOS: ELF loader runtime self-test passed.',
@@ -117,7 +118,8 @@ if ($RequireHpet) {
 }
 if ($DisableAcpi) {
     $successMarkers = @($successMarkers | Where-Object {
-        $_ -ne 'EfesOS: ACPI root table validated.'
+        $_ -ne 'EfesOS: ACPI root table validated.' -and
+        $_ -ne 'EfesOS: ACPI MADT validated lapic=0xFEE00000'
     })
     $successMarkers += 'EfesOS: ACPI root table unavailable or invalid.'
 }

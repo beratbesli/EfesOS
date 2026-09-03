@@ -431,6 +431,21 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write(".\n");
     if (acpi_init(boot_info)) {
         serial_write("EfesOS: ACPI root table validated.\n");
+        if (acpi_madt_available()) {
+            const struct acpi_madt_info *madt = acpi_madt_get();
+
+            serial_write("EfesOS: ACPI MADT validated lapic=");
+            serial_write_hex(madt->local_apic_address);
+            serial_write(" io-apics=");
+            serial_write_hex(madt->io_apic_count);
+            serial_write(" local-cpus=");
+            serial_write_hex(madt->enabled_local_apics);
+            serial_write(" x2-cpus=");
+            serial_write_hex(madt->enabled_x2apics);
+            serial_write(".\n");
+        } else {
+            serial_write("EfesOS: ACPI MADT unavailable or invalid.\n");
+        }
         if (acpi_hpet_available()) {
             const struct acpi_hpet_info *hpet = acpi_hpet_get();
 
