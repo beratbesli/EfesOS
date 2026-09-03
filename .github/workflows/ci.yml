@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install toolchain and emulator
@@ -138,6 +138,7 @@ jobs:
           timeout 20s qemu-system-i386 -display none -monitor none -serial file:build/ci-ata-irq-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a -drive file=build/ci-ata.img,format=raw,if=ide || true
           grep -F "EfesOS: ATA IRQ completion self-test passed." build/ci-ata-irq-serial.log
           grep -F "EfesOS: ATA IRQ mode enabled=0x00000001" build/ci-ata-irq-serial.log
+          grep -F "polling-fallbacks=0x00000000." build/ci-ata-irq-serial.log
           if grep -F "KERNEL PANIC:" build/ci-ata-irq-serial.log; then exit 1; fi
       - name: QEMU PAE and NX smoke test
         run: |
