@@ -9,7 +9,7 @@
 - Vektör duyarlı IDT/PIC/PIT, kuyruklu klavye sürücüsü ve IRQ dışında çalışan olay döngüsü eklendi.
 - Koruma sayfalı preemptive kernel-thread scheduler ve TSS tabanlı gerçek ring-3 geçişi eklendi.
 - `int 0x80` syscall ABI’si, geçersiz çağrı reddi ve ring-3 istisna izolasyonu eklendi.
-- PCI taraması, zaman aşımı kontrollü ve aygıt-hazırlık yeniden denemeli ATA PIO arayüzü ile MBR FAT16/VFS parser’ı eklendi. IDT sonrasında ATA primary kanal IRQ14 tamamlanmasına geçiyor; kesme gecikir/yoksa bounded polling fallback kullanılıyor ve transferler preemption altında birbirine karışmaması için tek sahipli yürütülüyor.
+- PCI taraması, zaman aşımı kontrollü ATA arayüzü ile MBR FAT16/VFS parser’ı eklendi. IDT sonrasında primary kanal IRQ14 tamamlanmasına geçiyor; uygun PCI IDE denetleyicisi ve disk bulunduğunda doğrulanmış PRDT/bounce sayfalarıyla bus-master DMA okuması kullanılıyor. Kesme veya DMA kullanılamazsa bounded PIO fallback korunuyor ve transferler preemption altında birbirine karışmaması için tek sahipli yürütülüyor.
 - 512 bayt sektör ve 128 sektör/istek sınırı olan sürücüden bağımsız blok aygıt katmanı eklendi. Başlatılmamış aygıtlar, null tamponlar, sıfır/taşan transferler ve aygıt sonunu aşan LBA aralıkları sürücü callback’i çağrılmadan reddediliyor; ATA’nın VFS’ye sunduğu görünüm bilerek salt-okunur tutuluyor.
 - RAMFS için sınırlı `write`/`rm` işlemleri eklendi; yol ayraçları ve taşan girdiler reddediliyor.
 - RAMFS okuma isimleri de aynı bounded isim doğrulamasından geçiyor; VGA metin çıktısı null pointer’ı fail-closed yutuyor.
@@ -132,7 +132,8 @@
 
 - `scripts/build.ps1` başarılı.
 - `scripts/block-device-self-test.ps1` başarılı; geçersiz yapılandırma, transfer üst sınırı, taşmasız son-sektör kontrolü, salt-okunur yazma reddi ve callback hata iletimi doğrulandı.
-- `scripts/ata-irq-self-test.ps1` IRQ durum makinesinin disabled/ready/pending/error/fallback ve sequence-wrap davranışlarını doğruluyor. QEMU IDE regresyonu gerçek IRQ14 tamamlanmasını `irq-count=1`, `polling-fallbacks=0` ile kanıtlıyor; PIC yalnız handler’ı bulunan IRQ0/1/14 hatlarını sürücü hazır olduktan sonra açabiliyor.
+- `scripts/ata-irq-self-test.ps1` IRQ durum makinesinin disabled/ready/pending/error/fallback ve sequence-wrap davranışlarını doğruluyor. Güncel QEMU IDE regresyonunda SET FEATURES ve DMA okuması için `irq-count=2`, `polling-fallbacks=0` gözleniyor; PIC yalnız handler’ı bulunan IRQ0/1/14 hatlarını sürücü hazır olduktan sonra açabiliyor.
+- `scripts/ata-dma-self-test.ps1` PRDT’nin sekiz baytlık biçimini, dword hizalamasını, 64 KiB sınırını, legacy-primary PCI IDE/BAR4 kabulünü, en yüksek MWDMA modu seçimini ve controller terminal durumunu doğruluyor. QEMU’da MWDMA2 (`0x22`) ile 8 sektörlük DMA sonucu PIO referansıyla 4.096 bayt boyunca birebir karşılaştırılıyor; `transfers=1`, IRQ/DMA fallback `0`.
 - `scripts/fat-self-test.ps1` başarılı.
 - `scripts/ramfs-self-test.ps1` başarılı; null, geçersiz ve sonlandırılmamış RAMFS isimleri bounded olarak reddediliyor.
 - `scripts/boot-info-self-test.ps1` başarılı.
@@ -141,13 +142,13 @@
 - `scripts/sha256-self-test.ps1` ve `scripts/sha256_self_test.py`, build digest’inin bağımsız SHA-256 hesaplamasıyla eşleştiğini ve tek baytlık kernel bozulmasının farklı özet ürettiğini doğruluyor; CI’da `make sha256-self-test` kapısı etkin.
 - `scripts/sha256-boot-negative-test.ps1` ve `scripts/sha256_boot_negative_test.py`, bozulmuş imajı QEMU’da boot edip stage-2’nin kernel girişinden önce seri `!` fail-closed işaretiyle durduğunu doğruluyor; CI’da `make sha256-boot-negative-test` kapısı etkin.
 - `scripts/parser-fuzz-self-test.ps1`; boot metadata üzerinde her bayt/değer kombinasyonunu ve 16.384 sabit tohumlu çoklu mutasyonu (toplam 219.136 mutasyon), ELF üzerinde her bayt/değer kombinasyonunu ve tüm truncation boylarını, FAT üzerinde 2.048 deterministik bozuk imajı çalıştırıyor. E820 host testi ayrıca ters kayıt sırası, çakışan reserved/usable aralıklar, devre dışı kayıtlar ve bilinmeyen bellek türleri için fail-closed normalizasyonu doğruluyor; aynı yollar Linux CI’da ASan/UBSan altında çalışıyor.
-- QEMU smoke testi başarılı; varsayılan profilde 42 kritik boot/runtime işaretçisi, deterministik ATA/FAT fixture’ında IRQ14 dahil 45 işaretçi doğrulanıyor.
+- QEMU smoke testi başarılı; varsayılan profilde 43 kritik boot/runtime işaretçisi, deterministik ATA/FAT fixture’ında IRQ14 ve DMA bütünlük kanıtı dahil 49 işaretçi doğrulanıyor.
 - QEMU `-cpu qemu64` koşusu PAE backend’i ve hardware NX (`hardware-nx=0x00000001`) ile ELF/runtime akışını başarıyla tamamlıyor; varsayılan profil de NX’siz PAE yolunu doğruluyor.
 - QEMU `-cpu qemu32,pae=off` koşusu legacy sayfalama fallback’ini (`paging mode=legacy hardware-nx=0x00000000`) ve ELF/runtime akışını başarıyla tamamlıyor.
 - CPU yetenek yoklaması RDRAND desteğini de raporluyor; destek varsa ET_DYN load-bias ve kullanıcı stack yerleşim tohumuna donanımsal rastgelelik ekleniyor, desteklenmeyen CPU’larda bounded fallback korunuyor.
 - QEMU `-cpu max` koşusu RDRAND yolunu (`rdrand=0x00000001`) ve PAE/NX ELF/runtime akışını başarıyla doğruluyor.
 - QEMU’da ring-3 syscall çalışması ve kullanıcı page-fault izolasyonu gözlendi.
-- Deterministik 4 MiB FAT16 imajıyla QEMU blok-aygıt/ATA/FAT/journal uçtan uca testi başarılı; IRQ14, mount, kök dizin, dosya okuması ve persistent replay dahil 45 işaretçi doğrulanıyor.
+- Deterministik 4 MiB FAT16 imajıyla QEMU blok-aygıt/ATA/FAT/journal uçtan uca testi başarılı; IRQ14, bus-master DMA/PIO veri eşitliği, mount, kök dizin, dosya okuması ve persistent replay dahil 49 işaretçi doğrulanıyor.
 - `scripts/run-self-test.ps1` ile etkileşimli `run RUN.ELF` yolu QEMU’da başarılı; diskten yüklenen programın seri çıktısı doğrulandı.
 - `scripts/run-self-test.ps1 -TestPersistentWrite` ile QEMU IDE diski üzerinde yalnızca ayrılmış journal-window’a gerçek `write`/flush yolu çalıştırıldı; QEMU kapandıktan sonra sektör kaydı magic/op/name/content/commit alanlarıyla doğrulandı.
 - Aynı QEMU akışının `-TestPersistentFormat` varyantı boş tail üzerinde `pformat` + `write` çalıştırıyor ve ilk journal kaydını kapanış sonrası doğruluyor.
@@ -158,11 +159,11 @@
 
 ## Bilinen sınırlar
 
-ATA IDENTIFY, QEMU IDE PIO okuması ve IRQ14 tamamlanması doğrulandı; 48-bit destekli aygıtlarda yüksek LBA istekleri için EXT komutları hazır, 32-bit LBA API sınırı üzerindeki kapasite fail-closed reddediliyor. Çok-sektörlü okumalar tek bounded PIO komutuyla, IRQ/polling fallback ve üç denemeli bounded retry ile yürütülüyor; kısmi yazmayı çoğaltmamak için yazma retry edilmiyor. DMA ve gerçek donanım matrisi henüz yoktur. Disk yazmaları yalnızca doğrulanmış journal window ile sınırlı; FAT metadata yazımı hâlâ kapalı. IPC bounded beklemeli receive, generation-PID hedefleme ve scheduler uyandırma desteğine sahip; en fazla sekiz bounded kullanıcı süreci destekleniyor. Authentication, secure boot, imzalı modüller, tam ASLR, ağ/USB/SMP ve tam VFS sonraki aşamalardır.
+ATA IDENTIFY, QEMU IDE PIO/IRQ14 ve PCI bus-master DMA okumaları doğrulandı; 48-bit destekli aygıtlarda yüksek LBA istekleri için EXT komutları hazır, 32-bit LBA API sınırı üzerindeki kapasite fail-closed reddediliyor. DMA okumaları 4 KiB/8 sektörlük parçalara ayrılıyor; herhangi bir controller/drive hatası motoru durduruyor, PCI bus-master bitini kapatıyor, DMA sayfalarını bırakıyor ve bounded PIO retry’a dönüyor. Gerçek donanım matrisi ve DMA yazma yolu henüz yoktur; journal yazmaları güvenlik amacıyla PIO kalıyor ve yalnız doğrulanmış journal window ile sınırlı. FAT metadata yazımı hâlâ kapalı. IPC bounded beklemeli receive, generation-PID hedefleme ve scheduler uyandırma desteğine sahip; en fazla sekiz bounded kullanıcı süreci destekleniyor. Authentication, secure boot, imzalı modüller, tam ASLR, ağ/USB/SMP ve tam VFS sonraki aşamalardır.
 
 ## Öncelikli sonraki geliştirmeler
 
-1. **Depolama (P1):** ATA IRQ14 + polling fallback QEMU’da doğrulandı; sırada bus-master DMA ve gerçek donanım matrisi var. FAT metadata yazımını ancak DMA hata kurtarma, journaling ve bütünlük kontrollerinden sonra aç.
+1. **Depolama (P1):** ATA IRQ14, bus-master DMA okuması, PIO fallback ve hata halinde yetki iptali QEMU’da doğrulandı; sırada gerçek donanım matrisi ve daha sonra güvenli DMA yazma tasarımı var. FAT metadata yazımını ancak donanım hata kurtarma, journaling ve bütünlük kontrollerinden sonra aç.
 2. **Donanım kapsamı (P2):** Yeni blok aygıt sözleşmesini kullanarak USB depolama/HID, ağ ve zamanlayıcı sürücülerini ekle; her biri için QEMU/host fixture testi yaz.
 3. **Güvenlik (P2):** imzalı boot zinciri, kimlik doğrulama, tam ASLR, modül imzalama ve SMP kilitlemesini tasarla.
 4. **Test kapsamı (P2):** Boot/E820/ELF/FAT property-fuzz ve sanitizer kapıları tamamlandı; gerçek donanım matrisi için sürekli regresyon kayıtları tut.

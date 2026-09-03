@@ -4,7 +4,7 @@
 
 1. Build the image with `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1`.
 2. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1`.
-3. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ata-irq-self-test.ps1` for ATA/PIC changes and exercise a QEMU IDE disk path.
+3. Run both `scripts\ata-irq-self-test.ps1` and `scripts\ata-dma-self-test.ps1` for ATA/PCI/PIC changes, then exercise a QEMU IDE disk path.
 4. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1` for filesystem changes.
 5. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\elf-self-test.ps1` for process-loader changes.
 6. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ramfs-self-test.ps1` for RAMFS changes.
@@ -16,7 +16,7 @@
 12. Do not commit `build/`, `tools/`, local IDE files or generated disk images.
 13. Describe the QEMU and host tests performed in the pull request.
 
-On Linux CI, ATA IRQ state, FAT and ELF host tests also run with AddressSanitizer
+On Linux CI, ATA IRQ/DMA contracts, FAT and ELF host tests also run with AddressSanitizer
 and UndefinedBehaviorSanitizer; new driver/parser code should remain clean under both.
 The ELF host test additionally performs deterministic byte-mutation and
 truncation scans of a valid fixture.

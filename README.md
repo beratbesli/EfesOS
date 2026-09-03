@@ -19,7 +19,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Deferred event loop; shell and games never run inside hardware IRQ handlers
 - PCI configuration-space enumeration with read-only type-0 BAR decoding and a bounded `pci` diagnostic command
 - PCI BAR records pass an in-kernel alignment/type self-test before device drivers consume them
-- Timeout-bounded ATA PIO primary-master I/O with IRQ14 completion after IDT readiness, early-boot/polling fallback, serialized requests and explicit disk absence reporting
+- Timeout-bounded ATA primary-master I/O with IRQ14 completion, validated bus-master DMA reads in 4 KiB bounce-buffer chunks, automatic PIO fallback, serialized requests and explicit disk absence reporting
 - Driver-independent 512-byte block-device layer validates capacity, transfer bounds and optional write capability before dispatch; VFS receives a read-only ATA view
 - ATA raw writes remain disabled by default; only a validated journal window can be transactionally enabled
 - Read-only FAT16 VFS mount with bounded 8.3 root/subdirectory file reads (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); validated ELF launch from disk (`run NAME`)
@@ -94,6 +94,12 @@ Run the ATA IRQ completion state-machine test when changing ATA or PIC code:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ata-irq-self-test.ps1
+```
+
+Run the ATA DMA controller, PRDT, transfer-mode and completion contract test:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ata-dma-self-test.ps1
 ```
 
 Run the deterministic boot metadata, E820, ELF and FAT property-fuzz suite after changing any boot or parser boundary:

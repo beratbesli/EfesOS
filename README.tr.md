@@ -19,7 +19,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Shell ve oyunları donanım IRQ'ları dışında çalıştıran ertelenmiş olay döngüsü
 - Salt-okunur type-0 BAR ayrıştırması ve sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
 - PCI BAR kayıtları sürücülere açılmadan önce çekirdek içinde tür/hizalama self-test’inden geçer
-- IDT hazır olduktan sonra IRQ14 tamamlanması, erken boot/polling fallback, seri hale getirilmiş istekler ve açık disk-yokluğu tanısı olan zaman aşımı kontrollü ATA PIO erişimi
+- IRQ14 tamamlanması, doğrulanmış 4 KiB bounce-buffer parçalarıyla bus-master DMA okumaları, otomatik PIO fallback, seri hale getirilmiş istekler ve açık disk-yokluğu tanısı olan zaman aşımı kontrollü ATA primary-master erişimi
 - Sürücüden bağımsız 512 baytlık blok aygıt katmanı kapasiteyi, transfer sınırını ve isteğe bağlı yazma yeteneğini çağrıdan önce doğrular; VFS’ye salt-okunur ATA görünümü verilir
 - ATA ham yazmaları varsayılan olarak boot’ta korumalıdır; yalnızca doğrulanmış journal penceresi transaction için açılabilir
 - Sınırlı 8.3 kök/alt-dizin dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); doğrulanmış ELF’i diskten başlatma (`run NAME`)
@@ -94,6 +94,12 @@ ATA veya PIC değişikliklerinden sonra ATA IRQ tamamlanma durum-makinesi testin
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ata-irq-self-test.ps1
+```
+
+ATA DMA denetleyici, PRDT, aktarım modu ve tamamlanma sözleşmesini sınamak için:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ata-dma-self-test.ps1
 ```
 
 Boot veya parser sınırı değişikliklerinden sonra deterministik boot metadata, E820, ELF ve FAT property-fuzz paketini çalıştır:
