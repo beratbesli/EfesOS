@@ -15,6 +15,8 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Erken CPUID yetenek yoklaması PAE/NX/TSC desteğini raporlar; destek varsa PAE sayfalama ve donanımsal NX etkinleşir, yoksa legacy fallback kullanılır
 - 32-bit protected mode, GDT, vektör duyarlı IDT, PIC, PIT ve tamponlanmış donanım klavye girişi
 - UIP/biçim/takvim doğrulamalı kararlı CMOS RTC duvar saati okuması ve `date` shell komutu
+- Checksum doğrulamalı, sınırlandırılmış ACPI RSDP/RSDT/XSDT keşfi ve korumalı HPET tablo ayrıştırması
+- Önbelleksiz MMIO, nanosaniye dönüşümü, 32-bit sayaç sarım bakımı ve otomatik PIT geri dönüşü olan doğrulanmış HPET monoton saati
 - Koruma sayfalı görev yığınları ve PIT tabanlı bağlam değişimi olan öncelikli kernel-thread scheduler
 - Açık `yield` desteğiyle sınırlı öncelik zaman dilimleri
 - Shell ve oyunları donanım IRQ'ları dışında çalıştıran ertelenmiş olay döngüsü
@@ -108,6 +110,17 @@ RTC BCD/binary, 12/24 saat ve Gregoryen takvim dönüşümünü sınamak için:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\rtc-self-test.ps1
 ```
+
+Sınırlandırılmış ACPI tablo ayrıştırıcısını ve HPET zaman dönüşümünü sınamak için:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\acpi-self-test.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\hpet-self-test.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -RequireHpet
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableAcpi
+```
+
+HPET profili canlı MMIO sayacını; ACPI kapalı profil ise mevcut PIT yolunun önyüklenebilir kaldığını doğrular.
 
 Boot veya parser sınırı değişikliklerinden sonra deterministik boot metadata, E820, ELF ve FAT property-fuzz paketini çalıştır:
 
@@ -207,7 +220,7 @@ Snake için `W`, `A`, `S`, `D` tuşlarıyla hareket edilir; çıkış `Q` tuşud
 ```text
 boot/       BIOS stage-1 ve stage-2 yükleyicileri
 cpu/        IDT, PIC, PIT ve kesme stub'ları
-drivers/    VGA, klavye, RTC, PCI, ATA ve genel blok aygıt sürücüleri
+drivers/    VGA, klavye, RTC, ACPI/HPET, PCI, ATA ve genel blok aygıt sürücüleri
 fs/         Bellek içi dosya sistemi
 games/      Snake ve slot oyun mantığı
 include/    Paylaşılan başlık dosyaları

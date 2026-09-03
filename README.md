@@ -15,6 +15,8 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Early CPUID capability probe reports PAE/NX/TSC support; PAE paging and hardware NX are enabled when supported, with a legacy fallback
 - 32-bit protected mode, GDT, vector-aware IDT, PIC, PIT and buffered hardware keyboard input
 - Stable CMOS RTC wall-clock reads with UIP/format/calendar validation and a `date` shell command
+- Bounded ACPI RSDP/RSDT/XSDT discovery with checksum validation and guarded HPET table parsing
+- Validated HPET monotonic clock with uncached MMIO, nanosecond conversion, 32-bit counter-wrap maintenance and an automatic PIT fallback
 - Preemptive kernel-thread scheduler with guarded per-task stacks and timer-driven context switching
 - Bounded priority time slices with explicit voluntary-yield handling
 - Deferred event loop; shell and games never run inside hardware IRQ handlers
@@ -108,6 +110,17 @@ Run the RTC BCD/binary, 12/24-hour and Gregorian calendar conversion test:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\rtc-self-test.ps1
 ```
+
+Run the bounded ACPI table parser and HPET time-conversion tests:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\acpi-self-test.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\hpet-self-test.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -RequireHpet
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableAcpi
+```
+
+The HPET profile verifies the live MMIO counter; the ACPI-disabled profile verifies that the existing PIT path remains bootable.
 
 Run the deterministic boot metadata, E820, ELF and FAT property-fuzz suite after changing any boot or parser boundary:
 
@@ -207,7 +220,7 @@ Snake uses `W`, `A`, `S`, `D` to move and `Q` to exit. Slot uses Space to spin a
 ```text
 boot/       BIOS stage-1 and stage-2 loaders
 cpu/        IDT, PIC, PIT and interrupt stubs
-drivers/    VGA, keyboard, RTC, PCI, ATA and generic block-device drivers
+drivers/    VGA, keyboard, RTC, ACPI/HPET, PCI, ATA and generic block-device drivers
 fs/         In-memory filesystem
 games/      Snake and slot game logic
 include/    Shared headers
