@@ -25,6 +25,19 @@ static uint16_t pci_config_read_word(uint8_t bus, uint8_t slot, uint8_t function
     return (uint16_t)((value >> ((offset & 2U) * 8U)) & 0xFFFFU);
 }
 
+static void pci_config_write_word(uint8_t bus, uint8_t slot,
+    uint8_t function, uint8_t offset, uint16_t value)
+{
+    uint32_t address = 0x80000000U |
+        ((uint32_t)bus << 16U) |
+        ((uint32_t)slot << 11U) |
+        ((uint32_t)function << 8U) |
+        ((uint32_t)offset & 0xFCU);
+
+    outl(PCI_CONFIG_ADDRESS, address);
+    outw((uint16_t)(PCI_CONFIG_DATA + (offset & 2U)), value);
+}
+
 static int pci_is_present(uint8_t bus, uint8_t slot, uint8_t function)
 {
     return pci_config_read_word(bus, slot, function, 0) != 0xFFFFU;
@@ -154,6 +167,40 @@ int pci_self_test(void)
         }
     }
     return 1;
+}
+
+int pci_enable_ide_bus_master(const struct pci_device *device)
+{
+    unsigned int index;
+    uint16_t command;
+
+    if (device == 0 || (device->header_type & 0x7FU) != 0U ||
+        device->class_code != 0x01U || device->subclass != 0x01U ||
+        (device->prog_if & 0x80U) == 0U ||
+        (device->prog_if & 0x01U) != 0U ||
+        device->bars[4].type != PCI_BAR_IO ||
+        device->bars[4].base_low == 0U ||
+        device->bars[4].base_low > 0xFFF0U ||
+        (device->bars[4].base_low & 0x0FU) != 0U) {
+        return 0;
+    }
+    for (index = 0U; index < device_count; index++) {
+        if (device == &devices[index]) {
+            break;
+        }
+    }
+    if (index == device_count) {
+        return 0;
+    }
+
+    command = pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U);
+    command |= 0x0005U; /* I/O space and bus mastering only. */
+    pci_config_write_word(device->bus, device->slot,
+        device->function, 0x04U, command);
+    command = pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U);
+    return (command & 0x0005U) == 0x0005U;
 }
 
 unsigned int pci_device_count(void)

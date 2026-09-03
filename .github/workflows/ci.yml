@@ -54,6 +54,8 @@ jobs:
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude tests/block_device_host_test.c drivers/block_device.c -o build/block-device-host-test && build/block-device-host-test
       - name: ATA IRQ state host test
         run: clang -std=c11 -Wall -Wextra -Werror -Idrivers tests/ata_irq_state_host_test.c drivers/ata_irq_state.c -o build/ata-irq-state-host-test && build/ata-irq-state-host-test
+      - name: ATA DMA contract host test
+        run: clang -std=c11 -Wall -Wextra -Werror -Iinclude -Idrivers tests/ata_dma_host_test.c drivers/ata_dma.c -o build/ata-dma-host-test && build/ata-dma-host-test
       - name: FAT parser host test
         run: clang -std=c11 -Wall -Wextra -Werror -Ifs tests/fat_host_test.c fs/fat.c -o build/fat-host-test && build/fat-host-test
       - name: Boot metadata host test
@@ -78,6 +80,8 @@ jobs:
           build/block-device-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Idrivers tests/ata_irq_state_host_test.c drivers/ata_irq_state.c -o build/ata-irq-state-host-sanitize
           build/ata-irq-state-host-sanitize
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iinclude -Idrivers tests/ata_dma_host_test.c drivers/ata_dma.c -o build/ata-dma-host-sanitize
+          build/ata-dma-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Ifs tests/fat_host_test.c fs/fat.c -o build/fat-host-sanitize
           build/fat-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iprocess -Imemory -Ikernel -Iinclude tests/elf_host_test.c process/elf_loader.c -o build/elf-host-sanitize

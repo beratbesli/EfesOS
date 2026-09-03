@@ -37,6 +37,7 @@ struct pci_device {
 
 void pci_init(void);
 int pci_self_test(void);
+int pci_enable_ide_bus_master(const struct pci_device *device);
 unsigned int pci_device_count(void);
 const struct pci_device *pci_device_at(unsigned int index);
 
