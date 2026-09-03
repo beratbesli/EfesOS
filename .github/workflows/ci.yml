@@ -130,6 +130,7 @@ jobs:
           grep -F "EfesOS: VMM self-test passed." build/ci-serial.log
           grep -F "EfesOS: ACPI root table validated." build/ci-serial.log
           grep -F "EfesOS: ACPI MADT validated lapic=0xFEE00000" build/ci-serial.log
+          grep -F "EfesOS: APIC interrupt routing enabled lapic-id=" build/ci-serial.log
           grep -F "EfesOS: ELF loader validation self-test passed." build/ci-serial.log
           grep -F "EfesOS: kernel heap self-test passed." build/ci-serial.log
           grep -F "EfesOS: RAM filesystem self-test passed." build/ci-serial.log
@@ -175,8 +176,16 @@ jobs:
         run: |
           timeout 20s qemu-system-i386 -machine pc,acpi=off -display none -monitor none -serial file:build/ci-no-acpi-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
           grep -F "EfesOS: ACPI root table unavailable or invalid." build/ci-no-acpi-serial.log
+          grep -F "EfesOS: APIC routing unavailable; dual 8259 PIC fallback active." build/ci-no-acpi-serial.log
           grep -F "EfesOS: ELF loader runtime self-test passed." build/ci-no-acpi-serial.log
           if grep -F "KERNEL PANIC:" build/ci-no-acpi-serial.log; then exit 1; fi
+      - name: QEMU APIC capability fallback smoke test
+        run: |
+          timeout 20s qemu-system-i386 -cpu qemu32,apic=off -display none -monitor none -serial file:build/ci-no-apic-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
+          grep -F "EfesOS: ACPI MADT validated lapic=0xFEE00000" build/ci-no-apic-serial.log
+          grep -F "EfesOS: APIC routing unavailable; dual 8259 PIC fallback active." build/ci-no-apic-serial.log
+          grep -F "EfesOS: preemptive scheduler runtime test passed." build/ci-no-apic-serial.log
+          if grep -F "KERNEL PANIC:" build/ci-no-apic-serial.log; then exit 1; fi
       - name: QEMU ATA IRQ14 smoke test
         run: |
           truncate -s 4M build/ci-ata.img
@@ -187,6 +196,8 @@ jobs:
           grep -F "EfesOS: ATA DMA mode enabled=0x00000001" build/ci-ata-irq-serial.log
           grep -F "EfesOS: ATA DMA/PIO data integrity self-test passed." build/ci-ata-irq-serial.log
           grep -F "transfers=0x00000001 fallbacks=0x00000000." build/ci-ata-irq-serial.log
+          grep -F "EfesOS: APIC interrupt routing enabled lapic-id=" build/ci-ata-irq-serial.log
+          grep -F "EfesOS: repeated user restart stress passed." build/ci-ata-irq-serial.log
           if grep -F "KERNEL PANIC:" build/ci-ata-irq-serial.log; then exit 1; fi
       - name: QEMU PAE and NX smoke test
         run: |
@@ -205,5 +216,7 @@ jobs:
         run: |
           timeout 20s qemu-system-i386 -cpu qemu32,pae=off -display none -monitor none -serial file:build/ci-legacy-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
           grep -F "EfesOS: paging mode=legacy hardware-nx=0x00000000." build/ci-legacy-serial.log
+          grep -F "EfesOS: APIC interrupt routing enabled lapic-id=" build/ci-legacy-serial.log
           grep -F "EfesOS: ELF loader runtime self-test passed." build/ci-legacy-serial.log
+          grep -F "EfesOS: repeated user restart stress passed." build/ci-legacy-serial.log
           if grep -F "KERNEL PANIC:" build/ci-legacy-serial.log; then exit 1; fi

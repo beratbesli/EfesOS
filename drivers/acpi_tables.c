@@ -223,6 +223,9 @@ static void madt_info_clear(struct acpi_madt_table_info *info)
     info->enabled_local_apics = 0U;
     info->enabled_x2apics = 0U;
     info->io_apic_count = 0U;
+    for (index = 0U; index < 8U; index++) {
+        info->local_apic_id_bitmap[index] = 0U;
+    }
     for (index = 0U; index < ACPI_MADT_MAX_IO_APICS; index++) {
         info->io_apics[index].id = 0U;
         info->io_apics[index].physical_address = 0U;
@@ -245,6 +248,10 @@ static void madt_info_copy(struct acpi_madt_table_info *destination,
     destination->enabled_local_apics = source->enabled_local_apics;
     destination->enabled_x2apics = source->enabled_x2apics;
     destination->io_apic_count = source->io_apic_count;
+    for (index = 0U; index < 8U; index++) {
+        destination->local_apic_id_bitmap[index] =
+            source->local_apic_id_bitmap[index];
+    }
     for (index = 0U; index < ACPI_MADT_MAX_IO_APICS; index++) {
         destination->io_apics[index].id = source->io_apics[index].id;
         destination->io_apics[index].physical_address =
@@ -322,6 +329,8 @@ int acpi_parse_madt_table(const unsigned char *bytes, unsigned int available,
                     return 0;
                 }
                 local_apic_ids[apic_id] = 1U;
+                parsed.local_apic_id_bitmap[apic_id >> 5U] |=
+                    1U << (apic_id & 31U);
                 parsed.enabled_local_apics++;
             }
         } else if (type == 1U) {

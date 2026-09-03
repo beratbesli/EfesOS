@@ -30,7 +30,6 @@
 #include "splash.h"
 #include "vga.h"
 
-#define USER_PROCESS_BASE_ALLOCATION_BLOCKS 13U
 #define USER_PROCESS_RESTART_TARGET 4U
 
 static int scheduler_runtime_verified;
@@ -148,10 +147,18 @@ static void kernel_process_events(void)
             kernel_panic("User process restart leaked physical memory.");
         }
         if (pmm_free_blocks() == expected_free) {
+            unsigned int before_restart = pmm_free_blocks();
+
             if (!user_process_init()) {
                 kernel_panic("User process restart failed.");
             }
-            if (pmm_free_blocks() != expected_free - user_process_allocation_blocks) {
+            if (pmm_free_blocks() !=
+                before_restart - user_process_allocation_blocks) {
+                serial_write("EfesOS: restart allocation expected=");
+                serial_write_hex(user_process_allocation_blocks);
+                serial_write(" consumed=");
+                serial_write_hex(before_restart - pmm_free_blocks());
+                serial_write(".\n");
                 kernel_panic("User process restart leaked physical memory.");
             }
             user_restart_count++;
@@ -449,8 +456,16 @@ void kernel_main(const struct boot_info *boot_info)
             serial_write(" x2-cpus=");
             serial_write_hex(madt->enabled_x2apics);
             serial_write(".\n");
+            if (idt_enable_apic_routing(madt)) {
+                serial_write("EfesOS: APIC interrupt routing enabled lapic-id=");
+                serial_write_hex(idt_apic_id());
+                serial_write(".\n");
+            } else {
+                serial_write("EfesOS: APIC routing unavailable; dual 8259 PIC fallback active.\n");
+            }
         } else {
             serial_write("EfesOS: ACPI MADT unavailable or invalid.\n");
+            serial_write("EfesOS: APIC routing unavailable; dual 8259 PIC fallback active.\n");
         }
         if (acpi_hpet_available()) {
             const struct acpi_hpet_info *hpet = acpi_hpet_get();
@@ -477,6 +492,7 @@ void kernel_main(const struct boot_info *boot_info)
         }
     } else {
         serial_write("EfesOS: ACPI root table unavailable or invalid.\n");
+        serial_write("EfesOS: APIC routing unavailable; dual 8259 PIC fallback active.\n");
         serial_write("EfesOS: HPET monotonic clock unavailable; PIT fallback active.\n");
     }
     if (!elf_loader_runtime_self_test()) {
@@ -543,9 +559,29 @@ void kernel_main(const struct boot_info *boot_info)
         kernel_panic("User stack guard self-test failed.");
     }
     serial_write("EfesOS: user stack guard self-test passed.\n");
-    if (!user_process_init() || !user_process_init() || !user_process_init() ||
-        !user_process_init()) {
-        kernel_panic("User process initialization failed.");
+    {
+        unsigned int process_index;
+
+        user_process_allocation_blocks = 0U;
+        for (process_index = 0U; process_index < 4U; process_index++) {
+            unsigned int free_before = pmm_free_blocks();
+            unsigned int free_after;
+            unsigned int consumed;
+
+            if (!user_process_init()) {
+                kernel_panic("User process initialization failed.");
+            }
+            free_after = pmm_free_blocks();
+            if (free_after >= free_before) {
+                kernel_panic("User process allocation accounting failed.");
+            }
+            consumed = free_before - free_after;
+            if (process_index == 0U) {
+                user_process_allocation_blocks = consumed;
+            } else if (consumed != user_process_allocation_blocks) {
+                kernel_panic("User process allocation cost is inconsistent.");
+            }
+        }
     }
     if (user_process_address_space() == 0U ||
         user_process_address_space() == paging_kernel_directory()) {
@@ -599,8 +635,6 @@ void kernel_main(const struct boot_info *boot_info)
         kernel_panic("Scheduler block/wake self-test failed.");
     }
     user_process_initial_free_blocks = pmm_free_blocks();
-    user_process_allocation_blocks = USER_PROCESS_BASE_ALLOCATION_BLOCKS +
-        paging_address_space_extra_blocks();
     serial_write("EfesOS: scheduler priority self-test passed.\n");
     last_game_tick = 0;
 

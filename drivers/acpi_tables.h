@@ -46,6 +46,7 @@ struct acpi_madt_table_info {
     unsigned int flags;
     unsigned int enabled_local_apics;
     unsigned int enabled_x2apics;
+    unsigned int local_apic_id_bitmap[8];
     unsigned int io_apic_count;
     struct acpi_madt_io_apic io_apics[ACPI_MADT_MAX_IO_APICS];
     struct acpi_madt_irq_override

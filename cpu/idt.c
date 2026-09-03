@@ -1,4 +1,5 @@
 #include "idt.h"
+#include "apic.h"
 #include "ata.h"
 #include "io.h"
 #include "keyboard.h"
@@ -41,6 +42,7 @@ static struct idt_descriptor idt_descriptor;
 static uint8_t pic_master_mask = 0xFFU;
 static uint8_t pic_slave_mask = 0xFFU;
 static int idt_ready;
+static int apic_routing;
 
 static const char *const exception_names[32] = {
     "Divide error", "Debug", "Non-maskable interrupt", "Breakpoint",
@@ -144,6 +146,7 @@ void idt_init(void)
     interrupt_u32_t vector;
 
     idt_ready = 0;
+    apic_routing = 0;
     for (vector = 0; vector < IDT_ENTRY_COUNT; vector++) {
         idt_entries[vector].offset_low = 0;
         idt_entries[vector].selector = 0;
@@ -171,6 +174,12 @@ int idt_enable_irq_line(interrupt_u32_t irq)
         return 0;
     }
     flags = interrupt_save();
+    if (apic_routing) {
+        int result = apic_enable_irq(irq);
+
+        interrupt_restore(flags);
+        return result;
+    }
     if (irq >= 8U) {
         pic_slave_mask &= (uint8_t)~(1U << (irq - 8U));
         outb(PIC_SLAVE_DATA, pic_slave_mask);
@@ -189,11 +198,62 @@ int idt_irq_line_enabled(interrupt_u32_t irq)
     if (!idt_ready || irq >= 16U) {
         return 0;
     }
+    if (apic_routing) {
+        return apic_irq_enabled(irq);
+    }
     if (irq >= 8U) {
         return (pic_master_mask & (1U << 2U)) == 0U &&
             (pic_slave_mask & (1U << (irq - 8U))) == 0U;
     }
     return (pic_master_mask & (1U << irq)) == 0U;
+}
+
+int idt_enable_apic_routing(const struct acpi_madt_info *madt)
+{
+    interrupt_u32_t flags;
+    unsigned int enabled_irqs = 0U;
+    unsigned int irq;
+
+    if (!idt_ready || apic_routing || madt == 0) {
+        return 0;
+    }
+    flags = interrupt_save();
+    for (irq = 0U; irq < 16U; irq++) {
+        if ((irq == 0U || irq == 1U || irq == 14U) &&
+            idt_irq_line_enabled(irq)) {
+            enabled_irqs |= 1U << irq;
+        }
+    }
+    if (!apic_init(madt)) {
+        interrupt_restore(flags);
+        return 0;
+    }
+    for (irq = 0U; irq < 16U; irq++) {
+        if ((irq == 0U || irq == 1U || irq == 14U) &&
+            (enabled_irqs & (1U << irq)) != 0U &&
+            !apic_enable_irq(irq)) {
+            apic_shutdown();
+            interrupt_restore(flags);
+            return 0;
+        }
+    }
+    pic_master_mask = 0xFFU;
+    pic_slave_mask = 0xFFU;
+    outb(PIC_MASTER_DATA, pic_master_mask);
+    outb(PIC_SLAVE_DATA, pic_slave_mask);
+    apic_routing = 1;
+    interrupt_restore(flags);
+    return 1;
+}
+
+int idt_uses_apic(void)
+{
+    return idt_ready && apic_routing && apic_available();
+}
+
+unsigned int idt_apic_id(void)
+{
+    return idt_uses_apic() ? apic_local_id() : 0U;
 }
 
 static struct interrupt_frame *handle_exception(struct interrupt_frame *frame)
@@ -242,7 +302,7 @@ static struct interrupt_frame *handle_irq(struct interrupt_frame *frame)
 {
     interrupt_u32_t irq = frame->vector - IRQ_BASE;
 
-    if (irq_is_spurious(irq)) {
+    if (!apic_routing && irq_is_spurious(irq)) {
         return frame;
     }
 
@@ -253,7 +313,11 @@ static struct interrupt_frame *handle_irq(struct interrupt_frame *frame)
     } else if (irq == 14U) {
         ata_irq_handler();
     }
-    pic_acknowledge(irq);
+    if (apic_routing) {
+        apic_acknowledge();
+    } else {
+        pic_acknowledge(irq);
+    }
     if (irq == 0U) {
         return scheduler_on_timer(frame);
     }
@@ -274,6 +338,8 @@ struct interrupt_frame *interrupt_dispatch(struct interrupt_frame *frame)
         return frame;
     } else if (frame->vector == 49U) {
         return scheduler_on_yield(frame);
+    } else if (frame->vector == APIC_SPURIOUS_VECTOR && apic_routing) {
+        return frame;
     } else if (frame->vector == 0x80U) {
         return syscall_dispatch(frame);
     } else {

@@ -3,6 +3,8 @@
 
 typedef unsigned int interrupt_u32_t;
 
+struct acpi_madt_info;
+
 struct interrupt_frame {
     interrupt_u32_t gs;
     interrupt_u32_t fs;
@@ -26,6 +28,9 @@ struct interrupt_frame {
 void idt_init(void);
 int idt_enable_irq_line(interrupt_u32_t irq);
 int idt_irq_line_enabled(interrupt_u32_t irq);
+int idt_enable_apic_routing(const struct acpi_madt_info *madt);
+int idt_uses_apic(void);
+unsigned int idt_apic_id(void);
 struct interrupt_frame *interrupt_dispatch(struct interrupt_frame *frame);
 
 #endif

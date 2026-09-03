@@ -7,7 +7,8 @@ param(
     [string]$Cpu = '',
     [string]$RtcBase = '',
     [switch]$RequireHpet,
-    [switch]$DisableAcpi
+    [switch]$DisableAcpi,
+    [switch]$DisableApic
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,6 +38,7 @@ $successMarkers = @(
     'EfesOS: paging mode=',
     'EfesOS: ACPI root table validated.',
     'EfesOS: ACPI MADT validated lapic=0xFEE00000',
+    'EfesOS: APIC interrupt routing enabled lapic-id=',
     'EfesOS: ELF loader validation self-test passed.',
     'EfesOS: PCI BAR self-test passed.',
     'EfesOS: ELF loader runtime self-test passed.',
@@ -70,7 +72,6 @@ $successMarkers = @(
 if ($RequireHpet -and $DisableAcpi) {
     throw 'RequireHpet ve DisableAcpi birlikte kullanilamaz.'
 }
-
 function Get-QemuPath {
     $command = Get-Command 'qemu-system-i386' -ErrorAction SilentlyContinue
     if ($null -ne $command -and $command.CommandType -eq 'Application' -and
@@ -119,9 +120,16 @@ if ($RequireHpet) {
 if ($DisableAcpi) {
     $successMarkers = @($successMarkers | Where-Object {
         $_ -ne 'EfesOS: ACPI root table validated.' -and
-        $_ -ne 'EfesOS: ACPI MADT validated lapic=0xFEE00000'
+        $_ -ne 'EfesOS: ACPI MADT validated lapic=0xFEE00000' -and
+        $_ -ne 'EfesOS: APIC interrupt routing enabled lapic-id='
     })
     $successMarkers += 'EfesOS: ACPI root table unavailable or invalid.'
+    $successMarkers += 'EfesOS: APIC routing unavailable; dual 8259 PIC fallback active.'
+} elseif ($DisableApic) {
+    $successMarkers = @($successMarkers | Where-Object {
+        $_ -ne 'EfesOS: APIC interrupt routing enabled lapic-id='
+    })
+    $successMarkers += 'EfesOS: APIC routing unavailable; dual 8259 PIC fallback active.'
 }
 
 New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null
@@ -145,7 +153,10 @@ $arguments = @(
     '-boot', 'a'
 )
 if ($Cpu -ne '') {
-    $arguments = @('-cpu', $Cpu) + $arguments
+    $effectiveCpu = if ($DisableApic) { "$Cpu,apic=off" } else { $Cpu }
+    $arguments = @('-cpu', $effectiveCpu) + $arguments
+} elseif ($DisableApic) {
+    $arguments = @('-cpu', 'qemu32,apic=off') + $arguments
 }
 if ($RtcBase -ne '') {
     $arguments += @('-rtc', "base=$RtcBase,clock=vm")

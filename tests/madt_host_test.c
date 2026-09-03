@@ -91,6 +91,7 @@ int main(void)
     if (!acpi_parse_madt_table(madt, sizeof(madt), &info) ||
         info.local_apic_address != 0xFEE00000U || info.flags != 1U ||
         info.enabled_local_apics != 1U || info.enabled_x2apics != 0U ||
+        info.local_apic_id_bitmap[0] != (1U << 2U) ||
         info.io_apic_count != 1U || info.io_apics[0].id != 3U ||
         info.io_apics[0].physical_address != 0xFEC00000U ||
         info.io_apics[0].global_interrupt_base != 0U ||

@@ -224,6 +224,10 @@ static void copy_madt_info(const struct acpi_madt_table_info *source)
     madt_info.enabled_local_apics = source->enabled_local_apics;
     madt_info.enabled_x2apics = source->enabled_x2apics;
     madt_info.io_apic_count = source->io_apic_count;
+    for (index = 0U; index < 8U; index++) {
+        madt_info.local_apic_id_bitmap[index] =
+            source->local_apic_id_bitmap[index];
+    }
     for (index = 0U; index < ACPI_MAX_IO_APICS; index++) {
         madt_info.io_apics[index].id = source->io_apics[index].id;
         madt_info.io_apics[index].physical_address =

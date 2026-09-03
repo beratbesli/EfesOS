@@ -47,6 +47,7 @@ IDT_OBJ := $(BUILD_DIR)/idt.o
 PIT_OBJ := $(BUILD_DIR)/pit.o
 SYSTEM_OBJ := $(BUILD_DIR)/system.o
 FEATURES_OBJ := $(BUILD_DIR)/features.o
+APIC_OBJ := $(BUILD_DIR)/apic.o
 INTERRUPTS_OBJ := $(BUILD_DIR)/interrupts.o
 PMM_OBJ := $(BUILD_DIR)/pmm.o
 E820_OBJ := $(BUILD_DIR)/e820.o
@@ -138,7 +139,7 @@ $(HPET_TIME_OBJ): drivers/hpet_time.c drivers/hpet_time.h | $(BUILD_DIR)
 $(HPET_OBJ): drivers/hpet.c drivers/hpet_time.h include/acpi.h include/hpet.h memory/paging.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Idrivers -Imemory -c $< -o $@
 
-$(IDT_OBJ): cpu/idt.c cpu/idt.h cpu/io.h cpu/pit.h include/ata.h include/keyboard.h include/serial.h include/vga.h kernel/panic.h process/scheduler.h | $(BUILD_DIR)
+$(IDT_OBJ): cpu/idt.c cpu/apic.h cpu/idt.h cpu/io.h cpu/pit.h include/acpi.h include/ata.h include/keyboard.h include/serial.h include/vga.h kernel/panic.h process/scheduler.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Iprocess -c $< -o $@
 
 $(PIT_OBJ): cpu/pit.c cpu/pit.h cpu/io.h include/hpet.h process/scheduler.h | $(BUILD_DIR)
@@ -149,6 +150,9 @@ $(SYSTEM_OBJ): cpu/system.c cpu/system.h cpu/io.h | $(BUILD_DIR)
 
 $(FEATURES_OBJ): cpu/features.c cpu/features.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Icpu -c $< -o $@
+
+$(APIC_OBJ): cpu/apic.c cpu/apic.h cpu/features.h include/acpi.h memory/paging.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Imemory -c $< -o $@
 
 $(INTERRUPTS_OBJ): cpu/interrupts.asm | $(BUILD_DIR)
 	$(NASM) -w+error -f elf32 $< -o $@
@@ -201,8 +205,8 @@ $(GAMES_OBJ): games/games.c games/games.h cpu/pit.h include/vga.h | $(BUILD_DIR)
 $(SHELL_OBJ): shell/shell.c shell/shell.h include/ata.h include/keyboard.h include/language.h include/pci.h include/rtc.h include/serial.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h fs/persistent.h fs/vfs.h games/games.h memory/heap.h memory/pmm.h process/programs.h process/scheduler.h process/user_process.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ifs -Igames -Imemory -Iprocess -Ishell -c $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(BLOCK_DEVICE_OBJ) $(ATA_OBJ) $(ATA_IRQ_STATE_OBJ) $(ATA_DMA_OBJ) $(RTC_OBJ) $(RTC_TIME_OBJ) $(ACPI_TABLES_OBJ) $(ACPI_OBJ) $(HPET_TIME_OBJ) $(HPET_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(FEATURES_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(E820_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(PERSISTENT_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(BLOCK_DEVICE_OBJ) $(ATA_OBJ) $(ATA_IRQ_STATE_OBJ) $(ATA_DMA_OBJ) $(RTC_OBJ) $(RTC_TIME_OBJ) $(ACPI_TABLES_OBJ) $(ACPI_OBJ) $(HPET_TIME_OBJ) $(HPET_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(FEATURES_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(E820_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(PERSISTENT_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
+$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(BLOCK_DEVICE_OBJ) $(ATA_OBJ) $(ATA_IRQ_STATE_OBJ) $(ATA_DMA_OBJ) $(RTC_OBJ) $(RTC_TIME_OBJ) $(ACPI_TABLES_OBJ) $(ACPI_OBJ) $(HPET_TIME_OBJ) $(HPET_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(FEATURES_OBJ) $(APIC_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(E820_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(PERSISTENT_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(BLOCK_DEVICE_OBJ) $(ATA_OBJ) $(ATA_IRQ_STATE_OBJ) $(ATA_DMA_OBJ) $(RTC_OBJ) $(RTC_TIME_OBJ) $(ACPI_TABLES_OBJ) $(ACPI_OBJ) $(HPET_TIME_OBJ) $(HPET_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(FEATURES_OBJ) $(APIC_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(E820_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(PERSISTENT_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@
