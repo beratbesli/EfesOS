@@ -12,7 +12,7 @@ LD := ld.lld
 OBJCOPY := llvm-objcopy
 CROSS_CFLAGS := --target=i686-none-elf
 endif
-CFLAGS := -m32 -std=c11 -ffreestanding -fno-builtin -fno-pic -fno-pie -fno-stack-protector -fno-unwind-tables -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -nostdlib -Wall -Wextra -Werror
+CFLAGS := -m32 -std=c11 -Os -ffreestanding -fno-builtin -fno-pic -fno-pie -fno-stack-protector -fno-unwind-tables -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -nostdlib -Wall -Wextra -Werror
 CFLAGS += $(CROSS_CFLAGS)
 
 BUILD_DIR := build

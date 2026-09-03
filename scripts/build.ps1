@@ -219,7 +219,7 @@ function Invoke-CCompile {
     )
 
     [string[]]$arguments = @($compilerTargetArguments) + @(
-        '-m32', '-std=c11', '-ffreestanding', '-fno-builtin', '-fno-pic', '-fno-pie',
+        '-m32', '-std=c11', '-Os', '-ffreestanding', '-fno-builtin', '-fno-pic', '-fno-pie',
         '-fno-stack-protector', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
         '-mno-mmx', '-mno-sse', '-mno-sse2', '-nostdlib',
         '-Wall', '-Wextra', '-Werror'
