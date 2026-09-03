@@ -4,6 +4,7 @@
 #include "ata.h"
 #include "idt.h"
 #include "games.h"
+#include "hpet.h"
 #include "heap.h"
 #include "keyboard.h"
 #include "paging.h"
@@ -440,11 +441,22 @@ void kernel_main(const struct boot_info *boot_info)
             serial_write(" minimum-tick=");
             serial_write_hex(hpet->minimum_tick);
             serial_write(".\n");
+            if (hpet_init(hpet) && hpet_self_test()) {
+                serial_write("EfesOS: HPET monotonic counter self-test passed period-fs=");
+                serial_write_hex(hpet_period_femtoseconds());
+                serial_write(" width=");
+                serial_write_hex(hpet_counter_is_64bit() ? 64U : 32U);
+                serial_write(".\n");
+            } else {
+                serial_write("EfesOS: HPET monotonic clock unavailable; PIT fallback active.\n");
+            }
         } else {
             serial_write("EfesOS: ACPI HPET table unavailable.\n");
+            serial_write("EfesOS: HPET monotonic clock unavailable; PIT fallback active.\n");
         }
     } else {
         serial_write("EfesOS: ACPI root table unavailable or invalid.\n");
+        serial_write("EfesOS: HPET monotonic clock unavailable; PIT fallback active.\n");
     }
     if (!elf_loader_runtime_self_test()) {
         kernel_panic("ELF loader runtime self-test failed.");

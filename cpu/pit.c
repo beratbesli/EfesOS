@@ -1,4 +1,5 @@
 #include "io.h"
+#include "hpet.h"
 #include "pit.h"
 
 #define PIT_COMMAND_PORT 0x43
@@ -18,6 +19,7 @@ void pit_init(void)
 void pit_irq_handler(void)
 {
     tick_count++;
+    hpet_maintain();
 }
 
 pit_tick_t pit_ticks(void)

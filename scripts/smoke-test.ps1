@@ -113,6 +113,7 @@ if ($DiskImage -ne '') {
 }
 if ($RequireHpet) {
     $successMarkers += 'EfesOS: ACPI HPET table validated base=0xFED00000'
+    $successMarkers += 'EfesOS: HPET monotonic counter self-test passed period-fs='
 }
 if ($DisableAcpi) {
     $successMarkers = @($successMarkers | Where-Object {
