@@ -14,6 +14,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - BIOS E820 bellek haritası aktarımı, deterministik `.bss` başlangıcı, sıkı metadata doğrulaması ve reserved-over-usable çakışma normalizasyonu
 - Erken CPUID yetenek yoklaması PAE/NX/TSC desteğini raporlar; destek varsa PAE sayfalama ve donanımsal NX etkinleşir, yoksa legacy fallback kullanılır
 - 32-bit protected mode, GDT, vektör duyarlı IDT, PIC, PIT ve tamponlanmış donanım klavye girişi
+- UIP/biçim/takvim doğrulamalı kararlı CMOS RTC duvar saati okuması ve `date` shell komutu
 - Koruma sayfalı görev yığınları ve PIT tabanlı bağlam değişimi olan öncelikli kernel-thread scheduler
 - Açık `yield` desteğiyle sınırlı öncelik zaman dilimleri
 - Shell ve oyunları donanım IRQ'ları dışında çalıştıran ertelenmiş olay döngüsü
@@ -102,6 +103,12 @@ ATA DMA denetleyici, PRDT, aktarım modu ve tamamlanma sözleşmesini sınamak i
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ata-dma-self-test.ps1
 ```
 
+RTC BCD/binary, 12/24 saat ve Gregoryen takvim dönüşümünü sınamak için:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\rtc-self-test.ps1
+```
+
 Boot veya parser sınırı değişikliklerinden sonra deterministik boot metadata, E820, ELF ve FAT property-fuzz paketini çalıştır:
 
 ```powershell
@@ -186,7 +193,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\reproducible-build
 | Komut | Açıklama |
 | --- | --- |
 | `help`, `clear`, `about`, `mem`, `heap`, `input` | Temel kernel ve kuyruk bilgileri |
-| `uptime`, `ps`, `demo`, `pci`, `disk`, `diskls`, `diskcat NAME`, `run NAME`, `counter` | Kernel, PCI, disk, scheduler ve doğrulanmış kullanıcı süreci başlatma |
+| `uptime`, `date`, `ps`, `demo`, `pci`, `disk`, `diskls`, `diskcat NAME`, `run NAME`, `counter` | Saat, kernel, PCI, disk, scheduler ve doğrulanmış kullanıcı süreci başlatma |
 | `echo`, `history`, `color` | Shell araçları |
 | `ls`, `cat README`, `cat MOTD`, `cat EFES`, `write NAME CONTENT`, `rm NAME` | Sınırlı RAM dosya sistemi |
 | `snake`, `slot` | Mini oyunlar |
@@ -200,7 +207,7 @@ Snake için `W`, `A`, `S`, `D` tuşlarıyla hareket edilir; çıkış `Q` tuşud
 ```text
 boot/       BIOS stage-1 ve stage-2 yükleyicileri
 cpu/        IDT, PIC, PIT ve kesme stub'ları
-drivers/    VGA, klavye, PCI, ATA ve genel blok aygıt sürücüleri
+drivers/    VGA, klavye, RTC, PCI, ATA ve genel blok aygıt sürücüleri
 fs/         Bellek içi dosya sistemi
 games/      Snake ve slot oyun mantığı
 include/    Paylaşılan başlık dosyaları

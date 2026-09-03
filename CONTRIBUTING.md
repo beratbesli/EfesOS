@@ -5,16 +5,17 @@
 1. Build the image with `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1`.
 2. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1`.
 3. Run both `scripts\ata-irq-self-test.ps1` and `scripts\ata-dma-self-test.ps1` for ATA/PCI/PIC changes, then exercise a QEMU IDE disk path.
-4. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1` for filesystem changes.
-5. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\elf-self-test.ps1` for process-loader changes.
-6. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ramfs-self-test.ps1` for RAMFS changes.
-7. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1` to verify the interactive disk ELF path.
-8. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\persistent-self-test.ps1` for journal/persistent RAMFS changes.
-9. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\reproducible-build-self-test.ps1` when changing the build or image pipeline.
-10. Boot the result interactively in QEMU with the `-Run` switch for UI changes.
-11. Keep C code freestanding and NASM code compatible with 16-bit BIOS or 32-bit protected mode as appropriate.
-12. Do not commit `build/`, `tools/`, local IDE files or generated disk images.
-13. Describe the QEMU and host tests performed in the pull request.
+4. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\rtc-self-test.ps1` for RTC/calendar changes and boot a fixed QEMU `-rtc` fixture.
+5. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fat-self-test.ps1` for filesystem changes.
+6. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\elf-self-test.ps1` for process-loader changes.
+7. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ramfs-self-test.ps1` for RAMFS changes.
+8. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-self-test.ps1` to verify the interactive disk ELF path.
+9. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\persistent-self-test.ps1` for journal/persistent RAMFS changes.
+10. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\reproducible-build-self-test.ps1` when changing the build or image pipeline.
+11. Boot the result interactively in QEMU with the `-Run` switch for UI changes.
+12. Keep C code freestanding and NASM code compatible with 16-bit BIOS or 32-bit protected mode as appropriate.
+13. Do not commit `build/`, `tools/`, local IDE files or generated disk images.
+14. Describe the QEMU and host tests performed in the pull request.
 
 On Linux CI, ATA IRQ/DMA contracts, FAT and ELF host tests also run with AddressSanitizer
 and UndefinedBehaviorSanitizer; new driver/parser code should remain clean under both.

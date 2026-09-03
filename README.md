@@ -14,6 +14,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - BIOS E820 memory map handoff, deterministic `.bss` initialization, strict metadata validation and reserved-over-usable overlap normalization
 - Early CPUID capability probe reports PAE/NX/TSC support; PAE paging and hardware NX are enabled when supported, with a legacy fallback
 - 32-bit protected mode, GDT, vector-aware IDT, PIC, PIT and buffered hardware keyboard input
+- Stable CMOS RTC wall-clock reads with UIP/format/calendar validation and a `date` shell command
 - Preemptive kernel-thread scheduler with guarded per-task stacks and timer-driven context switching
 - Bounded priority time slices with explicit voluntary-yield handling
 - Deferred event loop; shell and games never run inside hardware IRQ handlers
@@ -102,6 +103,12 @@ Run the ATA DMA controller, PRDT, transfer-mode and completion contract test:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ata-dma-self-test.ps1
 ```
 
+Run the RTC BCD/binary, 12/24-hour and Gregorian calendar conversion test:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\rtc-self-test.ps1
+```
+
 Run the deterministic boot metadata, E820, ELF and FAT property-fuzz suite after changing any boot or parser boundary:
 
 ```powershell
@@ -186,7 +193,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\reproducible-build
 | Command | Description |
 | --- | --- |
 | `help`, `clear`, `about`, `mem`, `heap`, `input` | Basic kernel and queue information |
-| `uptime`, `ps`, `demo`, `pci`, `disk`, `diskls`, `diskcat NAME`, `diskcat DIR/NAME`, `run NAME`, `counter` | Kernel, PCI, disk, scheduler and validated user-process launch |
+| `uptime`, `date`, `ps`, `demo`, `pci`, `disk`, `diskls`, `diskcat NAME`, `run NAME`, `counter` | Clock, kernel, PCI, disk, scheduler and validated user-process launch |
 | `echo`, `history`, `color` | Shell utilities |
 | `ls`, `cat README`, `cat MOTD`, `cat EFES`, `write NAME CONTENT`, `rm NAME` | Bounded RAM filesystem |
 | `snake`, `slot` | Mini games |
@@ -200,7 +207,7 @@ Snake uses `W`, `A`, `S`, `D` to move and `Q` to exit. Slot uses Space to spin a
 ```text
 boot/       BIOS stage-1 and stage-2 loaders
 cpu/        IDT, PIC, PIT and interrupt stubs
-drivers/    VGA, keyboard, PCI, ATA and generic block-device drivers
+drivers/    VGA, keyboard, RTC, PCI, ATA and generic block-device drivers
 fs/         In-memory filesystem
 games/      Snake and slot game logic
 include/    Shared headers
