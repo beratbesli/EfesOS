@@ -6,7 +6,8 @@
 #define PAE_TABLE_ENTRIES 512U
 #define PAGE_PRESENT 0x001U
 #define PAGE_ADDRESS_MASK 0xFFFFF000U
-#define PAGE_ALLOWED_FLAGS (PAGE_FLAG_WRITABLE | PAGE_FLAG_USER | PAGE_FLAG_EXECUTABLE)
+#define PAGE_ALLOWED_FLAGS (PAGE_FLAG_WRITABLE | PAGE_FLAG_USER | \
+    PAGE_FLAG_CACHE_DISABLE | PAGE_FLAG_EXECUTABLE)
 #define PAGE_ENABLE 0x80000000U
 #define PAGE_WRITE_PROTECT 0x00010000U
 #define LOW_IDENTITY_LIMIT 0x00400000U
@@ -98,7 +99,8 @@ static unsigned long long pae_flags_to_entry(paging_u32_t physical_address,
 {
     unsigned long long value = (unsigned long long)physical_address |
         PAE_PRESENT | ((flags & PAGE_FLAG_WRITABLE) != 0U ? PAE_WRITABLE : 0U) |
-        ((flags & PAGE_FLAG_USER) != 0U ? PAE_USER : 0U);
+        ((flags & PAGE_FLAG_USER) != 0U ? PAE_USER : 0U) |
+        (flags & PAGE_FLAG_CACHE_DISABLE);
 
     if ((flags & PAGE_FLAG_EXECUTABLE) != 0U) {
         value |= (unsigned long long)PAGE_FLAG_EXECUTABLE;
@@ -1450,7 +1452,8 @@ static int pae_self_test(void)
     if (frame == 0U || paging_map_page(test_virtual, 0U, PAGE_FLAG_WRITABLE) ||
         paging_map_page(test_virtual, frame, 0x008U) ||
         paging_map_page(test_virtual, frame, PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE) ||
-        !paging_map_page(test_virtual, frame, PAGE_FLAG_WRITABLE)) {
+        !paging_map_page(test_virtual, frame,
+            PAGE_FLAG_WRITABLE | PAGE_FLAG_CACHE_DISABLE)) {
         if (frame != 0U) {
             pmm_free_block(frame);
         }
@@ -1461,10 +1464,35 @@ static int pae_self_test(void)
         pmm_free_block(frame);
         return 0;
     }
-    if (paging_pae_nx_enabled) {
+    {
         struct pae_entry *test_table = pae_get_page_table(test_virtual);
+        unsigned long long test_entry;
+
+        if (test_table == 0) {
+            paging_unmap_page(test_virtual);
+            pmm_free_block(frame);
+            return 0;
+        }
+        test_entry = pae_entry_value(
+            &test_table[(test_virtual >> 12U) & 0x1FFU]);
+        if ((test_entry & PAGE_FLAG_CACHE_DISABLE) == 0U ||
+            (paging_pae_nx_enabled && (test_entry & PAE_NX) == 0U)) {
+            paging_unmap_page(test_virtual);
+            pmm_free_block(frame);
+            return 0;
+        }
+    }
+    if (!paging_protect_page(test_virtual, PAGE_FLAG_WRITABLE)) {
+        paging_unmap_page(test_virtual);
+        pmm_free_block(frame);
+        return 0;
+    }
+    {
+        struct pae_entry *test_table = pae_get_page_table(test_virtual);
+
         if (test_table == 0 || (pae_entry_value(
-            &test_table[(test_virtual >> 12U) & 0x1FFU]) & PAE_NX) == 0U) {
+            &test_table[(test_virtual >> 12U) & 0x1FFU]) &
+            PAGE_FLAG_CACHE_DISABLE) != 0U) {
             paging_unmap_page(test_virtual);
             pmm_free_block(frame);
             return 0;
@@ -1489,6 +1517,8 @@ int paging_self_test(void)
     const paging_u32_t test_virtual = 0xCFF00000U;
     paging_u32_t text_address = (paging_u32_t)&__text_start;
     paging_u32_t *text_table = get_page_table(text_address);
+    paging_u32_t *table;
+    paging_u32_t table_index;
     paging_u32_t free_before = pmm_free_blocks();
     paging_u32_t frame;
     paging_u32_t unmapped;
@@ -1562,7 +1592,8 @@ int paging_self_test(void)
     if (frame == 0U || paging_map_page(test_virtual, 0U, PAGE_FLAG_WRITABLE) ||
         paging_map_page(test_virtual, frame, 0x008U) ||
         paging_map_page(test_virtual, frame, PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE) ||
-        !paging_map_page(test_virtual, frame, PAGE_FLAG_WRITABLE)) {
+        !paging_map_page(test_virtual, frame,
+            PAGE_FLAG_WRITABLE | PAGE_FLAG_CACHE_DISABLE)) {
         if (frame != 0U) {
             pmm_free_block(frame);
         }
@@ -1570,6 +1601,16 @@ int paging_self_test(void)
     }
 
     if (paging_protect_page(test_virtual, PAGE_FLAG_WRITABLE | PAGE_FLAG_EXECUTABLE)) {
+        paging_unmap_page(test_virtual);
+        pmm_free_block(frame);
+        return 0;
+    }
+
+    table = get_page_table(test_virtual);
+    table_index = (test_virtual >> 12U) & 0x3FFU;
+    if (table == 0 || (table[table_index] & PAGE_FLAG_CACHE_DISABLE) == 0U ||
+        !paging_protect_page(test_virtual, PAGE_FLAG_WRITABLE) ||
+        (table[table_index] & PAGE_FLAG_CACHE_DISABLE) != 0U) {
         paging_unmap_page(test_virtual);
         pmm_free_block(frame);
         return 0;

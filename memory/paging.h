@@ -8,6 +8,7 @@ typedef unsigned int paging_u32_t;
 #define PAGE_SIZE 4096U
 #define PAGE_FLAG_WRITABLE 0x002U
 #define PAGE_FLAG_USER 0x004U
+#define PAGE_FLAG_CACHE_DISABLE 0x010U
 /* Software execute permission. Bit 9 is an x86 page-table available bit; the
    PAE backend also mirrors this policy into hardware NX when supported. */
 #define PAGE_FLAG_EXECUTABLE 0x200U
