@@ -1,5 +1,8 @@
 #include "ata.h"
+#include "ata_dma.h"
 #include "ata_irq_state.h"
+#include "pci.h"
+#include "pmm.h"
 
 #define ATA_DATA 0x1F0U
 #define ATA_ERROR 0x1F1U
@@ -12,8 +15,11 @@
 #define ATA_COMMAND 0x1F7U
 #define ATA_CONTROL 0x3F6U
 #define ATA_CMD_IDENTIFY 0xECU
+#define ATA_CMD_SET_FEATURES 0xEFU
 #define ATA_CMD_READ 0x20U
 #define ATA_CMD_READ_EXT 0x24U
+#define ATA_CMD_READ_DMA 0xC8U
+#define ATA_CMD_READ_DMA_EXT 0x25U
 #define ATA_CMD_WRITE 0x30U
 #define ATA_CMD_WRITE_EXT 0x34U
 #define ATA_CMD_FLUSH 0xE7U
@@ -29,11 +35,23 @@
 #define ATA_IRQ_WAIT_TIMEOUT 10000U
 #define ATA_LBA28_LIMIT 0x10000000U
 #define ATA_WRITES_PROTECTED_BY_DEFAULT 1
+#define ATA_SET_TRANSFER_MODE 0x03U
+#define ATA_DMA_BOUNCE_BYTES PMM_BLOCK_SIZE
+#define ATA_DMA_MAX_SECTORS (ATA_DMA_BOUNCE_BYTES / ATA_SECTOR_SIZE)
+#define ATA_DMA_MEMORY_LIMIT 0x00400000U
+#define ATA_BUS_MASTER_COMMAND 0U
+#define ATA_BUS_MASTER_STATUS 2U
+#define ATA_BUS_MASTER_PRDT 4U
+#define ATA_BUS_MASTER_START 0x01U
+#define ATA_BUS_MASTER_READ_FROM_DISK 0x08U
+#define ATA_BUS_MASTER_DRIVE0_CAPABLE 0x20U
 
 static int device_present;
 static uint32_t sectors;
 static uint8_t last_status;
 static uint16_t identify_type;
+static uint16_t identify_capabilities;
+static uint16_t identify_multiword_dma;
 static int lba48_supported;
 static int writes_protected;
 static uint32_t write_window_start;
@@ -41,6 +59,14 @@ static uint32_t write_window_sectors;
 static struct block_device primary_block_device;
 static struct ata_irq_state irq_state;
 static volatile int request_active;
+static const struct pci_device *dma_controller;
+static uint16_t dma_io_base;
+static uint32_t dma_bounce_physical;
+static uint32_t dma_prdt_physical;
+static uint8_t dma_transfer_mode;
+static int dma_enabled;
+static unsigned int dma_transfers;
+static unsigned int dma_fallbacks;
 
 static int ata_block_read(void *context, unsigned int lba,
     unsigned char count, void *buffer)
@@ -83,6 +109,11 @@ static int cpu_interrupts_enabled(void)
 
     __asm__ volatile ("pushfl; popl %0" : "=r"(flags) : : "memory");
     return (flags & (1U << 9U)) != 0U;
+}
+
+static void dma_memory_barrier(void)
+{
+    __asm__ volatile ("" : : : "memory");
 }
 
 static int begin_request(void)
@@ -222,6 +253,170 @@ static int select_request(uint32_t lba, uint8_t count)
     return 1;
 }
 
+static const struct pci_device *find_dma_controller(uint16_t *io_base)
+{
+    const struct pci_device *match = 0;
+    unsigned int index;
+
+    for (index = 0U; index < pci_device_count(); index++) {
+        const struct pci_device *candidate = pci_device_at(index);
+        uint16_t candidate_base;
+
+        if (!ata_dma_controller_base(candidate, &candidate_base)) {
+            continue;
+        }
+        /* Two controllers claiming the legacy primary channel are ambiguous.
+           Refuse DMA rather than programming the wrong bus-master engine. */
+        if (match != 0) {
+            return 0;
+        }
+        match = candidate;
+        *io_base = candidate_base;
+    }
+    return match;
+}
+
+static void stop_dma_engine(void)
+{
+    uint8_t command;
+    uint8_t status;
+
+    if (dma_io_base == 0U) {
+        return;
+    }
+    command = inb((uint16_t)(dma_io_base + ATA_BUS_MASTER_COMMAND));
+    outb((uint16_t)(dma_io_base + ATA_BUS_MASTER_COMMAND),
+        (uint8_t)(command & (uint8_t)~ATA_BUS_MASTER_START));
+    status = inb((uint16_t)(dma_io_base + ATA_BUS_MASTER_STATUS));
+    outb((uint16_t)(dma_io_base + ATA_BUS_MASTER_STATUS),
+        (uint8_t)(status | ATA_DMA_STATUS_ERROR |
+            ATA_DMA_STATUS_INTERRUPT));
+}
+
+static void disable_dma_after_failure(void)
+{
+    const struct pci_device *controller = dma_controller;
+    uint32_t bounce = dma_bounce_physical;
+    uint32_t prdt = dma_prdt_physical;
+
+    stop_dma_engine();
+    if (dma_enabled) {
+        dma_enabled = 0;
+        dma_fallbacks++;
+    }
+    if (controller != 0) {
+        pci_disable_ide_bus_master(controller);
+    }
+    dma_controller = 0;
+    dma_io_base = 0U;
+    dma_bounce_physical = 0U;
+    dma_prdt_physical = 0U;
+    dma_transfer_mode = 0U;
+    if (prdt != 0U) {
+        pmm_free_block(prdt);
+    }
+    if (bounce != 0U) {
+        pmm_free_block(bounce);
+    }
+}
+
+static int set_dma_transfer_mode(uint8_t transfer_mode)
+{
+    unsigned int irq_snapshot;
+
+    if (!wait_status(0U, ATA_STATUS_BSY)) {
+        return 0;
+    }
+    outb(ATA_DRIVE, 0xE0U);
+    ata_400ns_delay();
+    outb(ATA_ERROR, ATA_SET_TRANSFER_MODE);
+    outb(ATA_SECTOR_COUNT, transfer_mode);
+    irq_snapshot = ata_irq_state_snapshot(&irq_state);
+    outb(ATA_COMMAND, ATA_CMD_SET_FEATURES);
+    ata_400ns_delay();
+    return wait_status_with_irq(0U,
+        ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF, irq_snapshot);
+}
+
+static int ata_read_dma_chunk(uint32_t lba, uint8_t count,
+    uint8_t *destination)
+{
+    struct ata_dma_prd *prd = (struct ata_dma_prd *)dma_prdt_physical;
+    uint8_t *bounce = (uint8_t *)dma_bounce_physical;
+    unsigned int byte_count = (unsigned int)count * ATA_SECTOR_SIZE;
+    unsigned int index;
+    unsigned int irq_snapshot;
+    uint8_t bus_master_status;
+    int completed;
+
+    if (!ata_dma_prepare_prd(prd, dma_bounce_physical, byte_count)) {
+        return 0;
+    }
+    for (index = 0U; index < byte_count; index++) {
+        bounce[index] = 0U;
+    }
+    dma_memory_barrier();
+    if (!wait_status(0U, ATA_STATUS_BSY)) {
+        return 0;
+    }
+
+    stop_dma_engine();
+    outl((uint16_t)(dma_io_base + ATA_BUS_MASTER_PRDT), dma_prdt_physical);
+    outb((uint16_t)(dma_io_base + ATA_BUS_MASTER_STATUS),
+        (uint8_t)(inb((uint16_t)(dma_io_base + ATA_BUS_MASTER_STATUS)) |
+            ATA_BUS_MASTER_DRIVE0_CAPABLE | ATA_DMA_STATUS_ERROR |
+            ATA_DMA_STATUS_INTERRUPT));
+    outb((uint16_t)(dma_io_base + ATA_BUS_MASTER_COMMAND),
+        ATA_BUS_MASTER_READ_FROM_DISK);
+    if (!select_request(lba, count)) {
+        return 0;
+    }
+    irq_snapshot = ata_irq_state_snapshot(&irq_state);
+    outb(ATA_COMMAND, request_needs_lba48(lba, count) ?
+        ATA_CMD_READ_DMA_EXT : ATA_CMD_READ_DMA);
+    ata_400ns_delay();
+    outb((uint16_t)(dma_io_base + ATA_BUS_MASTER_COMMAND),
+        ATA_BUS_MASTER_READ_FROM_DISK | ATA_BUS_MASTER_START);
+
+    completed = wait_status_with_irq(0U,
+        ATA_STATUS_BSY | ATA_STATUS_ERR | ATA_STATUS_DF, irq_snapshot);
+    bus_master_status = inb((uint16_t)(dma_io_base + ATA_BUS_MASTER_STATUS));
+    outb((uint16_t)(dma_io_base + ATA_BUS_MASTER_COMMAND),
+        ATA_BUS_MASTER_READ_FROM_DISK);
+    outb((uint16_t)(dma_io_base + ATA_BUS_MASTER_STATUS),
+        (uint8_t)(bus_master_status | ATA_DMA_STATUS_ERROR |
+            ATA_DMA_STATUS_INTERRUPT));
+    if (!completed || !ata_dma_status_is_complete(bus_master_status)) {
+        return 0;
+    }
+    dma_memory_barrier();
+    for (index = 0U; index < byte_count; index++) {
+        destination[index] = bounce[index];
+    }
+    dma_transfers++;
+    return 1;
+}
+
+static int ata_read_dma_once(uint32_t lba, uint8_t count, void *buffer)
+{
+    uint8_t *destination = (uint8_t *)buffer;
+    unsigned int remaining = count;
+    unsigned int completed_sectors = 0U;
+
+    while (remaining != 0U) {
+        uint8_t chunk = remaining > ATA_DMA_MAX_SECTORS ?
+            ATA_DMA_MAX_SECTORS : (uint8_t)remaining;
+
+        if (!ata_read_dma_chunk(lba + completed_sectors, chunk,
+            destination + completed_sectors * ATA_SECTOR_SIZE)) {
+            return 0;
+        }
+        completed_sectors += chunk;
+        remaining -= chunk;
+    }
+    return 1;
+}
+
 static int valid_request(uint32_t lba, uint8_t count, const void *buffer)
 {
     if (!device_present || count == 0U || count > 128U || buffer == 0 ||
@@ -237,10 +432,16 @@ void ata_init(void)
     unsigned int index;
     uint8_t status;
 
+    if (dma_io_base != 0U || dma_bounce_physical != 0U ||
+        dma_prdt_physical != 0U) {
+        disable_dma_after_failure();
+    }
     device_present = 0;
     sectors = 0;
     last_status = 0;
     identify_type = 0;
+    identify_capabilities = 0U;
+    identify_multiword_dma = 0U;
     lba48_supported = 0;
     writes_protected = ATA_WRITES_PROTECTED_BY_DEFAULT;
     write_window_start = 0U;
@@ -248,6 +449,14 @@ void ata_init(void)
     block_device_reset(&primary_block_device);
     ata_irq_state_reset(&irq_state);
     request_active = 0;
+    dma_controller = 0;
+    dma_io_base = 0U;
+    dma_bounce_physical = 0U;
+    dma_prdt_physical = 0U;
+    dma_transfer_mode = 0U;
+    dma_enabled = 0;
+    dma_transfers = 0U;
+    dma_fallbacks = 0U;
     /* Polling mode: disable ATA IRQ delivery while commands are in flight. */
     outb(ATA_CONTROL, 0x02U);
     outb(ATA_DRIVE, 0xA0U);
@@ -264,6 +473,8 @@ void ata_init(void)
         identify[index] = inw(ATA_DATA);
     }
     identify_type = identify[0];
+    identify_capabilities = identify[49];
+    identify_multiword_dma = identify[63];
     if ((identify[49] & 0x0200U) == 0U) {
         return;
     }
@@ -310,7 +521,7 @@ unsigned int ata_sector_count(void)
     return sectors;
 }
 
-static int ata_read_sectors_once(uint32_t lba, uint8_t count, void *buffer)
+static int ata_read_pio_once(uint32_t lba, uint8_t count, void *buffer)
 {
     uint8_t *destination = (uint8_t *)buffer;
     unsigned int sector;
@@ -360,9 +571,13 @@ int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer)
         return 0;
     }
     for (attempt = 0U; attempt < 3U; attempt++) {
-        if (ata_read_sectors_once(lba, count, buffer)) {
+        if ((dma_enabled ? ata_read_dma_once(lba, count, buffer) :
+                ata_read_pio_once(lba, count, buffer))) {
             end_request();
             return 1;
+        }
+        if (dma_enabled) {
+            disable_dma_after_failure();
         }
         if (attempt + 1U < 3U) {
             ata_soft_reset();
@@ -484,6 +699,95 @@ int ata_enable_irq_mode(void)
 int ata_irq_mode_enabled(void)
 {
     return ata_irq_state_is_enabled(&irq_state);
+}
+
+int ata_enable_dma_mode(void)
+{
+    const struct pci_device *controller;
+    uint16_t io_base = 0U;
+    uint8_t transfer_mode = 0U;
+    uint32_t bounce;
+    uint32_t prdt;
+    uint8_t status;
+    int success = 0;
+
+    if (!device_present || !ata_irq_state_is_enabled(&irq_state) ||
+        dma_enabled ||
+        !ata_dma_select_multiword_mode(identify_capabilities,
+            identify_multiword_dma, &transfer_mode)) {
+        return 0;
+    }
+    controller = find_dma_controller(&io_base);
+    if (controller == 0 || !begin_request()) {
+        return 0;
+    }
+
+    bounce = pmm_alloc_block_below(ATA_DMA_MEMORY_LIMIT);
+    prdt = pmm_alloc_block_below(ATA_DMA_MEMORY_LIMIT);
+    if (bounce == 0U || prdt == 0U ||
+        !ata_dma_prepare_prd((struct ata_dma_prd *)prdt, bounce,
+            ATA_DMA_BOUNCE_BYTES)) {
+        goto done;
+    }
+    if (!pci_enable_ide_bus_master(controller)) {
+        (void)pci_disable_ide_bus_master(controller);
+        goto done;
+    }
+
+    dma_controller = controller;
+    dma_io_base = io_base;
+    dma_bounce_physical = bounce;
+    dma_prdt_physical = prdt;
+    dma_transfer_mode = transfer_mode;
+    stop_dma_engine();
+    if (!set_dma_transfer_mode(transfer_mode)) {
+        pci_disable_ide_bus_master(controller);
+        ata_soft_reset();
+        dma_controller = 0;
+        dma_io_base = 0U;
+        dma_bounce_physical = 0U;
+        dma_prdt_physical = 0U;
+        dma_transfer_mode = 0U;
+        goto done;
+    }
+    status = inb((uint16_t)(dma_io_base + ATA_BUS_MASTER_STATUS));
+    outb((uint16_t)(dma_io_base + ATA_BUS_MASTER_STATUS),
+        (uint8_t)(status | ATA_BUS_MASTER_DRIVE0_CAPABLE |
+            ATA_DMA_STATUS_ERROR | ATA_DMA_STATUS_INTERRUPT));
+    dma_enabled = 1;
+    success = 1;
+
+done:
+    if (!success) {
+        if (prdt != 0U) {
+            pmm_free_block(prdt);
+        }
+        if (bounce != 0U) {
+            pmm_free_block(bounce);
+        }
+    }
+    end_request();
+    return success;
+}
+
+int ata_dma_mode_enabled(void)
+{
+    return dma_enabled;
+}
+
+unsigned int ata_dma_transfer_mode(void)
+{
+    return dma_transfer_mode;
+}
+
+unsigned int ata_dma_transfer_count(void)
+{
+    return dma_transfers;
+}
+
+unsigned int ata_dma_fallback_count(void)
+{
+    return dma_fallbacks;
 }
 
 unsigned int ata_irq_count(void)

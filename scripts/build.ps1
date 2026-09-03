@@ -234,7 +234,7 @@ Invoke-CCompile -Source $serialSource -Output $serialObject -Includes @($include
 Invoke-CCompile -Source $keyboardSource -Output $keyboardObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'shell')) -FailureMessage 'Klavye surucusu derlenemedi.'
 Invoke-CCompile -Source $pciSource -Output $pciObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu')) -FailureMessage 'PCI surucusu derlenemedi.'
 Invoke-CCompile -Source $blockDeviceSource -Output $blockDeviceObject -Includes @($includeDirectory) -FailureMessage 'Blok aygit katmani derlenemedi.'
-Invoke-CCompile -Source $ataSource -Output $ataObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'drivers')) -FailureMessage 'ATA surucusu derlenemedi.'
+Invoke-CCompile -Source $ataSource -Output $ataObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'drivers'), (Join-Path $projectRoot 'memory')) -FailureMessage 'ATA surucusu derlenemedi.'
 Invoke-CCompile -Source $ataIrqStateSource -Output $ataIrqStateObject -Includes @((Join-Path $projectRoot 'drivers')) -FailureMessage 'ATA IRQ durum makinesi derlenemedi.'
 Invoke-CCompile -Source $ataDmaSource -Output $ataDmaObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'drivers')) -FailureMessage 'ATA DMA sozlesmesi derlenemedi.'
 Invoke-CCompile -Source $idtSource -Output $idtObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'process')) -FailureMessage 'IDT derlenemedi.'

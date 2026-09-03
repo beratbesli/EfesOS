@@ -105,8 +105,8 @@ $(PCI_OBJ): drivers/pci.c include/pci.h cpu/io.h | $(BUILD_DIR)
 $(BLOCK_DEVICE_OBJ): drivers/block_device.c include/block_device.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
-$(ATA_OBJ): drivers/ata.c drivers/ata_irq_state.h include/ata.h include/block_device.h cpu/io.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Icpu -Idrivers -c $< -o $@
+$(ATA_OBJ): drivers/ata.c drivers/ata_irq_state.h drivers/ata_dma.h include/ata.h include/block_device.h include/pci.h cpu/io.h memory/pmm.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Idrivers -Imemory -c $< -o $@
 
 $(ATA_IRQ_STATE_OBJ): drivers/ata_irq_state.c drivers/ata_irq_state.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Idrivers -c $< -o $@

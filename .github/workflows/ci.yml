@@ -103,6 +103,7 @@ jobs:
           grep -F "EfesOS: PCI devices discovered=" build/ci-serial.log
           grep -F "EfesOS: ATA primary-master present=" build/ci-serial.log
           grep -F "EfesOS: ATA IRQ mode enabled=" build/ci-serial.log
+          grep -F "EfesOS: ATA DMA mode enabled=" build/ci-serial.log
           grep -F "EfesOS: ATA write path fail-closed self-test passed." build/ci-serial.log
           grep -F "EfesOS: block device abstraction passed." build/ci-serial.log
           grep -F "EfesOS: FAT volume mounted=" build/ci-serial.log
@@ -143,6 +144,9 @@ jobs:
           grep -F "EfesOS: ATA IRQ completion self-test passed." build/ci-ata-irq-serial.log
           grep -F "EfesOS: ATA IRQ mode enabled=0x00000001" build/ci-ata-irq-serial.log
           grep -F "polling-fallbacks=0x00000000." build/ci-ata-irq-serial.log
+          grep -F "EfesOS: ATA DMA mode enabled=0x00000001" build/ci-ata-irq-serial.log
+          grep -F "EfesOS: ATA DMA/PIO data integrity self-test passed." build/ci-ata-irq-serial.log
+          grep -F "transfers=0x00000001 fallbacks=0x00000000." build/ci-ata-irq-serial.log
           if grep -F "KERNEL PANIC:" build/ci-ata-irq-serial.log; then exit 1; fi
       - name: QEMU PAE and NX smoke test
         run: |

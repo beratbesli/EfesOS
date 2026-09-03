@@ -312,22 +312,48 @@ void kernel_main(const struct boot_info *boot_info)
         kernel_panic("Unhandled PIC line was enabled.");
     }
     if (ata_present()) {
-        unsigned char irq_probe[ATA_SECTOR_SIZE];
+        unsigned int pio_probe_physical = pmm_alloc_block_below(0x00400000U);
+        unsigned int irq_probe_physical = pmm_alloc_block_below(0x00400000U);
+        unsigned char *pio_probe = (unsigned char *)pio_probe_physical;
+        unsigned char *irq_probe = (unsigned char *)irq_probe_physical;
+        unsigned char probe_sectors = ata_sector_count() >= 8U ? 8U : 1U;
+        unsigned int probe_bytes = (unsigned int)probe_sectors * ATA_SECTOR_SIZE;
         unsigned int irq_before;
+        unsigned int dma_before;
+        unsigned int byte_index;
         int irq_read_ok;
 
+        if (pio_probe_physical == 0U || irq_probe_physical == 0U) {
+            kernel_panic("ATA integrity probe allocation failed.");
+        }
+        if (!ata_read_sectors(0U, probe_sectors, pio_probe)) {
+            kernel_panic("ATA PIO reference read failed.");
+        }
         if (!idt_enable_irq_line(14U) || !idt_irq_line_enabled(14U) ||
             !ata_enable_irq_mode()) {
             kernel_panic("ATA IRQ14 setup failed.");
         }
-        irq_before = ata_irq_count();
         __asm__ volatile ("sti" : : : "memory");
-        irq_read_ok = ata_read_sectors(0U, 1U, irq_probe);
+        (void)ata_enable_dma_mode();
+        irq_before = ata_irq_count();
+        dma_before = ata_dma_transfer_count();
+        irq_read_ok = ata_read_sectors(0U, probe_sectors, irq_probe);
         __asm__ volatile ("cli" : : : "memory");
         if (!irq_read_ok || ata_irq_count() == irq_before) {
             kernel_panic("ATA IRQ completion self-test failed.");
         }
+        for (byte_index = 0U; byte_index < probe_bytes; byte_index++) {
+            if (pio_probe[byte_index] != irq_probe[byte_index]) {
+                kernel_panic("ATA DMA/PIO data mismatch.");
+            }
+        }
+        pmm_free_block(irq_probe_physical);
+        pmm_free_block(pio_probe_physical);
         serial_write("EfesOS: ATA IRQ completion self-test passed.\n");
+        if (ata_dma_mode_enabled() &&
+            ata_dma_transfer_count() != dma_before) {
+            serial_write("EfesOS: ATA DMA/PIO data integrity self-test passed.\n");
+        }
     }
     serial_write("EfesOS: ATA IRQ mode enabled=");
     serial_write_hex((unsigned int)ata_irq_mode_enabled());
@@ -335,6 +361,15 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write_hex(ata_irq_count());
     serial_write(" polling-fallbacks=");
     serial_write_hex(ata_irq_fallback_count());
+    serial_write(".\n");
+    serial_write("EfesOS: ATA DMA mode enabled=");
+    serial_write_hex((unsigned int)ata_dma_mode_enabled());
+    serial_write(" transfer-mode=");
+    serial_write_hex(ata_dma_transfer_mode());
+    serial_write(" transfers=");
+    serial_write_hex(ata_dma_transfer_count());
+    serial_write(" fallbacks=");
+    serial_write_hex(ata_dma_fallback_count());
     serial_write(".\n");
     syscall_init();
     __asm__ volatile ("int $0x03");

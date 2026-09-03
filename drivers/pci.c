@@ -179,7 +179,8 @@ int pci_enable_ide_bus_master(const struct pci_device *device)
         (device->prog_if & 0x80U) == 0U ||
         (device->prog_if & 0x01U) != 0U ||
         device->bars[4].type != PCI_BAR_IO ||
-        device->bars[4].base_low == 0U ||
+        (device->bars[4].flags & 1U) == 0U ||
+        device->bars[4].base_low < 0x0100U ||
         device->bars[4].base_low > 0xFFF0U ||
         (device->bars[4].base_low & 0x0FU) != 0U) {
         return 0;
@@ -201,6 +202,32 @@ int pci_enable_ide_bus_master(const struct pci_device *device)
     command = pci_config_read_word(device->bus, device->slot,
         device->function, 0x04U);
     return (command & 0x0005U) == 0x0005U;
+}
+
+int pci_disable_ide_bus_master(const struct pci_device *device)
+{
+    unsigned int index;
+    uint16_t command;
+
+    if (device == 0) {
+        return 0;
+    }
+    for (index = 0U; index < device_count; index++) {
+        if (device == &devices[index]) {
+            break;
+        }
+    }
+    if (index == device_count) {
+        return 0;
+    }
+    command = pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U);
+    command &= (uint16_t)~0x0004U;
+    pci_config_write_word(device->bus, device->slot,
+        device->function, 0x04U, command);
+    command = pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U);
+    return (command & 0x0004U) == 0U;
 }
 
 unsigned int pci_device_count(void)
