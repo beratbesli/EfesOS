@@ -110,8 +110,8 @@ $(SERIAL_OBJ): drivers/serial.c include/serial.h cpu/io.h | $(BUILD_DIR)
 $(KEYBOARD_OBJ): drivers/keyboard.c include/keyboard.h kernel/splash.h shell/shell.h include/vga.h cpu/io.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Ishell -c $< -o $@
 
-$(PCI_OBJ): drivers/pci.c include/pci.h cpu/io.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -Iinclude -Icpu -c $< -o $@
+$(PCI_OBJ): drivers/pci.c drivers/pci_msi.h include/pci.h cpu/io.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Idrivers -c $< -o $@
 
 $(PCI_LAYOUT_OBJ): drivers/pci_layout.c include/pci.h cpu/io.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -c $< -o $@

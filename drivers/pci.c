@@ -1,10 +1,36 @@
 #include "pci.h"
+#include "pci_msi.h"
 
 #define PCI_CONFIG_ADDRESS 0x0CF8U
 #define PCI_CONFIG_DATA 0x0CFCU
 
 static struct pci_device devices[PCI_MAX_DEVICES];
 static unsigned int device_count;
+static struct pci_msi_saved_state ahci_msi_state;
+static uint8_t ahci_msi_bus;
+static uint8_t ahci_msi_slot;
+static uint8_t ahci_msi_function;
+
+struct pci_msi_device_context {
+    uint8_t bus;
+    uint8_t slot;
+    uint8_t function;
+};
+
+static unsigned int interrupt_save(void)
+{
+    unsigned int flags;
+
+    __asm__ volatile("pushfl; popl %0; cli" : "=r"(flags) : : "memory");
+    return flags;
+}
+
+static void interrupt_restore(unsigned int flags)
+{
+    if ((flags & (1U << 9U)) != 0U) {
+        __asm__ volatile("sti" : : : "memory");
+    }
+}
 
 static uint32_t pci_config_read(uint8_t bus, uint8_t slot, uint8_t function, uint8_t offset)
 {
@@ -36,6 +62,84 @@ static void pci_config_write_word(uint8_t bus, uint8_t slot,
 
     outl(PCI_CONFIG_ADDRESS, address);
     outw((uint16_t)(PCI_CONFIG_DATA + (offset & 2U)), value);
+}
+
+static void pci_config_write_dword(uint8_t bus, uint8_t slot,
+    uint8_t function, uint8_t offset, uint32_t value)
+{
+    uint32_t address = 0x80000000U |
+        ((uint32_t)bus << 16U) |
+        ((uint32_t)slot << 11U) |
+        ((uint32_t)function << 8U) |
+        ((uint32_t)offset & 0xFCU);
+
+    outl(PCI_CONFIG_ADDRESS, address);
+    outl(PCI_CONFIG_DATA, value);
+}
+
+static uint16_t pci_msi_read_word(void *context, uint8_t offset)
+{
+    const struct pci_msi_device_context *device =
+        (const struct pci_msi_device_context *)context;
+
+    return pci_config_read_word(device->bus, device->slot,
+        device->function, offset);
+}
+
+static uint32_t pci_msi_read_dword(void *context, uint8_t offset)
+{
+    const struct pci_msi_device_context *device =
+        (const struct pci_msi_device_context *)context;
+
+    return pci_config_read(device->bus, device->slot,
+        device->function, offset);
+}
+
+static void pci_msi_write_word(void *context, uint8_t offset, uint16_t value)
+{
+    const struct pci_msi_device_context *device =
+        (const struct pci_msi_device_context *)context;
+
+    pci_config_write_word(device->bus, device->slot,
+        device->function, offset, value);
+}
+
+static void pci_msi_write_dword(void *context, uint8_t offset, uint32_t value)
+{
+    const struct pci_msi_device_context *device =
+        (const struct pci_msi_device_context *)context;
+
+    pci_config_write_dword(device->bus, device->slot,
+        device->function, offset, value);
+}
+
+static struct pci_msi_register_io pci_msi_io(
+    struct pci_msi_device_context *context)
+{
+    struct pci_msi_register_io io;
+
+    io.context = context;
+    io.read_word = pci_msi_read_word;
+    io.read_dword = pci_msi_read_dword;
+    io.write_word = pci_msi_write_word;
+    io.write_dword = pci_msi_write_dword;
+    return io;
+}
+
+static void pci_read_configuration(const struct pci_device *device,
+    uint8_t *configuration)
+{
+    unsigned int offset;
+
+    for (offset = 0U; offset < 256U; offset += 4U) {
+        uint32_t value = pci_config_read(device->bus, device->slot,
+            device->function, (uint8_t)offset);
+
+        configuration[offset] = (uint8_t)value;
+        configuration[offset + 1U] = (uint8_t)(value >> 8U);
+        configuration[offset + 2U] = (uint8_t)(value >> 16U);
+        configuration[offset + 3U] = (uint8_t)(value >> 24U);
+    }
 }
 
 static int pci_is_present(uint8_t bus, uint8_t slot, uint8_t function)
@@ -342,15 +446,90 @@ int pci_enable_ahci_bus_master(const struct pci_device *device)
         device->function, 0x04U) & 0x0006U) == 0x0006U;
 }
 
+int pci_enable_ahci_msi(const struct pci_device *device,
+    unsigned int apic_id, unsigned int vector)
+{
+    uint8_t configuration[256];
+    struct pci_msi_layout layout;
+    struct pci_msi_device_context context;
+    struct pci_msi_register_io io;
+    uint32_t address;
+    uint16_t data;
+    uint32_t base;
+    unsigned int flags;
+    int result;
+
+    flags = interrupt_save();
+    if (ahci_msi_state.valid != 0U || !pci_device_is_recorded(device) ||
+        !pci_ahci_mmio_base(device, &base) ||
+        !pci_msi_xapic_address(apic_id, &address) ||
+        !pci_msi_fixed_data(vector, &data)) {
+        interrupt_restore(flags);
+        return 0;
+    }
+    pci_read_configuration(device, configuration);
+    if (pci_msi_parse_layout(configuration, sizeof(configuration), &layout) !=
+            PCI_MSI_PARSE_FOUND) {
+        interrupt_restore(flags);
+        return 0;
+    }
+
+    context.bus = device->bus;
+    context.slot = device->slot;
+    context.function = device->function;
+    io = pci_msi_io(&context);
+    result = pci_msi_program(&layout, &io, address, data,
+        &ahci_msi_state);
+    if (ahci_msi_state.valid != 0U) {
+        ahci_msi_bus = device->bus;
+        ahci_msi_slot = device->slot;
+        ahci_msi_function = device->function;
+    }
+    interrupt_restore(flags);
+    return result;
+}
+
+int pci_disable_ahci_msi(const struct pci_device *device)
+{
+    struct pci_msi_device_context context;
+    struct pci_msi_register_io io;
+    unsigned int flags;
+    int result;
+
+    flags = interrupt_save();
+    if (!pci_device_is_recorded(device)) {
+        interrupt_restore(flags);
+        return 0;
+    }
+    if (ahci_msi_state.valid == 0U) {
+        interrupt_restore(flags);
+        return 1;
+    }
+    if (device->bus != ahci_msi_bus || device->slot != ahci_msi_slot ||
+        device->function != ahci_msi_function) {
+        interrupt_restore(flags);
+        return 0;
+    }
+    context.bus = device->bus;
+    context.slot = device->slot;
+    context.function = device->function;
+    io = pci_msi_io(&context);
+    result = pci_msi_restore(&io, &ahci_msi_state);
+    interrupt_restore(flags);
+    return result;
+}
+
 int pci_quiesce_ahci_controller(const struct pci_device *device,
     uint16_t original_command)
 {
     uint16_t command;
     uint16_t quiesced;
+    int msi_quiesced;
 
     if (!pci_device_is_recorded(device)) {
         return 0;
     }
+    msi_quiesced = pci_disable_ahci_msi(device);
     command = pci_config_read_word(device->bus, device->slot,
         device->function, 0x04U);
     command &= (uint16_t)~0x0004U;
@@ -366,7 +545,8 @@ int pci_quiesce_ahci_controller(const struct pci_device *device,
         0x04U, quiesced);
     command = pci_config_read_word(device->bus, device->slot,
         device->function, 0x04U);
-    return (command & 0x0007U) == (quiesced & 0x0007U);
+    return msi_quiesced &&
+        (command & 0x0007U) == (quiesced & 0x0007U);
 }
 
 unsigned int pci_device_count(void)

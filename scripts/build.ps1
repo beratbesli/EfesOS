@@ -254,7 +254,7 @@ Invoke-CCompile -Source $splashSource -Output $splashObject -Includes @($include
 Invoke-CCompile -Source $vgaSource -Output $vgaObject -Includes @($includeDirectory) -FailureMessage 'VGA surucusu derlenemedi.'
 Invoke-CCompile -Source $serialSource -Output $serialObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu')) -FailureMessage 'Seri port surucusu derlenemedi.'
 Invoke-CCompile -Source $keyboardSource -Output $keyboardObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'kernel'), (Join-Path $projectRoot 'shell')) -FailureMessage 'Klavye surucusu derlenemedi.'
-Invoke-CCompile -Source $pciSource -Output $pciObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu')) -FailureMessage 'PCI surucusu derlenemedi.'
+Invoke-CCompile -Source $pciSource -Output $pciObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'drivers')) -FailureMessage 'PCI surucusu derlenemedi.'
 Invoke-CCompile -Source $pciLayoutSource -Output $pciLayoutObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu')) -FailureMessage 'PCI AHCI yerlesim dogrulayicisi derlenemedi.'
 Invoke-CCompile -Source $pciMsiSource -Output $pciMsiObject -Includes @((Join-Path $projectRoot 'drivers')) -FailureMessage 'PCI MSI yetenek ayrıştırıcısı derlenemedi.'
 Invoke-CCompile -Source $ahciLayoutSource -Output $ahciLayoutObject -Includes @($includeDirectory, (Join-Path $projectRoot 'cpu'), (Join-Path $projectRoot 'drivers')) -FailureMessage 'AHCI komut yerlesimi derlenemedi.'

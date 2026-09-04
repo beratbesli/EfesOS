@@ -46,6 +46,9 @@ const struct pci_device *pci_ahci_device_at(unsigned int index);
 int pci_prepare_ahci_controller(const struct pci_device *device,
     uint16_t *original_command);
 int pci_enable_ahci_bus_master(const struct pci_device *device);
+int pci_enable_ahci_msi(const struct pci_device *device,
+    unsigned int apic_id, unsigned int vector);
+int pci_disable_ahci_msi(const struct pci_device *device);
 int pci_quiesce_ahci_controller(const struct pci_device *device,
     uint16_t original_command);
 unsigned int pci_device_count(void);
