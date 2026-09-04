@@ -12,10 +12,10 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 
 - Retried two-stage BIOS bootloader with A20 verification and a 1.44 MiB floppy image
 - BIOS E820 memory map handoff, deterministic `.bss` initialization, strict metadata validation and reserved-over-usable overlap normalization
-- Early CPUID capability probe reports PAE/NX/TSC support; PAE paging and hardware NX are enabled when supported, with a legacy fallback
-- 32-bit protected mode, GDT, vector-aware IDT, PIC, PIT and buffered hardware keyboard input
+- Early CPUID capability probe reports PAE/NX/TSC/RDRAND/MSR/APIC/x2APIC support; PAE paging and hardware NX are enabled when supported, with a legacy fallback
+- 32-bit protected mode, GDT, vector-aware IDT, validated xAPIC/IOAPIC routing for IRQ0/IRQ1/IRQ14, dual-8259 PIC fallback, PIT and buffered hardware keyboard input
 - Stable CMOS RTC wall-clock reads with UIP/format/calendar validation and a `date` shell command
-- Bounded ACPI RSDP/RSDT/XSDT discovery with checksum validation and guarded HPET table parsing
+- Bounded ACPI RSDP/RSDT/XSDT discovery with checksum validation plus guarded MADT topology/interrupt-override and HPET table parsing
 - Validated HPET monotonic clock with uncached MMIO, nanosecond conversion, 32-bit counter-wrap maintenance and an automatic PIT fallback
 - Preemptive kernel-thread scheduler with guarded per-task stacks and timer-driven context switching
 - Bounded priority time slices with explicit voluntary-yield handling
@@ -115,12 +115,14 @@ Run the bounded ACPI table parser and HPET time-conversion tests:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\acpi-self-test.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\madt-self-test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\hpet-self-test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -RequireHpet
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableAcpi
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableApic
 ```
 
-The HPET profile verifies the live MMIO counter; the ACPI-disabled profile verifies that the existing PIT path remains bootable.
+The HPET profile verifies the live MMIO counter. The ACPI-disabled and APIC-disabled profiles verify that PIT scheduling and the masked-PIC fallback remain bootable when firmware tables or APIC capability are unavailable.
 
 Run the deterministic boot metadata, E820, ELF and FAT property-fuzz suite after changing any boot or parser boundary:
 
@@ -219,7 +221,7 @@ Snake uses `W`, `A`, `S`, `D` to move and `Q` to exit. Slot uses Space to spin a
 
 ```text
 boot/       BIOS stage-1 and stage-2 loaders
-cpu/        IDT, PIC, PIT and interrupt stubs
+cpu/        IDT, xAPIC/IOAPIC, PIC/PIT and interrupt stubs
 drivers/    VGA, keyboard, RTC, ACPI/HPET, PCI, ATA and generic block-device drivers
 fs/         In-memory filesystem
 games/      Snake and slot game logic

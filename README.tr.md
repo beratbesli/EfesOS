@@ -12,10 +12,10 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 
 - A20 doğrulamalı, yeniden deneyen iki aşamalı BIOS bootloader ve 1.44 MiB floppy imajı
 - BIOS E820 bellek haritası aktarımı, deterministik `.bss` başlangıcı, sıkı metadata doğrulaması ve reserved-over-usable çakışma normalizasyonu
-- Erken CPUID yetenek yoklaması PAE/NX/TSC desteğini raporlar; destek varsa PAE sayfalama ve donanımsal NX etkinleşir, yoksa legacy fallback kullanılır
-- 32-bit protected mode, GDT, vektör duyarlı IDT, PIC, PIT ve tamponlanmış donanım klavye girişi
+- Erken CPUID yetenek yoklaması PAE/NX/TSC/RDRAND/MSR/APIC/x2APIC desteğini raporlar; destek varsa PAE sayfalama ve donanımsal NX etkinleşir, yoksa legacy fallback kullanılır
+- 32-bit protected mode, GDT, vektör duyarlı IDT, IRQ0/IRQ1/IRQ14 için doğrulanmış xAPIC/IOAPIC yönlendirmesi, dual-8259 PIC geri dönüşü, PIT ve tamponlanmış donanım klavye girişi
 - UIP/biçim/takvim doğrulamalı kararlı CMOS RTC duvar saati okuması ve `date` shell komutu
-- Checksum doğrulamalı, sınırlandırılmış ACPI RSDP/RSDT/XSDT keşfi ve korumalı HPET tablo ayrıştırması
+- Checksum doğrulamalı, sınırlandırılmış ACPI RSDP/RSDT/XSDT keşfi ile korumalı MADT topoloji/kesme-override ve HPET tablo ayrıştırması
 - Önbelleksiz MMIO, nanosaniye dönüşümü, 32-bit sayaç sarım bakımı ve otomatik PIT geri dönüşü olan doğrulanmış HPET monoton saati
 - Koruma sayfalı görev yığınları ve PIT tabanlı bağlam değişimi olan öncelikli kernel-thread scheduler
 - Açık `yield` desteğiyle sınırlı öncelik zaman dilimleri
@@ -115,12 +115,14 @@ Sınırlandırılmış ACPI tablo ayrıştırıcısını ve HPET zaman dönüş�
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\acpi-self-test.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\madt-self-test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\hpet-self-test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -RequireHpet
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableAcpi
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableApic
 ```
 
-HPET profili canlı MMIO sayacını; ACPI kapalı profil ise mevcut PIT yolunun önyüklenebilir kaldığını doğrular.
+HPET profili canlı MMIO sayacını doğrular. ACPI ve APIC kapalı profiller, firmware tabloları veya APIC yeteneği olmadığında PIT scheduling ile maskeli-PIC geri dönüşünün önyüklenebilir kaldığını doğrular.
 
 Boot veya parser sınırı değişikliklerinden sonra deterministik boot metadata, E820, ELF ve FAT property-fuzz paketini çalıştır:
 
@@ -219,7 +221,7 @@ Snake için `W`, `A`, `S`, `D` tuşlarıyla hareket edilir; çıkış `Q` tuşud
 
 ```text
 boot/       BIOS stage-1 ve stage-2 yükleyicileri
-cpu/        IDT, PIC, PIT ve kesme stub'ları
+cpu/        IDT, xAPIC/IOAPIC, PIC/PIT ve kesme stub'ları
 drivers/    VGA, klavye, RTC, ACPI/HPET, PCI, ATA ve genel blok aygıt sürücüleri
 fs/         Bellek içi dosya sistemi
 games/      Snake ve slot oyun mantığı
