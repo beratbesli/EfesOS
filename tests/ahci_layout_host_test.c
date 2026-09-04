@@ -2,7 +2,13 @@
 
 static int test_port_selection(void)
 {
-    return ahci_port_is_usable_sata(1U, 0U, 0x00000103U,
+    return ahci_comreset_assert_control(0xABCDEF50U) == 0xABCDEF51U &&
+        ahci_comreset_release_control(0xABCDEF5FU) == 0xABCDEF50U &&
+        ahci_link_is_established(0x00000103U, AHCI_ATA_SIGNATURE) &&
+        !ahci_link_is_established(0x00000101U, AHCI_ATA_SIGNATURE) &&
+        !ahci_link_is_established(0x00000203U, AHCI_ATA_SIGNATURE) &&
+        !ahci_link_is_established(0x00000103U, 0xEB140101U) &&
+        ahci_port_is_usable_sata(1U, 0U, 0x00000103U,
             AHCI_ATA_SIGNATURE) &&
         !ahci_port_is_usable_sata(0U, 0U, 0x00000103U,
             AHCI_ATA_SIGNATURE) &&
@@ -13,6 +19,41 @@ static int test_port_selection(void)
         !ahci_port_is_usable_sata(1U, 0U, 0x00000203U,
             AHCI_ATA_SIGNATURE) &&
         !ahci_port_is_usable_sata(1U, 0U, 0x00000103U, 0xEB140101U);
+}
+
+static int test_identity(void)
+{
+    uint16_t baseline[256] = {0};
+    uint16_t candidate[256] = {0};
+    unsigned int index;
+
+    baseline[0] = 0x0040U;
+    baseline[10] = 0x534EU;
+    baseline[23] = 0x4657U;
+    baseline[27] = 0x4D4FU;
+    baseline[49] = 0x0200U;
+    baseline[60] = 0x3456U;
+    baseline[61] = 0x0012U;
+    for (index = 0U; index < 256U; index++) {
+        candidate[index] = baseline[index];
+    }
+    if (!ahci_identify_same_device(baseline, candidate) ||
+        ahci_identify_same_device(0, candidate) ||
+        ahci_identify_same_device(baseline, 0)) {
+        return 0;
+    }
+    candidate[27] ^= 1U;
+    if (ahci_identify_same_device(baseline, candidate)) {
+        return 0;
+    }
+    candidate[27] ^= 1U;
+    candidate[60]++;
+    if (ahci_identify_same_device(baseline, candidate)) {
+        return 0;
+    }
+    candidate[60]--;
+    candidate[85] ^= 0xFFFFU;
+    return ahci_identify_same_device(baseline, candidate);
 }
 
 static int test_identify(void)
@@ -90,5 +131,6 @@ static int test_commands(void)
 
 int main(void)
 {
-    return test_port_selection() && test_identify() && test_commands() ? 0 : 1;
+    return test_port_selection() && test_identify() && test_identity() &&
+        test_commands() ? 0 : 1;
 }

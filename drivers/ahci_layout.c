@@ -25,6 +25,19 @@ static void clear_bytes(void *memory, unsigned int length)
     }
 }
 
+static int words_equal(const uint16_t *left, const uint16_t *right,
+    unsigned int first, unsigned int count)
+{
+    unsigned int index;
+
+    for (index = 0U; index < count; index++) {
+        if (left[first + index] != right[first + index]) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static int prepare_data_command(struct ahci_command_header *header,
     struct ahci_command_table *table, uint32_t table_physical,
     uint32_t data_physical, unsigned int byte_count)
@@ -51,11 +64,28 @@ static int prepare_data_command(struct ahci_command_header *header,
 int ahci_port_is_usable_sata(uint32_t implemented_ports,
     unsigned int port, uint32_t sata_status, uint32_t signature)
 {
+    return port < 32U && (implemented_ports & (1U << port)) != 0U &&
+        ahci_link_is_established(sata_status, signature);
+}
+
+uint32_t ahci_comreset_assert_control(uint32_t sata_control)
+{
+    return (sata_control & ~AHCI_SCTL_DETECTION_MASK) |
+        AHCI_SCTL_DETECTION_COMRESET;
+}
+
+uint32_t ahci_comreset_release_control(uint32_t sata_control)
+{
+    return sata_control & ~AHCI_SCTL_DETECTION_MASK;
+}
+
+int ahci_link_is_established(uint32_t sata_status, uint32_t signature)
+{
     unsigned int detection = sata_status & 0x0FU;
     unsigned int power = (sata_status >> 8U) & 0x0FU;
 
-    return port < 32U && (implemented_ports & (1U << port)) != 0U &&
-        detection == 3U && power == 1U && signature == AHCI_ATA_SIGNATURE;
+    return detection == 3U && power == 1U &&
+        signature == AHCI_ATA_SIGNATURE;
 }
 
 int ahci_identify_capacity(const uint16_t *identify, uint32_t *sector_count,
@@ -87,6 +117,29 @@ int ahci_identify_capacity(const uint16_t *identify, uint32_t *sector_count,
 
     *sector_count = count;
     *lba48_supported = supports_lba48;
+    return 1;
+}
+
+int ahci_identify_same_device(const uint16_t *baseline,
+    const uint16_t *candidate)
+{
+    uint32_t baseline_sectors;
+    uint32_t candidate_sectors;
+    int baseline_lba48;
+    int candidate_lba48;
+
+    if (baseline == 0 || candidate == 0 ||
+        !ahci_identify_capacity(baseline, &baseline_sectors,
+            &baseline_lba48) ||
+        !ahci_identify_capacity(candidate, &candidate_sectors,
+            &candidate_lba48) ||
+        baseline_sectors != candidate_sectors ||
+        baseline_lba48 != candidate_lba48 ||
+        baseline[0] != candidate[0] || baseline[49] != candidate[49] ||
+        !words_equal(baseline, candidate, 10U, 10U) ||
+        !words_equal(baseline, candidate, 23U, 24U)) {
+        return 0;
+    }
     return 1;
 }
 

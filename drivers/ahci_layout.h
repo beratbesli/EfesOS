@@ -6,6 +6,8 @@
 #define AHCI_SECTOR_SIZE 512U
 #define AHCI_MAX_TRANSFER_SECTORS 8U
 #define AHCI_ATA_SIGNATURE 0x00000101U
+#define AHCI_SCTL_DETECTION_MASK 0x0000000FU
+#define AHCI_SCTL_DETECTION_COMRESET 0x00000001U
 
 struct ahci_command_header {
     uint16_t flags;
@@ -32,8 +34,13 @@ struct ahci_command_table {
 
 int ahci_port_is_usable_sata(uint32_t implemented_ports,
     unsigned int port, uint32_t sata_status, uint32_t signature);
+uint32_t ahci_comreset_assert_control(uint32_t sata_control);
+uint32_t ahci_comreset_release_control(uint32_t sata_control);
+int ahci_link_is_established(uint32_t sata_status, uint32_t signature);
 int ahci_identify_capacity(const uint16_t *identify, uint32_t *sector_count,
     int *lba48_supported);
+int ahci_identify_same_device(const uint16_t *baseline,
+    const uint16_t *candidate);
 int ahci_build_identify_command(struct ahci_command_header *header,
     struct ahci_command_table *table, uint32_t table_physical,
     uint32_t data_physical);
