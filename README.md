@@ -121,9 +121,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Re
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableHpet
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableAcpi
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableApic
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Q35 -RequireHpet
 ```
 
-The HPET profile verifies both the live MMIO counter and the calibrated local APIC scheduler timer. The HPET-disabled profile verifies PIT delivery through the IOAPIC; the ACPI-disabled and APIC-disabled profiles verify the masked-PIC fallback.
+The HPET profile verifies both the live MMIO counter and the calibrated local APIC scheduler timer. The HPET-disabled profile verifies PIT delivery through the IOAPIC; the ACPI-disabled and APIC-disabled profiles verify the masked-PIC fallback. The Q35 profile verifies the ACPI/MADT/IOAPIC/HPET and scheduler paths on the newer ICH9 platform model. EfesOS does not yet include an AHCI driver, so an extra Q35 SATA disk is intentionally outside the supported storage path; use the default i440FX/PIIX IDE profile for the ATA disk tests.
 
 Run the deterministic boot metadata, E820, ELF and FAT property-fuzz suite after changing any boot or parser boundary:
 

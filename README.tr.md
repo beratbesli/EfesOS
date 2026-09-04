@@ -121,9 +121,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Re
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableHpet
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableAcpi
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableApic
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Q35 -RequireHpet
 ```
 
-HPET profili canlı MMIO sayacıyla birlikte kalibre edilmiş local APIC scheduler timer’ını doğrular. HPET kapalı profil PIT’in IOAPIC üzerinden teslimini; ACPI ve APIC kapalı profiller ise maskeli-PIC geri dönüşünü doğrular.
+HPET profili canlı MMIO sayacıyla birlikte kalibre edilmiş local APIC scheduler timer’ını doğrular. HPET kapalı profil PIT’in IOAPIC üzerinden teslimini; ACPI ve APIC kapalı profiller ise maskeli-PIC geri dönüşünü doğrular. Q35 profili daha yeni ICH9 platform modelinde ACPI/MADT/IOAPIC/HPET ve scheduler yollarını doğrular. EfesOS henüz AHCI sürücüsü içermediğinden Q35’e eklenen SATA disk desteklenen depolama yolunun dışındadır; ATA disk testleri için varsayılan i440FX/PIIX IDE profili kullanılmalıdır.
 
 Boot veya parser sınırı değişikliklerinden sonra deterministik boot metadata, E820, ELF ve FAT property-fuzz paketini çalıştır:
 
