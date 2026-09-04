@@ -36,6 +36,7 @@ PCI_OBJ := $(BUILD_DIR)/pci.o
 PCI_LAYOUT_OBJ := $(BUILD_DIR)/pci_layout.o
 PCI_MSI_OBJ := $(BUILD_DIR)/pci_msi.o
 AHCI_LAYOUT_OBJ := $(BUILD_DIR)/ahci_layout.o
+AHCI_DEVICE_TABLE_OBJ := $(BUILD_DIR)/ahci_device_table.o
 AHCI_IRQ_STATE_OBJ := $(BUILD_DIR)/ahci_irq_state.o
 AHCI_RECOVERY_STATE_OBJ := $(BUILD_DIR)/ahci_recovery_state.o
 AHCI_OBJ := $(BUILD_DIR)/ahci.o
@@ -122,6 +123,9 @@ $(PCI_MSI_OBJ): drivers/pci_msi.c drivers/pci_msi.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Idrivers -c $< -o $@
 
 $(AHCI_LAYOUT_OBJ): drivers/ahci_layout.c drivers/ahci_layout.h include/pci.h cpu/io.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Iinclude -Icpu -Idrivers -c $< -o $@
+
+$(AHCI_DEVICE_TABLE_OBJ): drivers/ahci_device_table.c drivers/ahci_device_table.h drivers/ahci_layout.h include/block_device.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Idrivers -c $< -o $@
 
 $(AHCI_IRQ_STATE_OBJ): drivers/ahci_irq_state.c drivers/ahci_irq_state.h | $(BUILD_DIR)
@@ -229,8 +233,8 @@ $(GAMES_OBJ): games/games.c games/games.h cpu/pit.h include/vga.h | $(BUILD_DIR)
 $(SHELL_OBJ): shell/shell.c shell/shell.h include/ata.h include/keyboard.h include/language.h include/pci.h include/rtc.h include/serial.h include/vga.h cpu/pit.h cpu/system.h fs/ramfs.h fs/persistent.h fs/vfs.h games/games.h memory/heap.h memory/pmm.h process/programs.h process/scheduler.h process/user_process.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ifs -Igames -Imemory -Iprocess -Ishell -c $< -o $@
 
-$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(PCI_LAYOUT_OBJ) $(PCI_MSI_OBJ) $(AHCI_LAYOUT_OBJ) $(AHCI_IRQ_STATE_OBJ) $(AHCI_RECOVERY_STATE_OBJ) $(AHCI_OBJ) $(BLOCK_DEVICE_OBJ) $(ATA_OBJ) $(ATA_IRQ_STATE_OBJ) $(ATA_DMA_OBJ) $(RTC_OBJ) $(RTC_TIME_OBJ) $(ACPI_TABLES_OBJ) $(ACPI_OBJ) $(HPET_TIME_OBJ) $(HPET_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(FEATURES_OBJ) $(APIC_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(E820_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(PERSISTENT_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
-	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(PCI_LAYOUT_OBJ) $(PCI_MSI_OBJ) $(AHCI_LAYOUT_OBJ) $(AHCI_IRQ_STATE_OBJ) $(AHCI_RECOVERY_STATE_OBJ) $(AHCI_OBJ) $(BLOCK_DEVICE_OBJ) $(ATA_OBJ) $(ATA_IRQ_STATE_OBJ) $(ATA_DMA_OBJ) $(RTC_OBJ) $(RTC_TIME_OBJ) $(ACPI_TABLES_OBJ) $(ACPI_OBJ) $(HPET_TIME_OBJ) $(HPET_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(FEATURES_OBJ) $(APIC_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(E820_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(PERSISTENT_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
+$(KERNEL_ELF): $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(PCI_LAYOUT_OBJ) $(PCI_MSI_OBJ) $(AHCI_LAYOUT_OBJ) $(AHCI_DEVICE_TABLE_OBJ) $(AHCI_IRQ_STATE_OBJ) $(AHCI_RECOVERY_STATE_OBJ) $(AHCI_OBJ) $(BLOCK_DEVICE_OBJ) $(ATA_OBJ) $(ATA_IRQ_STATE_OBJ) $(ATA_DMA_OBJ) $(RTC_OBJ) $(RTC_TIME_OBJ) $(ACPI_TABLES_OBJ) $(ACPI_OBJ) $(HPET_TIME_OBJ) $(HPET_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(FEATURES_OBJ) $(APIC_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(E820_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(PERSISTENT_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ) kernel/linker.ld
+	$(LD) -m elf_i386 -T kernel/linker.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MAIN_OBJ) $(PANIC_OBJ) $(SYSCALL_OBJ) $(IPC_OBJ) $(LANGUAGE_OBJ) $(SPLASH_OBJ) $(VGA_OBJ) $(SERIAL_OBJ) $(KEYBOARD_OBJ) $(PCI_OBJ) $(PCI_LAYOUT_OBJ) $(PCI_MSI_OBJ) $(AHCI_LAYOUT_OBJ) $(AHCI_DEVICE_TABLE_OBJ) $(AHCI_IRQ_STATE_OBJ) $(AHCI_RECOVERY_STATE_OBJ) $(AHCI_OBJ) $(BLOCK_DEVICE_OBJ) $(ATA_OBJ) $(ATA_IRQ_STATE_OBJ) $(ATA_DMA_OBJ) $(RTC_OBJ) $(RTC_TIME_OBJ) $(ACPI_TABLES_OBJ) $(ACPI_OBJ) $(HPET_TIME_OBJ) $(HPET_OBJ) $(IDT_OBJ) $(PIT_OBJ) $(SYSTEM_OBJ) $(FEATURES_OBJ) $(APIC_OBJ) $(INTERRUPTS_OBJ) $(PMM_OBJ) $(E820_OBJ) $(PAGING_OBJ) $(HEAP_OBJ) $(SCHEDULER_OBJ) $(USER_PROCESS_OBJ) $(ELF_LOADER_OBJ) $(USER_DEMO_OBJ) $(PROGRAMS_OBJ) $(RAMFS_OBJ) $(JOURNAL_OBJ) $(PERSISTENT_OBJ) $(FAT_OBJ) $(VFS_OBJ) $(GAMES_OBJ) $(SHELL_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $< $@

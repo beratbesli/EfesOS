@@ -62,6 +62,8 @@ jobs:
         run: clang -std=c11 -Wall -Wextra -Werror -Idrivers tests/pci_msi_host_test.c drivers/pci_msi.c -o build/pci-msi-host-test && build/pci-msi-host-test
       - name: AHCI command layout host test
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude -Idrivers tests/ahci_layout_host_test.c drivers/ahci_layout.c -o build/ahci-layout-host-test && build/ahci-layout-host-test
+      - name: AHCI device table host test
+        run: clang -std=c11 -Wall -Wextra -Werror -Iinclude -Idrivers tests/ahci_device_table_host_test.c drivers/ahci_device_table.c drivers/ahci_layout.c drivers/block_device.c -o build/ahci-device-table-host-test && build/ahci-device-table-host-test
       - name: AHCI IRQ state host test
         run: clang -std=c11 -Wall -Wextra -Werror -Idrivers tests/ahci_irq_state_host_test.c drivers/ahci_irq_state.c -o build/ahci-irq-state-host-test && build/ahci-irq-state-host-test
       - name: AHCI recovery policy host test
@@ -104,6 +106,8 @@ jobs:
           build/pci-msi-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iinclude -Idrivers tests/ahci_layout_host_test.c drivers/ahci_layout.c -o build/ahci-layout-host-sanitize
           build/ahci-layout-host-sanitize
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iinclude -Idrivers tests/ahci_device_table_host_test.c drivers/ahci_device_table.c drivers/ahci_layout.c drivers/block_device.c -o build/ahci-device-table-host-sanitize
+          build/ahci-device-table-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Idrivers tests/ahci_irq_state_host_test.c drivers/ahci_irq_state.c -o build/ahci-irq-state-host-sanitize
           build/ahci-irq-state-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Idrivers tests/ahci_recovery_state_host_test.c drivers/ahci_recovery_state.c -o build/ahci-recovery-state-host-sanitize
