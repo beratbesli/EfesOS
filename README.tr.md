@@ -23,7 +23,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Salt-okunur type-0 BAR ayrıştırması ve sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
 - PCI BAR kayıtları sürücülere açılmadan önce çekirdek içinde tür/hizalama self-test’inden geçer
 - IRQ14 tamamlanması, doğrulanmış 4 KiB bounce-buffer parçalarıyla bus-master DMA okumaları, otomatik PIO fallback, seri hale getirilmiş istekler ve açık disk-yokluğu tanısı olan zaman aşımı kontrollü ATA primary-master erişimi
-- Q35/ICH9 SATA için bounded salt-okunur AHCI yolu: BIOS sahiplik devri, cache-disabled BAR5 eşleme, seri slot-0 IDENTIFY/READ DMA komutları ve hata halinde fail-closed bus-master iptali
+- Q35/ICH9 SATA için bounded salt-okunur AHCI yolu: BIOS sahiplik devri, cache-disabled BAR5 eşleme, seri slot-0 IDENTIFY/READ DMA komutları, tek COMRESET/yeniden kimlik doğrulama retry'ı ve hata halinde fail-closed bus-master iptali
 - Sürücüden bağımsız 512 baytlık blok aygıt katmanı kapasiteyi, transfer sınırını ve isteğe bağlı yazma yeteneğini çağrıdan önce doğrular; VFS’ye salt-okunur ATA veya AHCI görünümü verilir
 - ATA ham yazmaları varsayılan olarak boot’ta korumalıdır; yalnızca doğrulanmış journal penceresi transaction için açılabilir
 - Sınırlı 8.3 kök/alt-dizin dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); doğrulanmış ELF’i diskten başlatma (`run NAME`)
@@ -186,6 +186,14 @@ Aynı FAT fixture’ını Q35/ICH9 AHCI üzerinden sınamak için:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -SkipBuild -Q35 -RequireHpet -DiskImage .\build\test-disk.img
+```
+
+Kurtarılabilir ve kalıcı AHCI okuma hatalarını QEMU `blkdebug` ile sınamak için:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-recovery-self-test.ps1 -SkipBuild
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-recovery-self-test.ps1 -SkipBuild -DisableHpet
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-recovery-self-test.ps1 -SkipBuild -PersistentFailure
 ```
 
 Bu fixture ayrıca FAT alanının dışındaki journal bölgesinden bir kayıt replay eder; yazma yolu yine korumalıdır.
