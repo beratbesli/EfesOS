@@ -202,7 +202,7 @@ jobs:
           timeout 20s qemu-system-i386 -machine q35,hpet=on -display none -monitor none -serial file:build/ci-ahci-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a -drive file=build/ci-ahci.img,format=raw,if=ide || true
           grep -F "EfesOS: AHCI controllers discovered=0x00000001 usable-mmio=0x00000001." build/ci-ahci-serial.log
           grep -F "EfesOS: AHCI disk present=0x00000001 sectors=0x00002000 port=0x00000000" build/ci-ahci-serial.log
-          grep -F "error=0x00000000 readonly=0x00000001." build/ci-ahci-serial.log
+          grep -F "error=0x00000000 recoveries=0x00000000 attempts=0x00000000 readonly=0x00000001." build/ci-ahci-serial.log
           grep -F "EfesOS: AHCI read path self-test passed." build/ci-ahci-serial.log
           grep -F "EfesOS: repeated user restart stress passed." build/ci-ahci-serial.log
           if grep -F "KERNEL PANIC:" build/ci-ahci-serial.log; then exit 1; fi
