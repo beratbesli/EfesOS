@@ -7,6 +7,7 @@ param(
     [string]$Cpu = '',
     [string]$RtcBase = '',
     [switch]$RequireHpet,
+    [switch]$DisableHpet,
     [switch]$DisableAcpi,
     [switch]$DisableApic
 )
@@ -66,11 +67,15 @@ $successMarkers = @(
     'EfesOS: scheduler stack resource cleanup passed.',
     'EfesOS: scheduler block/wake lifecycle self-test passed.',
     'EfesOS: user exception isolated.',
-    'EfesOS: preemptive scheduler runtime test passed.'
+    'EfesOS: preemptive scheduler runtime test passed.',
+    'EfesOS: scheduler timer active='
 )
 
-if ($RequireHpet -and $DisableAcpi) {
-    throw 'RequireHpet ve DisableAcpi birlikte kullanilamaz.'
+if ($RequireHpet -and ($DisableAcpi -or $DisableHpet)) {
+    throw 'RequireHpet, DisableAcpi veya DisableHpet ile birlikte kullanilamaz.'
+}
+if ($DisableHpet -and $DisableAcpi) {
+    throw 'DisableHpet ve DisableAcpi birlikte kullanilamaz.'
 }
 function Get-QemuPath {
     $command = Get-Command 'qemu-system-i386' -ErrorAction SilentlyContinue
@@ -116,6 +121,9 @@ if ($DiskImage -ne '') {
 if ($RequireHpet) {
     $successMarkers += 'EfesOS: ACPI HPET table validated base=0xFED00000'
     $successMarkers += 'EfesOS: HPET monotonic counter self-test passed period-fs='
+    if (!$DisableApic) {
+        $successMarkers += 'EfesOS: scheduler timer active=local-apic initial-count='
+    }
 }
 if ($DisableAcpi) {
     $successMarkers = @($successMarkers | Where-Object {
@@ -125,11 +133,17 @@ if ($DisableAcpi) {
     })
     $successMarkers += 'EfesOS: ACPI root table unavailable or invalid.'
     $successMarkers += 'EfesOS: APIC routing unavailable; dual 8259 PIC fallback active.'
+    $successMarkers += 'EfesOS: scheduler timer active=pit.'
 } elseif ($DisableApic) {
     $successMarkers = @($successMarkers | Where-Object {
         $_ -ne 'EfesOS: APIC interrupt routing enabled lapic-id='
     })
     $successMarkers += 'EfesOS: APIC routing unavailable; dual 8259 PIC fallback active.'
+    $successMarkers += 'EfesOS: scheduler timer active=pit.'
+}
+if ($DisableHpet) {
+    $successMarkers += 'EfesOS: ACPI HPET table unavailable.'
+    $successMarkers += 'EfesOS: scheduler timer active=pit.'
 }
 
 New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null
@@ -163,6 +177,8 @@ if ($RtcBase -ne '') {
 }
 if ($RequireHpet) {
     $arguments = @('-machine', 'pc,hpet=on') + $arguments
+} elseif ($DisableHpet) {
+    $arguments = @('-machine', 'pc,hpet=off') + $arguments
 }
 if ($DisableAcpi) {
     $arguments = @('-machine', 'pc,acpi=off') + $arguments

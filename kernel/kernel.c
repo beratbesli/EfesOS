@@ -645,8 +645,15 @@ void kernel_main(const struct boot_info *boot_info)
     vga_write("EfesOS: scheduler and game loop running.\n");
     shell_init();
     pit_init();
-    if (!idt_enable_irq_line(0U)) {
-        kernel_panic("PIT IRQ0 enable failed.");
+    if (idt_enable_apic_timer()) {
+        serial_write("EfesOS: scheduler timer active=local-apic initial-count=");
+        serial_write_hex(idt_apic_timer_initial_count());
+        serial_write(".\n");
+    } else {
+        if (!idt_enable_irq_line(0U)) {
+            kernel_panic("PIT IRQ0 enable failed.");
+        }
+        serial_write("EfesOS: scheduler timer active=pit.\n");
     }
     scheduler_start();
 

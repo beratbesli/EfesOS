@@ -31,6 +31,9 @@ int idt_irq_line_enabled(interrupt_u32_t irq);
 int idt_enable_apic_routing(const struct acpi_madt_info *madt);
 int idt_uses_apic(void);
 unsigned int idt_apic_id(void);
+int idt_enable_apic_timer(void);
+int idt_uses_apic_timer(void);
+unsigned int idt_apic_timer_initial_count(void);
 struct interrupt_frame *interrupt_dispatch(struct interrupt_frame *frame);
 
 #endif

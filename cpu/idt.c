@@ -256,6 +256,30 @@ unsigned int idt_apic_id(void)
     return idt_uses_apic() ? apic_local_id() : 0U;
 }
 
+int idt_enable_apic_timer(void)
+{
+    interrupt_u32_t flags;
+    int result;
+
+    if (!idt_uses_apic()) {
+        return 0;
+    }
+    flags = interrupt_save();
+    result = apic_timer_init();
+    interrupt_restore(flags);
+    return result;
+}
+
+int idt_uses_apic_timer(void)
+{
+    return idt_uses_apic() && apic_timer_available();
+}
+
+unsigned int idt_apic_timer_initial_count(void)
+{
+    return idt_uses_apic_timer() ? apic_timer_initial_count() : 0U;
+}
+
 static struct interrupt_frame *handle_exception(struct interrupt_frame *frame)
 {
     interrupt_u32_t fault_address = 0;
@@ -307,7 +331,7 @@ static struct interrupt_frame *handle_irq(struct interrupt_frame *frame)
     }
 
     if (irq == 0U) {
-        pit_irq_handler();
+        pit_tick_handler();
     } else if (irq == 1U) {
         keyboard_irq_handler();
     } else if (irq == 14U) {
@@ -338,6 +362,11 @@ struct interrupt_frame *interrupt_dispatch(struct interrupt_frame *frame)
         return frame;
     } else if (frame->vector == 49U) {
         return scheduler_on_yield(frame);
+    } else if (frame->vector == APIC_TIMER_VECTOR &&
+        idt_uses_apic_timer()) {
+        pit_tick_handler();
+        apic_acknowledge();
+        return scheduler_on_timer(frame);
     } else if (frame->vector == APIC_SPURIOUS_VECTOR && apic_routing) {
         return frame;
     } else if (frame->vector == 0x80U) {

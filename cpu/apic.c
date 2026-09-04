@@ -1,5 +1,6 @@
 #include "apic.h"
 #include "features.h"
+#include "hpet.h"
 #include "paging.h"
 
 #define IA32_APIC_BASE_MSR 0x01BU
@@ -18,10 +19,20 @@
 #define LOCAL_APIC_LVT_LINT0 0x350U
 #define LOCAL_APIC_LVT_LINT1 0x360U
 #define LOCAL_APIC_LVT_ERROR 0x370U
+#define LOCAL_APIC_TIMER_INITIAL_COUNT 0x380U
+#define LOCAL_APIC_TIMER_CURRENT_COUNT 0x390U
+#define LOCAL_APIC_TIMER_DIVIDE 0x3E0U
 #define LOCAL_APIC_SOFTWARE_ENABLE (1U << 8U)
 #define LOCAL_APIC_LVT_MASKED (1U << 16U)
+#define LOCAL_APIC_TIMER_PERIODIC (1U << 17U)
+#define LOCAL_APIC_TIMER_MODE_MASK (3U << 17U)
 #define LOCAL_APIC_DELIVERY_MASK (7U << 8U)
 #define LOCAL_APIC_DELIVERY_NMI (4U << 8U)
+#define LOCAL_APIC_TIMER_DIVIDE_BY_16 0x3U
+#define LOCAL_APIC_TIMER_DIVIDE_MASK 0xBU
+#define LOCAL_APIC_TIMER_CALIBRATION_NS 10000000ULL
+#define LOCAL_APIC_TIMER_CALIBRATION_READ_LIMIT 1000000U
+#define LOCAL_APIC_TIMER_MINIMUM_COUNT 1000U
 
 #define IO_APIC_SELECTOR 0x00U
 #define IO_APIC_WINDOW 0x10U
@@ -60,13 +71,25 @@ static unsigned int saved_lvt_timer;
 static unsigned int saved_lvt_lint0;
 static unsigned int saved_lvt_lint1;
 static unsigned int saved_lvt_error;
+static unsigned int saved_timer_initial_count;
+static unsigned int saved_timer_divide;
+static unsigned int timer_initial_count;
 static int local_state_saved;
+static int timer_available;
 static int initialized;
 static int available;
 
 static void read_msr(unsigned int index, unsigned int *low, unsigned int *high)
 {
     __asm__ volatile ("rdmsr" : "=a"(*low), "=d"(*high) : "c"(index));
+}
+
+static int interrupts_are_disabled(void)
+{
+    unsigned int flags;
+
+    __asm__ volatile ("pushfl; popl %0" : "=r"(flags) : : "memory");
+    return (flags & (1U << 9U)) == 0U;
 }
 
 static unsigned int local_read(unsigned int offset)
@@ -182,11 +205,14 @@ static int initialize_local_apic(const struct acpi_madt_info *madt)
     saved_lvt_lint0 = local_read(LOCAL_APIC_LVT_LINT0);
     saved_lvt_lint1 = local_read(LOCAL_APIC_LVT_LINT1);
     saved_lvt_error = local_read(LOCAL_APIC_LVT_ERROR);
+    saved_timer_initial_count = local_read(LOCAL_APIC_TIMER_INITIAL_COUNT);
+    saved_timer_divide = local_read(LOCAL_APIC_TIMER_DIVIDE);
     local_state_saved = 1;
 
     local_write(LOCAL_APIC_TASK_PRIORITY, 0U);
     local_write(LOCAL_APIC_LVT_TIMER,
         saved_lvt_timer | LOCAL_APIC_LVT_MASKED);
+    local_write(LOCAL_APIC_TIMER_INITIAL_COUNT, 0U);
     local_write(LOCAL_APIC_LVT_LINT0, configured_lint(saved_lvt_lint0));
     local_write(LOCAL_APIC_LVT_LINT1, configured_lint(saved_lvt_lint1));
     local_write(LOCAL_APIC_LVT_ERROR,
@@ -342,6 +368,8 @@ int apic_init(const struct acpi_madt_info *madt)
     initialized = 1;
     available = 0;
     enabled_irq_bitmap = 0U;
+    timer_initial_count = 0U;
+    timer_available = 0;
     firmware_madt = 0;
     io_apic_count = 0U;
     local_state_saved = 0;
@@ -370,9 +398,17 @@ void apic_shutdown(void)
 {
     available = 0;
     enabled_irq_bitmap = 0U;
+    timer_available = 0;
+    timer_initial_count = 0U;
     restore_io_apics();
     if (local_apic_registers != 0 && local_state_saved) {
+        local_write(LOCAL_APIC_LVT_TIMER,
+            local_read(LOCAL_APIC_LVT_TIMER) | LOCAL_APIC_LVT_MASKED);
+        local_write(LOCAL_APIC_TIMER_INITIAL_COUNT, 0U);
+        local_write(LOCAL_APIC_TIMER_DIVIDE, saved_timer_divide);
         local_write(LOCAL_APIC_LVT_TIMER, saved_lvt_timer);
+        local_write(LOCAL_APIC_TIMER_INITIAL_COUNT,
+            saved_timer_initial_count);
         local_write(LOCAL_APIC_LVT_LINT0, saved_lvt_lint0);
         local_write(LOCAL_APIC_LVT_LINT1, saved_lvt_lint1);
         local_write(LOCAL_APIC_LVT_ERROR, saved_lvt_error);
@@ -454,6 +490,88 @@ int apic_irq_enabled(unsigned int irq)
     low = io_read(io, redirection_low_register(entry));
     return (low & IO_APIC_MASKED) == 0U &&
         (low & 0xFFU) == LEGACY_IRQ_BASE + irq;
+}
+
+int apic_timer_init(void)
+{
+    hpet_tick_t start;
+    hpet_tick_t now = 0U;
+    unsigned int current = 0U;
+    unsigned int measured;
+    unsigned int attempt;
+    unsigned int timer_lvt;
+    int elapsed = 0;
+
+    if (timer_available) {
+        return 1;
+    }
+    if (!apic_available() || !hpet_available() ||
+        !interrupts_are_disabled()) {
+        return 0;
+    }
+
+    local_write(LOCAL_APIC_LVT_TIMER,
+        APIC_TIMER_VECTOR | LOCAL_APIC_LVT_MASKED);
+    local_write(LOCAL_APIC_TIMER_DIVIDE,
+        LOCAL_APIC_TIMER_DIVIDE_BY_16);
+    start = hpet_nanoseconds();
+    local_write(LOCAL_APIC_TIMER_INITIAL_COUNT, 0xFFFFFFFFU);
+    for (attempt = 0U;
+        attempt < LOCAL_APIC_TIMER_CALIBRATION_READ_LIMIT; attempt++) {
+        now = hpet_nanoseconds();
+        if (now < start) {
+            break;
+        }
+        if (now - start >= LOCAL_APIC_TIMER_CALIBRATION_NS) {
+            elapsed = 1;
+            break;
+        }
+        __asm__ volatile ("pause");
+    }
+    current = local_read(LOCAL_APIC_TIMER_CURRENT_COUNT);
+    local_write(LOCAL_APIC_TIMER_INITIAL_COUNT, 0U);
+    measured = 0xFFFFFFFFU - current;
+    if (!elapsed || current == 0U ||
+        measured < LOCAL_APIC_TIMER_MINIMUM_COUNT) {
+        local_write(LOCAL_APIC_LVT_TIMER,
+            saved_lvt_timer | LOCAL_APIC_LVT_MASKED);
+        local_write(LOCAL_APIC_TIMER_DIVIDE, saved_timer_divide);
+        return 0;
+    }
+
+    timer_lvt = APIC_TIMER_VECTOR | LOCAL_APIC_TIMER_PERIODIC;
+    local_write(LOCAL_APIC_LVT_TIMER,
+        timer_lvt | LOCAL_APIC_LVT_MASKED);
+    local_write(LOCAL_APIC_TIMER_DIVIDE,
+        LOCAL_APIC_TIMER_DIVIDE_BY_16);
+    local_write(LOCAL_APIC_TIMER_INITIAL_COUNT, measured);
+    local_write(LOCAL_APIC_LVT_TIMER, timer_lvt);
+    if ((local_read(LOCAL_APIC_LVT_TIMER) &
+            (0xFFU | LOCAL_APIC_LVT_MASKED |
+             LOCAL_APIC_TIMER_MODE_MASK)) != timer_lvt ||
+        (local_read(LOCAL_APIC_TIMER_DIVIDE) &
+            LOCAL_APIC_TIMER_DIVIDE_MASK) !=
+            LOCAL_APIC_TIMER_DIVIDE_BY_16 ||
+        local_read(LOCAL_APIC_TIMER_INITIAL_COUNT) != measured) {
+        local_write(LOCAL_APIC_LVT_TIMER,
+            timer_lvt | LOCAL_APIC_LVT_MASKED);
+        local_write(LOCAL_APIC_TIMER_INITIAL_COUNT, 0U);
+        local_write(LOCAL_APIC_TIMER_DIVIDE, saved_timer_divide);
+        return 0;
+    }
+    timer_initial_count = measured;
+    timer_available = 1;
+    return 1;
+}
+
+int apic_timer_available(void)
+{
+    return apic_available() && timer_available;
+}
+
+unsigned int apic_timer_initial_count(void)
+{
+    return apic_timer_available() ? timer_initial_count : 0U;
 }
 
 void apic_acknowledge(void)

@@ -157,6 +157,7 @@ jobs:
           grep -F "EfesOS: scheduler block/wake lifecycle self-test passed." build/ci-serial.log
           grep -F "EfesOS: user exception isolated." build/ci-serial.log
           grep -F "EfesOS: preemptive scheduler runtime test passed." build/ci-serial.log
+          grep -F "EfesOS: scheduler timer active=" build/ci-serial.log
           if grep -F "KERNEL PANIC:" build/ci-serial.log; then exit 1; fi
       - name: QEMU deterministic RTC smoke test
         run: |
@@ -171,19 +172,30 @@ jobs:
           grep -F "EfesOS: ACPI MADT validated lapic=0xFEE00000" build/ci-hpet-serial.log
           grep -F "EfesOS: ACPI HPET table validated base=0xFED00000" build/ci-hpet-serial.log
           grep -F "EfesOS: HPET monotonic counter self-test passed period-fs=" build/ci-hpet-serial.log
+          grep -F "EfesOS: scheduler timer active=local-apic initial-count=" build/ci-hpet-serial.log
           if grep -F "KERNEL PANIC:" build/ci-hpet-serial.log; then exit 1; fi
       - name: QEMU ACPI absence fallback smoke test
         run: |
           timeout 20s qemu-system-i386 -machine pc,acpi=off -display none -monitor none -serial file:build/ci-no-acpi-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
           grep -F "EfesOS: ACPI root table unavailable or invalid." build/ci-no-acpi-serial.log
           grep -F "EfesOS: APIC routing unavailable; dual 8259 PIC fallback active." build/ci-no-acpi-serial.log
+          grep -F "EfesOS: scheduler timer active=pit." build/ci-no-acpi-serial.log
           grep -F "EfesOS: ELF loader runtime self-test passed." build/ci-no-acpi-serial.log
           if grep -F "KERNEL PANIC:" build/ci-no-acpi-serial.log; then exit 1; fi
+      - name: QEMU local APIC timer fallback smoke test
+        run: |
+          timeout 20s qemu-system-i386 -machine pc,hpet=off -display none -monitor none -serial file:build/ci-no-hpet-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
+          grep -F "EfesOS: APIC interrupt routing enabled lapic-id=" build/ci-no-hpet-serial.log
+          grep -F "EfesOS: ACPI HPET table unavailable." build/ci-no-hpet-serial.log
+          grep -F "EfesOS: scheduler timer active=pit." build/ci-no-hpet-serial.log
+          grep -F "EfesOS: repeated user restart stress passed." build/ci-no-hpet-serial.log
+          if grep -F "KERNEL PANIC:" build/ci-no-hpet-serial.log; then exit 1; fi
       - name: QEMU APIC capability fallback smoke test
         run: |
           timeout 20s qemu-system-i386 -cpu qemu32,apic=off -display none -monitor none -serial file:build/ci-no-apic-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
           grep -F "EfesOS: ACPI MADT validated lapic=0xFEE00000" build/ci-no-apic-serial.log
           grep -F "EfesOS: APIC routing unavailable; dual 8259 PIC fallback active." build/ci-no-apic-serial.log
+          grep -F "EfesOS: scheduler timer active=pit." build/ci-no-apic-serial.log
           grep -F "EfesOS: preemptive scheduler runtime test passed." build/ci-no-apic-serial.log
           if grep -F "KERNEL PANIC:" build/ci-no-apic-serial.log; then exit 1; fi
       - name: QEMU ATA IRQ14 smoke test
@@ -214,9 +226,10 @@ jobs:
           if grep -F "KERNEL PANIC:" build/ci-rdrand-serial.log; then exit 1; fi
       - name: QEMU legacy paging fallback smoke test
         run: |
-          timeout 20s qemu-system-i386 -cpu qemu32,pae=off -display none -monitor none -serial file:build/ci-legacy-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
+          timeout 20s qemu-system-i386 -machine pc,hpet=on -cpu qemu32,pae=off -display none -monitor none -serial file:build/ci-legacy-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
           grep -F "EfesOS: paging mode=legacy hardware-nx=0x00000000." build/ci-legacy-serial.log
           grep -F "EfesOS: APIC interrupt routing enabled lapic-id=" build/ci-legacy-serial.log
+          grep -F "EfesOS: scheduler timer active=local-apic initial-count=" build/ci-legacy-serial.log
           grep -F "EfesOS: ELF loader runtime self-test passed." build/ci-legacy-serial.log
           grep -F "EfesOS: repeated user restart stress passed." build/ci-legacy-serial.log
           if grep -F "KERNEL PANIC:" build/ci-legacy-serial.log; then exit 1; fi

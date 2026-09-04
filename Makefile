@@ -151,7 +151,7 @@ $(SYSTEM_OBJ): cpu/system.c cpu/system.h cpu/io.h | $(BUILD_DIR)
 $(FEATURES_OBJ): cpu/features.c cpu/features.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Icpu -c $< -o $@
 
-$(APIC_OBJ): cpu/apic.c cpu/apic.h cpu/features.h include/acpi.h memory/paging.h | $(BUILD_DIR)
+$(APIC_OBJ): cpu/apic.c cpu/apic.h cpu/features.h include/acpi.h include/hpet.h memory/paging.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Imemory -c $< -o $@
 
 $(INTERRUPTS_OBJ): cpu/interrupts.asm | $(BUILD_DIR)

@@ -16,7 +16,7 @@ void pit_init(void)
     outb(PIT_CHANNEL_ZERO, (PIT_DIVISOR >> 8) & 0xFFU);
 }
 
-void pit_irq_handler(void)
+void pit_tick_handler(void)
 {
     tick_count++;
     hpet_maintain();
