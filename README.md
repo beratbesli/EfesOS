@@ -17,7 +17,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Stable CMOS RTC wall-clock reads with UIP/format/calendar validation and a `date` shell command
 - Bounded ACPI RSDP/RSDT/XSDT discovery with checksum validation plus guarded MADT topology/interrupt-override and HPET table parsing
 - Validated HPET monotonic clock with uncached MMIO, nanosecond conversion, 32-bit counter-wrap maintenance and an automatic PIT fallback
-- Preemptive kernel-thread scheduler with guarded per-task stacks and timer-driven context switching
+- Preemptive kernel-thread scheduler with guarded per-task stacks, an HPET-calibrated periodic local APIC timer and an automatic PIT fallback
 - Bounded priority time slices with explicit voluntary-yield handling
 - Deferred event loop; shell and games never run inside hardware IRQ handlers
 - PCI configuration-space enumeration with read-only type-0 BAR decoding and a bounded `pci` diagnostic command
@@ -118,11 +118,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\acpi-self-test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\madt-self-test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\hpet-self-test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -RequireHpet
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableHpet
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableAcpi
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableApic
 ```
 
-The HPET profile verifies the live MMIO counter. The ACPI-disabled and APIC-disabled profiles verify that PIT scheduling and the masked-PIC fallback remain bootable when firmware tables or APIC capability are unavailable.
+The HPET profile verifies both the live MMIO counter and the calibrated local APIC scheduler timer. The HPET-disabled profile verifies PIT delivery through the IOAPIC; the ACPI-disabled and APIC-disabled profiles verify the masked-PIC fallback.
 
 Run the deterministic boot metadata, E820, ELF and FAT property-fuzz suite after changing any boot or parser boundary:
 

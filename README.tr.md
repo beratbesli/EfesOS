@@ -17,7 +17,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - UIP/biçim/takvim doğrulamalı kararlı CMOS RTC duvar saati okuması ve `date` shell komutu
 - Checksum doğrulamalı, sınırlandırılmış ACPI RSDP/RSDT/XSDT keşfi ile korumalı MADT topoloji/kesme-override ve HPET tablo ayrıştırması
 - Önbelleksiz MMIO, nanosaniye dönüşümü, 32-bit sayaç sarım bakımı ve otomatik PIT geri dönüşü olan doğrulanmış HPET monoton saati
-- Koruma sayfalı görev yığınları ve PIT tabanlı bağlam değişimi olan öncelikli kernel-thread scheduler
+- Koruma sayfalı görev yığınları, HPET ile kalibre edilmiş periyodik local APIC timer ve otomatik PIT geri dönüşü olan öncelikli kernel-thread scheduler
 - Açık `yield` desteğiyle sınırlı öncelik zaman dilimleri
 - Shell ve oyunları donanım IRQ'ları dışında çalıştıran ertelenmiş olay döngüsü
 - Salt-okunur type-0 BAR ayrıştırması ve sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
@@ -118,11 +118,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\acpi-self-test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\madt-self-test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\hpet-self-test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -RequireHpet
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableHpet
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableAcpi
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DisableApic
 ```
 
-HPET profili canlı MMIO sayacını doğrular. ACPI ve APIC kapalı profiller, firmware tabloları veya APIC yeteneği olmadığında PIT scheduling ile maskeli-PIC geri dönüşünün önyüklenebilir kaldığını doğrular.
+HPET profili canlı MMIO sayacıyla birlikte kalibre edilmiş local APIC scheduler timer’ını doğrular. HPET kapalı profil PIT’in IOAPIC üzerinden teslimini; ACPI ve APIC kapalı profiller ise maskeli-PIC geri dönüşünü doğrular.
 
 Boot veya parser sınırı değişikliklerinden sonra deterministik boot metadata, E820, ELF ve FAT property-fuzz paketini çalıştır:
 
