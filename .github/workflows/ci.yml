@@ -220,6 +220,15 @@ jobs:
           grep -F "EfesOS: AHCI interrupt completion self-test passed mode=0x00000001 irq-count=0x00000002 polling-fallbacks=0x00000000." build/ci-ahci-serial.log
           grep -F "EfesOS: repeated user restart stress passed." build/ci-ahci-serial.log
           if grep -F "KERNEL PANIC:" build/ci-ahci-serial.log; then exit 1; fi
+      - name: QEMU Q35 AHCI controller failover smoke test
+        shell: pwsh
+        run: ./scripts/ahci-controller-failover-self-test.ps1 -SkipBuild
+      - name: QEMU Q35 AHCI polling controller failover smoke test
+        shell: pwsh
+        run: ./scripts/ahci-controller-failover-self-test.ps1 -SkipBuild -DisableApic
+      - name: QEMU Q35 AHCI controller exhaustion smoke test
+        shell: pwsh
+        run: ./scripts/ahci-controller-failover-self-test.ps1 -SkipBuild -AllEmpty
       - name: QEMU Q35 AHCI no-APIC polling fallback smoke test
         run: |
           timeout 20s qemu-system-i386 -machine q35,hpet=on -cpu qemu32,apic=off -display none -monitor none -serial file:build/ci-ahci-no-apic-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a -drive file=build/ci-ahci.img,format=raw,if=ide || true

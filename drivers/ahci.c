@@ -78,6 +78,9 @@ static struct ahci_command_table *command_table;
 static struct block_device block_device;
 static uint32_t sectors;
 static uint32_t controller_version;
+static unsigned int selected_controller_index;
+static unsigned int controller_probe_count;
+static unsigned int controller_failover_count;
 static unsigned int selected_port;
 static unsigned int error_code;
 static unsigned int completed_reads;
@@ -853,11 +856,40 @@ static void disable_driver(void)
     if (bus_master_stopped && port_stopped) {
         release_dma_pages();
         unmap_register_space();
+        mmio_control_safe = 0;
     }
     fail_closed_state = bus_master_stopped && port_stopped;
     if (!port_stopped && error_code == AHCI_ERROR_NONE) {
         error_code = AHCI_ERROR_PORT_STOP;
     }
+}
+
+static void reset_controller_candidate(void)
+{
+    registers = 0;
+    port_registers = 0;
+    controller = 0;
+    original_pci_command = 0U;
+    mapped_physical_page = 0U;
+    mapped_page_count = 0U;
+    command_list_physical = 0U;
+    received_fis_physical = 0U;
+    command_table_physical = 0U;
+    bounce_physical = 0U;
+    command_header = 0;
+    command_table = 0;
+    sectors = 0U;
+    controller_version = 0U;
+    selected_port = 0U;
+    supports_lba48 = 0;
+    device_present = 0;
+    request_active = 0;
+    mmio_control_safe = 0;
+    fail_closed_state = 0;
+    completed_hba_resets = 0U;
+    ahci_irq_state_reset(&irq_state);
+    ahci_recovery_state_reset(&recovery_state);
+    block_device_reset(&block_device);
 }
 
 static int ahci_block_read(void *context, unsigned int lba,
@@ -918,7 +950,7 @@ static int ahci_block_read(void *context, unsigned int lba,
     return success;
 }
 
-void ahci_init(void)
+static int initialize_controller_candidate(unsigned int controller_index)
 {
     uint32_t abar;
     uint32_t implemented_ports;
@@ -926,46 +958,21 @@ void ahci_init(void)
     uint16_t *identify;
     unsigned int port;
 
-    registers = 0;
-    port_registers = 0;
-    controller = 0;
-    original_pci_command = 0U;
-    mapped_physical_page = 0U;
-    mapped_page_count = 0U;
-    command_list_physical = 0U;
-    received_fis_physical = 0U;
-    command_table_physical = 0U;
-    bounce_physical = 0U;
-    command_header = 0;
-    command_table = 0;
-    sectors = 0U;
-    controller_version = 0U;
-    selected_port = 0U;
-    error_code = AHCI_ERROR_NO_CONTROLLER;
-    completed_reads = 0U;
-    completed_hba_resets = 0U;
-    supports_lba48 = 0;
-    device_present = 0;
-    request_active = 0;
-    mmio_control_safe = 0;
-    fail_closed_state = 0;
-    ahci_irq_state_reset(&irq_state);
-    ahci_recovery_state_reset(&recovery_state);
-    block_device_reset(&block_device);
-
-    controller = pci_ahci_device_at(0U);
+    reset_controller_candidate();
+    controller = pci_ahci_device_at(controller_index);
     if (controller == 0 || !pci_ahci_mmio_base(controller, &abar)) {
-        return;
+        error_code = AHCI_ERROR_NO_CONTROLLER;
+        return 0;
     }
     error_code = AHCI_ERROR_PCI_COMMAND;
     if (!pci_prepare_ahci_controller(controller, &original_pci_command)) {
-        (void)pci_quiesce_ahci_controller(controller, original_pci_command);
-        return;
+        disable_driver();
+        return 0;
     }
     error_code = AHCI_ERROR_MMIO_MAPPING;
     if (!map_register_space(abar)) {
         disable_driver();
-        return;
+        return 0;
     }
     implemented_ports = read_register(registers, AHCI_PORTS_IMPLEMENTED);
     controller_version = read_register(registers, AHCI_VERSION_REGISTER);
@@ -975,19 +982,19 @@ void ahci_init(void)
         (controller_version >> 16U) == 0U ||
         (global_control & AHCI_GLOBAL_CONTROL_RESET) != 0U) {
         disable_driver();
-        return;
+        return 0;
     }
     mmio_control_safe = 1;
     error_code = AHCI_ERROR_BIOS_HANDOFF;
     if (!acquire_bios_ownership()) {
         disable_driver();
-        return;
+        return 0;
     }
     global_control = read_register(registers, AHCI_GLOBAL_CONTROL);
     if ((global_control & AHCI_GLOBAL_CONTROL_RESET) != 0U) {
         error_code = AHCI_ERROR_CAPABILITIES;
         disable_driver();
-        return;
+        return 0;
     }
     write_register(registers, AHCI_GLOBAL_CONTROL,
         (global_control | AHCI_GLOBAL_CONTROL_ENABLE) &
@@ -998,7 +1005,7 @@ void ahci_init(void)
             AHCI_GLOBAL_CONTROL_ENABLE) {
         error_code = AHCI_ERROR_CAPABILITIES;
         disable_driver();
-        return;
+        return 0;
     }
 
     error_code = AHCI_ERROR_NO_SATA_DEVICE;
@@ -1019,7 +1026,7 @@ void ahci_init(void)
     }
     if (port_registers == 0) {
         disable_driver();
-        return;
+        return 0;
     }
 
     error_code = AHCI_ERROR_MEMORY;
@@ -1030,7 +1037,7 @@ void ahci_init(void)
     if (command_list_physical == 0U || received_fis_physical == 0U ||
         command_table_physical == 0U || bounce_physical == 0U) {
         disable_driver();
-        return;
+        return 0;
     }
     clear_page(command_list_physical);
     clear_page(received_fis_physical);
@@ -1042,45 +1049,81 @@ void ahci_init(void)
     error_code = AHCI_ERROR_PORT_STOP;
     if (!stop_port()) {
         disable_driver();
-        return;
+        return 0;
     }
     if (!program_port_dma_memory()) {
         error_code = AHCI_ERROR_CAPABILITIES;
         disable_driver();
-        return;
+        return 0;
     }
     if (!pci_enable_ahci_bus_master(controller)) {
         error_code = AHCI_ERROR_PCI_COMMAND;
         disable_driver();
-        return;
+        return 0;
     }
     error_code = AHCI_ERROR_PORT_START;
     if (!start_port()) {
         disable_driver();
-        return;
+        return 0;
     }
     error_code = AHCI_ERROR_IDENTIFY;
     if (!ahci_build_identify_command(command_header, command_table,
             command_table_physical, bounce_physical) ||
         !issue_slot_zero(AHCI_SECTOR_SIZE)) {
         disable_driver();
-        return;
+        return 0;
     }
     identify = (uint16_t *)bounce_physical;
     if (!ahci_identify_capacity(identify, &sectors, &supports_lba48)) {
         error_code = AHCI_ERROR_IDENTIFY;
         disable_driver();
-        return;
+        return 0;
     }
     copy_identify(identify_baseline, identify);
     if (!block_device_configure(&block_device, sectors, AHCI_SECTOR_SIZE,
             AHCI_MAX_TRANSFER_SECTORS, ahci_block_read, 0, 0)) {
         error_code = AHCI_ERROR_BLOCK_DEVICE;
         disable_driver();
-        return;
+        return 0;
     }
     error_code = AHCI_ERROR_NONE;
     device_present = 1;
+    fail_closed_state = 0;
+    return 1;
+}
+
+void ahci_init(void)
+{
+    unsigned int candidate_count;
+    unsigned int index;
+
+    selected_controller_index = ~0U;
+    controller_probe_count = 0U;
+    controller_failover_count = 0U;
+    completed_reads = 0U;
+    error_code = AHCI_ERROR_NO_CONTROLLER;
+    reset_controller_candidate();
+
+    candidate_count = pci_ahci_usable_count();
+    if (candidate_count > PCI_MAX_DEVICES) {
+        candidate_count = PCI_MAX_DEVICES;
+    }
+    for (index = 0U; index < candidate_count; index++) {
+        if (controller_probe_count != ~0U) {
+            controller_probe_count++;
+        }
+        if (initialize_controller_candidate(index)) {
+            selected_controller_index = index;
+            return;
+        }
+        if (!fail_closed_state) {
+            return;
+        }
+        if (index + 1U < candidate_count &&
+            controller_failover_count != ~0U) {
+            controller_failover_count++;
+        }
+    }
 }
 
 int ahci_enable_irq_mode(unsigned int apic_id)
@@ -1161,6 +1204,21 @@ int ahci_present(void)
 unsigned int ahci_sector_count(void)
 {
     return device_present ? sectors : 0U;
+}
+
+unsigned int ahci_controller_index(void)
+{
+    return device_present ? selected_controller_index : ~0U;
+}
+
+unsigned int ahci_controller_probe_count(void)
+{
+    return controller_probe_count;
+}
+
+unsigned int ahci_controller_failover_count(void)
+{
+    return controller_failover_count;
 }
 
 unsigned int ahci_port_number(void)

@@ -520,6 +520,13 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write(" attempts=");
     serial_write_hex(ahci_recovery_attempt_count());
     serial_write(" readonly=0x00000001.\n");
+    serial_write("EfesOS: AHCI selection controller=");
+    serial_write_hex(ahci_controller_index());
+    serial_write(" probes=");
+    serial_write_hex(ahci_controller_probe_count());
+    serial_write(" failovers=");
+    serial_write_hex(ahci_controller_failover_count());
+    serial_write(".\n");
     serial_write("EfesOS: AHCI MSI mode enabled=");
     serial_write_hex((unsigned int)ahci_irq_mode_enabled());
     serial_write(" irq-count=");
