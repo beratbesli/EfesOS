@@ -554,6 +554,12 @@ void kernel_main(const struct boot_info *boot_info)
             serial_write_hex(ahci_last_error());
             serial_write(" attempts=");
             serial_write_hex(ahci_recovery_attempt_count());
+            serial_write(" port-attempts=");
+            serial_write_hex(ahci_port_reset_attempt_count());
+            serial_write(" hba-attempts=");
+            serial_write_hex(ahci_hba_reset_attempt_count());
+            serial_write(" hba-completed=");
+            serial_write_hex(ahci_hba_reset_count());
             serial_write(".\n");
             kernel_panic("AHCI read-only block device self-test failed.");
         }
@@ -569,6 +575,12 @@ void kernel_main(const struct boot_info *boot_info)
         serial_write_hex(ahci_recovery_attempt_count());
         serial_write(" completed=");
         serial_write_hex(ahci_recovery_count());
+        serial_write(" port-attempts=");
+        serial_write_hex(ahci_port_reset_attempt_count());
+        serial_write(" hba-attempts=");
+        serial_write_hex(ahci_hba_reset_attempt_count());
+        serial_write(" hba-completed=");
+        serial_write_hex(ahci_hba_reset_count());
         serial_write(".\n");
         if (!ata_present()) {
             vfs_init(ahci_device);

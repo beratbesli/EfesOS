@@ -4,6 +4,9 @@ static int test_port_selection(void)
 {
     return ahci_comreset_assert_control(0xABCDEF50U) == 0xABCDEF51U &&
         ahci_comreset_release_control(0xABCDEF5FU) == 0xABCDEF50U &&
+        ahci_link_is_active(0x00000103U) &&
+        !ahci_link_is_active(0x00000101U) &&
+        !ahci_link_is_active(0x00000203U) &&
         ahci_link_is_established(0x00000103U, AHCI_ATA_SIGNATURE) &&
         !ahci_link_is_established(0x00000101U, AHCI_ATA_SIGNATURE) &&
         !ahci_link_is_established(0x00000203U, AHCI_ATA_SIGNATURE) &&

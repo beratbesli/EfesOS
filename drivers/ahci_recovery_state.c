@@ -9,6 +9,13 @@ static enum ahci_recovery_action fail_closed(
     return AHCI_RECOVERY_ACTION_FAIL_CLOSED;
 }
 
+static void increment_saturating(unsigned int *value)
+{
+    if (*value != ~0U) {
+        (*value)++;
+    }
+}
+
 void ahci_recovery_state_reset(struct ahci_recovery_state *state)
 {
     if (state == 0) {
@@ -27,7 +34,7 @@ enum ahci_recovery_action ahci_recovery_begin(
         return fail_closed(state);
     }
     state->action = AHCI_RECOVERY_ACTION_PORT_RESET;
-    state->port_attempts++;
+    increment_saturating(&state->port_attempts);
     return AHCI_RECOVERY_ACTION_PORT_RESET;
 }
 
@@ -44,13 +51,13 @@ enum ahci_recovery_action ahci_recovery_advance(
     }
 
     if (reset_succeeded && retry_succeeded) {
-        state->completions++;
+        increment_saturating(&state->completions);
         state->action = AHCI_RECOVERY_ACTION_NONE;
         return AHCI_RECOVERY_ACTION_COMPLETE;
     }
     if (completed_action == AHCI_RECOVERY_ACTION_PORT_RESET) {
         state->action = AHCI_RECOVERY_ACTION_HBA_RESET;
-        state->hba_attempts++;
+        increment_saturating(&state->hba_attempts);
         return AHCI_RECOVERY_ACTION_HBA_RESET;
     }
     return fail_closed(state);

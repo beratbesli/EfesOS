@@ -81,8 +81,28 @@ static int test_invalid_transitions_fail_closed(void)
         ahci_recovery_completions(0) == 0U;
 }
 
+static int test_counters_saturate(void)
+{
+    struct ahci_recovery_state state;
+
+    ahci_recovery_state_reset(&state);
+    state.port_attempts = ~0U;
+    state.hba_attempts = ~0U;
+    state.completions = ~0U;
+    if (ahci_recovery_begin(&state) != AHCI_RECOVERY_ACTION_PORT_RESET ||
+        ahci_recovery_advance(&state, AHCI_RECOVERY_ACTION_PORT_RESET, 0, 0) !=
+            AHCI_RECOVERY_ACTION_HBA_RESET ||
+        ahci_recovery_advance(&state, AHCI_RECOVERY_ACTION_HBA_RESET, 1, 1) !=
+            AHCI_RECOVERY_ACTION_COMPLETE) {
+        return 0;
+    }
+    return state.port_attempts == ~0U && state.hba_attempts == ~0U &&
+        state.completions == ~0U;
+}
+
 int main(void)
 {
     return test_port_recovery() && test_hba_escalation() &&
-        test_bounded_failure() && test_invalid_transitions_fail_closed() ? 0 : 1;
+        test_bounded_failure() && test_invalid_transitions_fail_closed() &&
+        test_counters_saturate() ? 0 : 1;
 }

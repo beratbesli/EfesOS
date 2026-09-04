@@ -233,6 +233,15 @@ jobs:
       - name: QEMU Q35 AHCI recovery smoke test
         shell: pwsh
         run: ./scripts/ahci-recovery-self-test.ps1 -SkipBuild
+      - name: QEMU Q35 AHCI HBA reset escalation smoke test
+        shell: pwsh
+        run: ./scripts/ahci-recovery-self-test.ps1 -SkipBuild -HbaEscalation
+      - name: QEMU Q35 AHCI PIT-timed HBA reset smoke test
+        shell: pwsh
+        run: ./scripts/ahci-recovery-self-test.ps1 -SkipBuild -HbaEscalation -DisableHpet
+      - name: QEMU Q35 AHCI polling HBA reset smoke test
+        shell: pwsh
+        run: ./scripts/ahci-recovery-self-test.ps1 -SkipBuild -HbaEscalation -DisableApic
       - name: QEMU Q35 AHCI PIT-timed recovery smoke test
         shell: pwsh
         run: ./scripts/ahci-recovery-self-test.ps1 -SkipBuild -DisableHpet

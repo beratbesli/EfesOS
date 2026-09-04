@@ -79,13 +79,17 @@ uint32_t ahci_comreset_release_control(uint32_t sata_control)
     return sata_control & ~AHCI_SCTL_DETECTION_MASK;
 }
 
-int ahci_link_is_established(uint32_t sata_status, uint32_t signature)
+int ahci_link_is_active(uint32_t sata_status)
 {
     unsigned int detection = sata_status & 0x0FU;
     unsigned int power = (sata_status >> 8U) & 0x0FU;
 
-    return detection == 3U && power == 1U &&
-        signature == AHCI_ATA_SIGNATURE;
+    return detection == 3U && power == 1U;
+}
+
+int ahci_link_is_established(uint32_t sata_status, uint32_t signature)
+{
+    return ahci_link_is_active(sata_status) && signature == AHCI_ATA_SIGNATURE;
 }
 
 int ahci_identify_capacity(const uint16_t *identify, uint32_t *sector_count,

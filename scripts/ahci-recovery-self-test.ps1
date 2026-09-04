@@ -3,7 +3,10 @@ param(
     [ValidateRange(5, 120)][int]$TimeoutSeconds = 25,
     [switch]$SkipBuild,
     [switch]$PersistentFailure,
-    [switch]$DisableHpet
+    [switch]$HbaEscalation,
+    [switch]$DisableHpet,
+    [switch]$DisableApic,
+    [switch]$TraceAhci
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,8 +17,11 @@ $osImage = Join-Path $buildDirectory 'efesos.img'
 $diskImage = Join-Path $buildDirectory 'test-disk.img'
 $serialLog = Join-Path $buildDirectory 'ahci-recovery-serial.log'
 $qemuErrorLog = Join-Path $buildDirectory 'ahci-recovery-qemu-error.log'
+$traceLog = Join-Path $buildDirectory 'ahci-recovery-trace.log'
 $faultConfigName = if ($PersistentFailure) {
     'ahci-read-persistent-error.blkdebug'
+} elseif ($HbaEscalation) {
+    'ahci-read-two-errors.blkdebug'
 } else {
     'ahci-read-error.blkdebug'
 }
@@ -37,6 +43,10 @@ function Get-QemuPath {
     throw 'Gerekli arac bulunamadi: qemu-system-i386'
 }
 
+if ($PersistentFailure -and $HbaEscalation) {
+    throw 'PersistentFailure ve HbaEscalation birlikte kullanilamaz.'
+}
+
 if (!$SkipBuild) {
     & (Join-Path $PSScriptRoot 'build.ps1')
     if (!$?) {
@@ -55,7 +65,7 @@ foreach ($required in @($osImage, $diskImage, $faultConfig)) {
     }
 }
 
-Remove-Item -LiteralPath $serialLog, $qemuErrorLog -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $serialLog, $qemuErrorLog, $traceLog -Force -ErrorAction SilentlyContinue
 $qemu = Get-QemuPath
 $faultUri = "blkdebug:tests/$faultConfigName`:build/test-disk.img"
 $machine = if ($DisableHpet) { 'q35,hpet=off' } else { 'q35,hpet=on' }
@@ -71,6 +81,12 @@ $arguments = @(
     '-boot', 'a',
     '-drive', "`"file=$faultUri,format=raw,if=ide,rerror=report`""
 )
+if ($DisableApic) {
+    $arguments = @('-cpu', 'qemu32,apic=off') + $arguments
+}
+if ($TraceAhci) {
+    $arguments += @('-trace', 'enable=ahci_*', '-D', $traceLog)
+}
 $startParameters = @{
     FilePath = $qemu
     ArgumentList = $arguments
@@ -92,18 +108,41 @@ try {
             $output = Get-Content -LiteralPath $serialLog -Raw `
                 -ErrorAction SilentlyContinue
             if (![string]::IsNullOrEmpty($output)) {
+                $initialInterruptState = if ($DisableApic) {
+                    'EfesOS: AHCI MSI mode enabled=0x00000000 irq-count=0x00000000 polling-fallbacks=0x00000000.'
+                } else {
+                    'EfesOS: AHCI MSI mode enabled=0x00000001 irq-count=0x00000000 polling-fallbacks=0x00000000.'
+                }
                 if ($PersistentFailure) {
                     $passed =
-                        $output.Contains('EfesOS: AHCI MSI mode enabled=0x00000001 irq-count=0x00000000 polling-fallbacks=0x00000000.') -and
+                        $output.Contains($initialInterruptState) -and
                         $output.Contains('EfesOS: AHCI read failure fail-closed=0x00000001 present=0x00000000') -and
-                        $output.Contains('attempts=0x00000001.') -and
+                        $output.Contains('attempts=0x00000002 port-attempts=0x00000001 hba-attempts=0x00000001 hba-completed=0x00000001.') -and
                         $output.Contains('KERNEL PANIC: AHCI read-only block device self-test failed.') -and
                         !$output.Contains('EfesOS: AHCI read path self-test passed.')
-                } else {
+                } elseif ($HbaEscalation) {
+                    $completedInterruptState = if ($DisableApic) {
+                        'EfesOS: AHCI interrupt completion self-test passed mode=0x00000000 irq-count=0x00000000 polling-fallbacks=0x00000000.'
+                    } else {
+                        'EfesOS: AHCI interrupt completion self-test passed mode=0x00000001 irq-count=0x00000005 polling-fallbacks=0x00000000.'
+                    }
                     $passed =
-                        $output.Contains('EfesOS: AHCI MSI mode enabled=0x00000001 irq-count=0x00000000 polling-fallbacks=0x00000000.') -and
-                        $output.Contains('EfesOS: AHCI interrupt completion self-test passed mode=0x00000001 irq-count=0x00000004 polling-fallbacks=0x00000000.') -and
-                        $output.Contains('EfesOS: AHCI recovery state attempts=0x00000001 completed=0x00000001.') -and
+                        $output.Contains($initialInterruptState) -and
+                        $output.Contains($completedInterruptState) -and
+                        $output.Contains('EfesOS: AHCI recovery state attempts=0x00000002 completed=0x00000001 port-attempts=0x00000001 hba-attempts=0x00000001 hba-completed=0x00000001.') -and
+                        $output.Contains('EfesOS: AHCI read path self-test passed.') -and
+                        $output.Contains('EfesOS: AHCI FAT volume mounted=0x00000001') -and
+                        !$output.Contains('KERNEL PANIC:')
+                } else {
+                    $completedInterruptState = if ($DisableApic) {
+                        'EfesOS: AHCI interrupt completion self-test passed mode=0x00000000 irq-count=0x00000000 polling-fallbacks=0x00000000.'
+                    } else {
+                        'EfesOS: AHCI interrupt completion self-test passed mode=0x00000001 irq-count=0x00000004 polling-fallbacks=0x00000000.'
+                    }
+                    $passed =
+                        $output.Contains($initialInterruptState) -and
+                        $output.Contains($completedInterruptState) -and
+                        $output.Contains('EfesOS: AHCI recovery state attempts=0x00000001 completed=0x00000001 port-attempts=0x00000001 hba-attempts=0x00000000 hba-completed=0x00000000.') -and
                         $output.Contains('EfesOS: AHCI read path self-test passed.') -and
                         $output.Contains('EfesOS: AHCI FAT volume mounted=0x00000001') -and
                         !$output.Contains('KERNEL PANIC:')
@@ -138,6 +177,8 @@ if (!$passed) {
 
 if ($PersistentFailure) {
     Write-Host 'AHCI fail-closed QEMU test passed: persistent read error revoked DMA.'
+} elseif ($HbaEscalation) {
+    Write-Host 'AHCI HBA reset QEMU test passed: two transient errors recovered after controller reset.'
 } else {
     Write-Host 'AHCI recovery QEMU test passed: injected read error recovered once.'
 }

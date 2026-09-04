@@ -36,6 +36,7 @@ int ahci_port_is_usable_sata(uint32_t implemented_ports,
     unsigned int port, uint32_t sata_status, uint32_t signature);
 uint32_t ahci_comreset_assert_control(uint32_t sata_control);
 uint32_t ahci_comreset_release_control(uint32_t sata_control);
+int ahci_link_is_active(uint32_t sata_status);
 int ahci_link_is_established(uint32_t sata_status, uint32_t signature);
 int ahci_identify_capacity(const uint16_t *identify, uint32_t *sector_count,
     int *lba48_supported);

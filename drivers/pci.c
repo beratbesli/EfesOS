@@ -446,6 +446,25 @@ int pci_enable_ahci_bus_master(const struct pci_device *device)
         device->function, 0x04U) & 0x0006U) == 0x0006U;
 }
 
+int pci_disable_ahci_bus_master(const struct pci_device *device)
+{
+    uint32_t base;
+    uint16_t command;
+
+    if (!pci_device_is_recorded(device) ||
+        !pci_ahci_mmio_base(device, &base)) {
+        return 0;
+    }
+    command = pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U);
+    command &= (uint16_t)~0x0004U;
+    pci_config_write_word(device->bus, device->slot, device->function,
+        0x04U, command);
+    command = pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U);
+    return (command & 0x0006U) == 0x0002U;
+}
+
 int pci_enable_ahci_msi(const struct pci_device *device,
     unsigned int apic_id, unsigned int vector)
 {

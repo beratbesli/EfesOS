@@ -24,6 +24,11 @@ enum ahci_error {
     AHCI_ERROR_RESET_LINK,
     AHCI_ERROR_RESET_ENGINE,
     AHCI_ERROR_RESET_IDENTITY,
+    AHCI_ERROR_HBA_RESET_TIMEOUT,
+    AHCI_ERROR_HBA_RESET_STATE,
+    AHCI_ERROR_HBA_RESET_DELAY,
+    AHCI_ERROR_HBA_RESET_LINK,
+    AHCI_ERROR_HBA_RESET_IDENTITY,
     AHCI_ERROR_BLOCK_DEVICE,
     AHCI_ERROR_INTERRUPT
 };
@@ -42,6 +47,9 @@ unsigned int ahci_last_error(void);
 unsigned int ahci_read_count(void);
 unsigned int ahci_recovery_count(void);
 unsigned int ahci_recovery_attempt_count(void);
+unsigned int ahci_port_reset_attempt_count(void);
+unsigned int ahci_hba_reset_attempt_count(void);
+unsigned int ahci_hba_reset_count(void);
 int ahci_fail_closed(void);
 const struct block_device *ahci_block_device(void);
 
