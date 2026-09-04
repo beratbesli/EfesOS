@@ -58,6 +58,8 @@ jobs:
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude -Idrivers tests/ata_dma_host_test.c drivers/ata_dma.c -o build/ata-dma-host-test && build/ata-dma-host-test
       - name: PCI AHCI layout host test
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude tests/pci_ahci_host_test.c drivers/pci_layout.c -o build/pci-ahci-host-test && build/pci-ahci-host-test
+      - name: PCI MSI capability host test
+        run: clang -std=c11 -Wall -Wextra -Werror -Idrivers tests/pci_msi_host_test.c drivers/pci_msi.c -o build/pci-msi-host-test && build/pci-msi-host-test
       - name: AHCI command layout host test
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude -Idrivers tests/ahci_layout_host_test.c drivers/ahci_layout.c -o build/ahci-layout-host-test && build/ahci-layout-host-test
       - name: RTC conversion host test
@@ -94,6 +96,8 @@ jobs:
           build/ata-irq-state-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iinclude -Idrivers tests/ata_dma_host_test.c drivers/ata_dma.c -o build/ata-dma-host-sanitize
           build/ata-dma-host-sanitize
+          clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Idrivers tests/pci_msi_host_test.c drivers/pci_msi.c -o build/pci-msi-host-sanitize
+          build/pci-msi-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iinclude -Idrivers tests/ahci_layout_host_test.c drivers/ahci_layout.c -o build/ahci-layout-host-sanitize
           build/ahci-layout-host-sanitize
           clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Iinclude -Idrivers tests/rtc_host_test.c drivers/rtc_time.c -o build/rtc-host-sanitize
