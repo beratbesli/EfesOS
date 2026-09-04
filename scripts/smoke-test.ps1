@@ -28,6 +28,7 @@ $successMarkers = @(
     'EfesOS: RTC calendar self-test passed.',
     'EfesOS: RTC stable read passed year=',
     'EfesOS: PCI devices discovered=',
+    'EfesOS: AHCI controllers discovered=',
     'EfesOS: ATA primary-master present=',
     'EfesOS: ATA IRQ mode enabled=',
     'EfesOS: ATA DMA mode enabled=',

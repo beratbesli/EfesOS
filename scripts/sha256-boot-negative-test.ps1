@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateRange(1, 30)][int]$TimeoutSeconds = 5
+    [ValidateRange(1, 30)][int]$TimeoutSeconds = 15
 )
 
 $ErrorActionPreference = 'Stop'
@@ -70,6 +70,9 @@ try {
         Get-Content -LiteralPath $serialLog -Raw
     } else {
         ''
+    }
+    if ($null -eq $serial) {
+        $serial = ''
     }
     if ($serial.IndexOf('!') -lt 0 -or $serial.IndexOf('EfesOS: kernel entry reached.') -ge 0) {
         throw "Bozuk kernel imaji stage-2 tarafindan reddedilmedi. Serial: $serial"

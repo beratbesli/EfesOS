@@ -305,6 +305,11 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("EfesOS: PCI devices discovered=");
     serial_write_hex(pci_device_count());
     serial_write("\n");
+    serial_write("EfesOS: AHCI controllers discovered=");
+    serial_write_hex(pci_ahci_controller_count());
+    serial_write(" usable-mmio=");
+    serial_write_hex(pci_ahci_usable_count());
+    serial_write(".\n");
     serial_write("EfesOS: PCI BAR self-test passed.\n");
     ata_init();
     if (!ata_write_protected()) {

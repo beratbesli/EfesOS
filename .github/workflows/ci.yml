@@ -56,6 +56,8 @@ jobs:
         run: clang -std=c11 -Wall -Wextra -Werror -Idrivers tests/ata_irq_state_host_test.c drivers/ata_irq_state.c -o build/ata-irq-state-host-test && build/ata-irq-state-host-test
       - name: ATA DMA contract host test
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude -Idrivers tests/ata_dma_host_test.c drivers/ata_dma.c -o build/ata-dma-host-test && build/ata-dma-host-test
+      - name: PCI AHCI layout host test
+        run: clang -std=c11 -Wall -Wextra -Werror -Iinclude tests/pci_ahci_host_test.c drivers/pci_layout.c -o build/pci-ahci-host-test && build/pci-ahci-host-test
       - name: RTC conversion host test
         run: clang -std=c11 -Wall -Wextra -Werror -Iinclude -Idrivers tests/rtc_host_test.c drivers/rtc_time.c -o build/rtc-host-test && build/rtc-host-test
       - name: ACPI table host test
@@ -119,6 +121,7 @@ jobs:
           grep -F "EfesOS: RTC calendar self-test passed." build/ci-serial.log
           grep -F "EfesOS: RTC stable read passed year=" build/ci-serial.log
           grep -F "EfesOS: PCI devices discovered=" build/ci-serial.log
+          grep -F "EfesOS: AHCI controllers discovered=" build/ci-serial.log
           grep -F "EfesOS: ATA primary-master present=" build/ci-serial.log
           grep -F "EfesOS: ATA IRQ mode enabled=" build/ci-serial.log
           grep -F "EfesOS: ATA DMA mode enabled=" build/ci-serial.log
@@ -178,6 +181,7 @@ jobs:
         run: |
           timeout 20s qemu-system-i386 -machine q35,hpet=on -display none -monitor none -serial file:build/ci-q35-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true
           grep -F "EfesOS: PCI devices discovered=" build/ci-q35-serial.log
+          grep -F "EfesOS: AHCI controllers discovered=0x00000001 usable-mmio=0x00000001." build/ci-q35-serial.log
           grep -F "EfesOS: ACPI root table validated." build/ci-q35-serial.log
           grep -F "EfesOS: ACPI MADT validated lapic=0xFEE00000" build/ci-q35-serial.log
           grep -F "EfesOS: APIC interrupt routing enabled lapic-id=" build/ci-q35-serial.log

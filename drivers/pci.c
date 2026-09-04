@@ -230,6 +230,38 @@ int pci_disable_ide_bus_master(const struct pci_device *device)
     return (command & 0x0004U) == 0U;
 }
 
+unsigned int pci_ahci_controller_count(void)
+{
+    unsigned int count = 0U;
+    unsigned int index;
+
+    for (index = 0U; index < device_count; index++) {
+        const struct pci_device *device = &devices[index];
+
+        if ((device->header_type & 0x7FU) == 0U &&
+            device->class_code == 0x01U && device->subclass == 0x06U &&
+            device->prog_if == 0x01U) {
+            count++;
+        }
+    }
+    return count;
+}
+
+unsigned int pci_ahci_usable_count(void)
+{
+    unsigned int count = 0U;
+    unsigned int index;
+
+    for (index = 0U; index < device_count; index++) {
+        uint32_t base;
+
+        if (pci_ahci_mmio_base(&devices[index], &base)) {
+            count++;
+        }
+    }
+    return count;
+}
+
 unsigned int pci_device_count(void)
 {
     return device_count;
