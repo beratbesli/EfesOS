@@ -1,6 +1,7 @@
 #include "boot_info.h"
 #include "features.h"
 #include "acpi.h"
+#include "ahci.h"
 #include "ata.h"
 #include "idt.h"
 #include "games.h"
@@ -499,6 +500,41 @@ void kernel_main(const struct boot_info *boot_info)
         serial_write("EfesOS: ACPI root table unavailable or invalid.\n");
         serial_write("EfesOS: APIC routing unavailable; dual 8259 PIC fallback active.\n");
         serial_write("EfesOS: HPET monotonic clock unavailable; PIT fallback active.\n");
+    }
+    ahci_init();
+    serial_write("EfesOS: AHCI disk present=");
+    serial_write_hex((unsigned int)ahci_present());
+    serial_write(" sectors=");
+    serial_write_hex(ahci_sector_count());
+    serial_write(" port=");
+    serial_write_hex(ahci_port_number());
+    serial_write(" version=");
+    serial_write_hex(ahci_version());
+    serial_write(" error=");
+    serial_write_hex(ahci_last_error());
+    serial_write(" readonly=0x00000001.\n");
+    if (ahci_present()) {
+        const struct block_device *ahci_device = ahci_block_device();
+        unsigned char probe[BLOCK_DEVICE_SECTOR_SIZE];
+        unsigned int reads_before = ahci_read_count();
+
+        if (!block_device_is_ready(ahci_device) ||
+            block_device_can_write(ahci_device) ||
+            block_device_sector_count(ahci_device) != ahci_sector_count() ||
+            !block_device_read(ahci_device, 0U, 1U, probe) ||
+            ahci_read_count() != reads_before + 1U) {
+            kernel_panic("AHCI read-only block device self-test failed.");
+        }
+        serial_write("EfesOS: AHCI read path self-test passed.\n");
+        if (!ata_present()) {
+            vfs_init(ahci_device);
+            serial_write("EfesOS: AHCI FAT volume mounted=");
+            serial_write_hex(vfs_is_mounted());
+            serial_write(" error=");
+            serial_write_hex(fat_last_error());
+            serial_write(".\n");
+            verify_mounted_disk_read();
+        }
     }
     if (!elf_loader_runtime_self_test()) {
         kernel_panic("ELF loader runtime self-test failed.");

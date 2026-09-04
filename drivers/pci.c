@@ -43,6 +43,21 @@ static int pci_is_present(uint8_t bus, uint8_t slot, uint8_t function)
     return pci_config_read_word(bus, slot, function, 0) != 0xFFFFU;
 }
 
+static int pci_device_is_recorded(const struct pci_device *device)
+{
+    unsigned int index;
+
+    if (device == 0) {
+        return 0;
+    }
+    for (index = 0U; index < device_count; index++) {
+        if (device == &devices[index]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static void pci_record(uint8_t bus, uint8_t slot, uint8_t function)
 {
     uint32_t class_register;
@@ -260,6 +275,98 @@ unsigned int pci_ahci_usable_count(void)
         }
     }
     return count;
+}
+
+const struct pci_device *pci_ahci_device_at(unsigned int requested_index)
+{
+    unsigned int found = 0U;
+    unsigned int index;
+
+    for (index = 0U; index < device_count; index++) {
+        uint32_t base;
+
+        if (pci_ahci_mmio_base(&devices[index], &base)) {
+            if (found == requested_index) {
+                return &devices[index];
+            }
+            found++;
+        }
+    }
+    return 0;
+}
+
+int pci_prepare_ahci_controller(const struct pci_device *device,
+    uint16_t *original_command)
+{
+    uint32_t base;
+    uint16_t command;
+    uint16_t prepared;
+
+    if (original_command == 0 || !pci_device_is_recorded(device) ||
+        !pci_ahci_mmio_base(device, &base)) {
+        return 0;
+    }
+    command = pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U);
+    *original_command = command;
+    prepared = (uint16_t)((command | 0x0002U) & (uint16_t)~0x0004U);
+    pci_config_write_word(device->bus, device->slot, device->function,
+        0x04U, prepared);
+    if ((pci_config_read_word(device->bus, device->slot, device->function,
+            0x04U) & 0x0006U) != 0x0002U) {
+        command = pci_config_read_word(device->bus, device->slot,
+            device->function, 0x04U);
+        command &= (uint16_t)~0x0004U;
+        pci_config_write_word(device->bus, device->slot, device->function,
+            0x04U, command);
+        return 0;
+    }
+    return 1;
+}
+
+int pci_enable_ahci_bus_master(const struct pci_device *device)
+{
+    uint32_t base;
+    uint16_t command;
+
+    if (!pci_device_is_recorded(device) ||
+        !pci_ahci_mmio_base(device, &base)) {
+        return 0;
+    }
+    command = pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U);
+    command |= 0x0006U;
+    pci_config_write_word(device->bus, device->slot, device->function,
+        0x04U, command);
+    return (pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U) & 0x0006U) == 0x0006U;
+}
+
+int pci_quiesce_ahci_controller(const struct pci_device *device,
+    uint16_t original_command)
+{
+    uint16_t command;
+    uint16_t quiesced;
+
+    if (!pci_device_is_recorded(device)) {
+        return 0;
+    }
+    command = pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U);
+    command &= (uint16_t)~0x0004U;
+    pci_config_write_word(device->bus, device->slot, device->function,
+        0x04U, command);
+    if ((pci_config_read_word(device->bus, device->slot,
+            device->function, 0x04U) & 0x0004U) != 0U) {
+        return 0;
+    }
+
+    quiesced = (uint16_t)(original_command & (uint16_t)~0x0004U);
+    pci_config_write_word(device->bus, device->slot, device->function,
+        0x04U, quiesced);
+    command = pci_config_read_word(device->bus, device->slot,
+        device->function, 0x04U);
+    return (command & 0x0007U) == (quiesced & 0x0007U);
 }
 
 unsigned int pci_device_count(void)

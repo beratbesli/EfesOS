@@ -29,6 +29,7 @@ $successMarkers = @(
     'EfesOS: RTC stable read passed year=',
     'EfesOS: PCI devices discovered=',
     'EfesOS: AHCI controllers discovered=',
+    'EfesOS: AHCI disk present=',
     'EfesOS: ATA primary-master present=',
     'EfesOS: ATA IRQ mode enabled=',
     'EfesOS: ATA DMA mode enabled=',
@@ -113,12 +114,19 @@ if ($DiskImage -ne '' -and !(Test-Path -LiteralPath $DiskImage)) {
     throw "Disk imaji bulunamadi: $DiskImage"
 }
 if ($DiskImage -ne '') {
-    $successMarkers += 'EfesOS: ATA IRQ completion self-test passed.'
-    $successMarkers += 'EfesOS: ATA DMA mode enabled=0x00000001'
-    $successMarkers += 'EfesOS: ATA DMA/PIO data integrity self-test passed.'
-    $successMarkers += 'transfers=0x00000001 fallbacks=0x00000000.'
-    $successMarkers += 'EfesOS: FAT directory/file read self-test passed'
-    $successMarkers += 'EfesOS: persistent journal replay passed records=0x00000001.'
+    if ($Q35) {
+        $successMarkers += 'EfesOS: AHCI disk present=0x00000001'
+        $successMarkers += 'EfesOS: AHCI read path self-test passed.'
+        $successMarkers += 'EfesOS: AHCI FAT volume mounted=0x00000001'
+        $successMarkers += 'EfesOS: FAT directory/file read self-test passed'
+    } else {
+        $successMarkers += 'EfesOS: ATA IRQ completion self-test passed.'
+        $successMarkers += 'EfesOS: ATA DMA mode enabled=0x00000001'
+        $successMarkers += 'EfesOS: ATA DMA/PIO data integrity self-test passed.'
+        $successMarkers += 'transfers=0x00000001 fallbacks=0x00000000.'
+        $successMarkers += 'EfesOS: FAT directory/file read self-test passed'
+        $successMarkers += 'EfesOS: persistent journal replay passed records=0x00000001.'
+    }
 }
 if ($RequireHpet) {
     $successMarkers += 'EfesOS: ACPI HPET table validated base=0xFED00000'

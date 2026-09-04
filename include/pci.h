@@ -42,6 +42,12 @@ int pci_disable_ide_bus_master(const struct pci_device *device);
 int pci_ahci_mmio_base(const struct pci_device *device, uint32_t *base);
 unsigned int pci_ahci_controller_count(void);
 unsigned int pci_ahci_usable_count(void);
+const struct pci_device *pci_ahci_device_at(unsigned int index);
+int pci_prepare_ahci_controller(const struct pci_device *device,
+    uint16_t *original_command);
+int pci_enable_ahci_bus_master(const struct pci_device *device);
+int pci_quiesce_ahci_controller(const struct pci_device *device,
+    uint16_t original_command);
 unsigned int pci_device_count(void);
 const struct pci_device *pci_device_at(unsigned int index);
 
