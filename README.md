@@ -13,7 +13,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - Retried two-stage BIOS bootloader with A20 verification and a 1.44 MiB floppy image
 - BIOS E820 memory map handoff, deterministic `.bss` initialization, strict metadata validation and reserved-over-usable overlap normalization
 - Early CPUID capability probe reports PAE/NX/TSC/RDRAND/MSR/APIC/x2APIC support; PAE paging and hardware NX are enabled when supported, with a legacy fallback
-- 32-bit protected mode, GDT, vector-aware IDT, validated xAPIC/IOAPIC routing for IRQ0/IRQ1/IRQ14, dual-8259 PIC fallback, PIT and buffered hardware keyboard input
+- 32-bit protected mode, GDT, vector-aware IDT, validated xAPIC/IOAPIC routing for IRQ0/IRQ1/IRQ14, dedicated AHCI MSI vector 51, dual-8259 PIC fallback, PIT and buffered hardware keyboard input
 - Stable CMOS RTC wall-clock reads with UIP/format/calendar validation and a `date` shell command
 - Bounded ACPI RSDP/RSDT/XSDT discovery with checksum validation plus guarded MADT topology/interrupt-override and HPET table parsing
 - Validated HPET monotonic clock with uncached MMIO, nanosecond conversion, 32-bit counter-wrap maintenance and an automatic PIT fallback
@@ -23,7 +23,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - PCI configuration-space enumeration with read-only type-0 BAR decoding and a bounded `pci` diagnostic command
 - PCI BAR records pass an in-kernel alignment/type self-test before device drivers consume them
 - Timeout-bounded ATA primary-master I/O with IRQ14 completion, validated bus-master DMA reads in 4 KiB bounce-buffer chunks, automatic PIO fallback, serialized requests and explicit disk absence reporting
-- Bounded read-only AHCI path for Q35/ICH9 SATA: BIOS ownership handoff, cache-disabled BAR5 mapping, serialized slot-0 IDENTIFY/READ DMA commands, one COMRESET/re-identification retry and fail-closed bus-master revocation
+- Bounded read-only AHCI path for Q35/ICH9 SATA: BIOS ownership handoff, cache-disabled BAR5 mapping, transactional single-message MSI completion with generation tracking and polling fallback, serialized slot-0 IDENTIFY/READ DMA commands, one COMRESET/re-identification retry and fail-closed MSI/bus-master revocation
 - Driver-independent 512-byte block-device layer validates capacity, transfer bounds and optional write capability before dispatch; VFS receives a read-only ATA or AHCI view
 - ATA raw writes remain disabled by default; only a validated journal window can be transactionally enabled
 - Read-only FAT16 VFS mount with bounded 8.3 root/subdirectory file reads (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); validated ELF launch from disk (`run NAME`)
@@ -112,6 +112,13 @@ Validate AHCI PCI class (`01/06/01`) and BAR5 MMIO layout handling:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\pci-ahci-self-test.ps1
 ```
 
+Validate bounded PCI MSI capability parsing, transactional register rollback and AHCI interrupt-generation tracking:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\pci-msi-self-test.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-irq-state-self-test.ps1
+```
+
 Run the RTC BCD/binary, 12/24-hour and Gregorian calendar conversion test:
 
 ```powershell
@@ -131,7 +138,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Di
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Q35 -RequireHpet
 ```
 
-The HPET profile verifies both the live MMIO counter and the calibrated local APIC scheduler timer. The HPET-disabled profile verifies PIT delivery through the IOAPIC; the ACPI-disabled and APIC-disabled profiles verify the masked-PIC fallback. The Q35 profile verifies the ACPI/MADT/IOAPIC/HPET and scheduler paths on the newer ICH9 platform model, including bounded AHCI class and BAR5 discovery. When a disk image is supplied, the Q35 profile also verifies read-only AHCI IDENTIFY, DMA sector reads and FAT mounting.
+The HPET profile verifies both the live MMIO counter and the calibrated local APIC scheduler timer. The HPET-disabled profile verifies PIT delivery through the IOAPIC; the ACPI-disabled and APIC-disabled profiles verify the masked-PIC fallback. The Q35 profile verifies the ACPI/MADT/IOAPIC/HPET and scheduler paths on the newer ICH9 platform model, including bounded AHCI class and BAR5 discovery. When a disk image is supplied, the Q35 profile also verifies read-only AHCI IDENTIFY, MSI-completed DMA reads with zero polling fallbacks and FAT mounting. `-Q35 -DisableApic` verifies the same reads through the polling fallback without enabling MSI.
 
 Run the deterministic boot metadata, E820, ELF and FAT property-fuzz suite after changing any boot or parser boundary:
 
@@ -186,6 +193,7 @@ Run the same FAT fixture through Q35/ICH9 AHCI:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -SkipBuild -Q35 -RequireHpet -DiskImage .\build\test-disk.img
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -SkipBuild -Q35 -DisableApic -DiskImage .\build\test-disk.img
 ```
 
 Exercise recoverable and persistent AHCI read errors through QEMU `blkdebug`:

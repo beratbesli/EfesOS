@@ -13,7 +13,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - A20 doğrulamalı, yeniden deneyen iki aşamalı BIOS bootloader ve 1.44 MiB floppy imajı
 - BIOS E820 bellek haritası aktarımı, deterministik `.bss` başlangıcı, sıkı metadata doğrulaması ve reserved-over-usable çakışma normalizasyonu
 - Erken CPUID yetenek yoklaması PAE/NX/TSC/RDRAND/MSR/APIC/x2APIC desteğini raporlar; destek varsa PAE sayfalama ve donanımsal NX etkinleşir, yoksa legacy fallback kullanılır
-- 32-bit protected mode, GDT, vektör duyarlı IDT, IRQ0/IRQ1/IRQ14 için doğrulanmış xAPIC/IOAPIC yönlendirmesi, dual-8259 PIC geri dönüşü, PIT ve tamponlanmış donanım klavye girişi
+- 32-bit protected mode, GDT, vektör duyarlı IDT, IRQ0/IRQ1/IRQ14 için doğrulanmış xAPIC/IOAPIC yönlendirmesi, ayrılmış AHCI MSI vektörü 51, dual-8259 PIC geri dönüşü, PIT ve tamponlanmış donanım klavye girişi
 - UIP/biçim/takvim doğrulamalı kararlı CMOS RTC duvar saati okuması ve `date` shell komutu
 - Checksum doğrulamalı, sınırlandırılmış ACPI RSDP/RSDT/XSDT keşfi ile korumalı MADT topoloji/kesme-override ve HPET tablo ayrıştırması
 - Önbelleksiz MMIO, nanosaniye dönüşümü, 32-bit sayaç sarım bakımı ve otomatik PIT geri dönüşü olan doğrulanmış HPET monoton saati
@@ -23,7 +23,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Salt-okunur type-0 BAR ayrıştırması ve sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
 - PCI BAR kayıtları sürücülere açılmadan önce çekirdek içinde tür/hizalama self-test’inden geçer
 - IRQ14 tamamlanması, doğrulanmış 4 KiB bounce-buffer parçalarıyla bus-master DMA okumaları, otomatik PIO fallback, seri hale getirilmiş istekler ve açık disk-yokluğu tanısı olan zaman aşımı kontrollü ATA primary-master erişimi
-- Q35/ICH9 SATA için bounded salt-okunur AHCI yolu: BIOS sahiplik devri, cache-disabled BAR5 eşleme, seri slot-0 IDENTIFY/READ DMA komutları, tek COMRESET/yeniden kimlik doğrulama retry'ı ve hata halinde fail-closed bus-master iptali
+- Q35/ICH9 SATA için bounded salt-okunur AHCI yolu: BIOS sahiplik devri, cache-disabled BAR5 eşleme, nesil takipli ve polling fallback’li transaction MSI tamamlanması, seri slot-0 IDENTIFY/READ DMA komutları, tek COMRESET/yeniden kimlik doğrulama retry'ı ve hata halinde fail-closed MSI/bus-master iptali
 - Sürücüden bağımsız 512 baytlık blok aygıt katmanı kapasiteyi, transfer sınırını ve isteğe bağlı yazma yeteneğini çağrıdan önce doğrular; VFS’ye salt-okunur ATA veya AHCI görünümü verilir
 - ATA ham yazmaları varsayılan olarak boot’ta korumalıdır; yalnızca doğrulanmış journal penceresi transaction için açılabilir
 - Sınırlı 8.3 kök/alt-dizin dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); doğrulanmış ELF’i diskten başlatma (`run NAME`)
@@ -112,6 +112,13 @@ AHCI PCI sınıfı (`01/06/01`) ve BAR5 MMIO yerleşimi doğrulamasını sınama
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\pci-ahci-self-test.ps1
 ```
 
+Sınırlandırılmış PCI MSI capability ayrıştırmasını, transaction register geri alımını ve AHCI kesme nesli takibini sınamak için:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\pci-msi-self-test.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-irq-state-self-test.ps1
+```
+
 RTC BCD/binary, 12/24 saat ve Gregoryen takvim dönüşümünü sınamak için:
 
 ```powershell
@@ -131,7 +138,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Di
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Q35 -RequireHpet
 ```
 
-HPET profili canlı MMIO sayacıyla birlikte kalibre edilmiş local APIC scheduler timer’ını doğrular. HPET kapalı profil PIT’in IOAPIC üzerinden teslimini; ACPI ve APIC kapalı profiller ise maskeli-PIC geri dönüşünü doğrular. Q35 profili daha yeni ICH9 platform modelinde ACPI/MADT/IOAPIC/HPET ve scheduler yollarıyla birlikte bounded AHCI sınıfı ve BAR5 keşfini doğrular. Disk imajı verildiğinde salt-okunur AHCI IDENTIFY, DMA sektör okuması ve FAT mount yolu da sınanır.
+HPET profili canlı MMIO sayacıyla birlikte kalibre edilmiş local APIC scheduler timer’ını doğrular. HPET kapalı profil PIT’in IOAPIC üzerinden teslimini; ACPI ve APIC kapalı profiller ise maskeli-PIC geri dönüşünü doğrular. Q35 profili daha yeni ICH9 platform modelinde ACPI/MADT/IOAPIC/HPET ve scheduler yollarıyla birlikte bounded AHCI sınıfı ve BAR5 keşfini doğrular. Disk imajı verildiğinde salt-okunur AHCI IDENTIFY, sıfır polling fallback ile MSI tamamlamalı DMA sektör okumaları ve FAT mount yolu da sınanır. `-Q35 -DisableApic` aynı okumaları MSI açmadan polling fallback üzerinden doğrular.
 
 Boot veya parser sınırı değişikliklerinden sonra deterministik boot metadata, E820, ELF ve FAT property-fuzz paketini çalıştır:
 
@@ -186,6 +193,7 @@ Aynı FAT fixture’ını Q35/ICH9 AHCI üzerinden sınamak için:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -SkipBuild -Q35 -RequireHpet -DiskImage .\build\test-disk.img
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -SkipBuild -Q35 -DisableApic -DiskImage .\build\test-disk.img
 ```
 
 Kurtarılabilir ve kalıcı AHCI okuma hatalarını QEMU `blkdebug` ile sınamak için:
