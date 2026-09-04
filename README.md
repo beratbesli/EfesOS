@@ -23,7 +23,8 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - PCI configuration-space enumeration with read-only type-0 BAR decoding and a bounded `pci` diagnostic command
 - PCI BAR records pass an in-kernel alignment/type self-test before device drivers consume them
 - Timeout-bounded ATA primary-master I/O with IRQ14 completion, validated bus-master DMA reads in 4 KiB bounce-buffer chunks, automatic PIO fallback, serialized requests and explicit disk absence reporting
-- Driver-independent 512-byte block-device layer validates capacity, transfer bounds and optional write capability before dispatch; VFS receives a read-only ATA view
+- Bounded read-only AHCI path for Q35/ICH9 SATA: BIOS ownership handoff, cache-disabled BAR5 mapping, serialized slot-0 IDENTIFY/READ DMA commands and fail-closed bus-master revocation
+- Driver-independent 512-byte block-device layer validates capacity, transfer bounds and optional write capability before dispatch; VFS receives a read-only ATA or AHCI view
 - ATA raw writes remain disabled by default; only a validated journal window can be transactionally enabled
 - Read-only FAT16 VFS mount with bounded 8.3 root/subdirectory file reads (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); validated ELF launch from disk (`run NAME`)
 - When a validated journal region exists outside the FAT volume, shell `write`/`rm` operations are committed transactionally to persistent RAMFS; `pformat` explicitly formats an entirely empty journal tail
@@ -130,7 +131,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Di
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Q35 -RequireHpet
 ```
 
-The HPET profile verifies both the live MMIO counter and the calibrated local APIC scheduler timer. The HPET-disabled profile verifies PIT delivery through the IOAPIC; the ACPI-disabled and APIC-disabled profiles verify the masked-PIC fallback. The Q35 profile verifies the ACPI/MADT/IOAPIC/HPET and scheduler paths on the newer ICH9 platform model, including bounded AHCI class and BAR5 discovery. EfesOS does not yet include AHCI data transfer support, so an extra Q35 SATA disk is intentionally outside the supported storage path; use the default i440FX/PIIX IDE profile for the ATA disk tests.
+The HPET profile verifies both the live MMIO counter and the calibrated local APIC scheduler timer. The HPET-disabled profile verifies PIT delivery through the IOAPIC; the ACPI-disabled and APIC-disabled profiles verify the masked-PIC fallback. The Q35 profile verifies the ACPI/MADT/IOAPIC/HPET and scheduler paths on the newer ICH9 platform model, including bounded AHCI class and BAR5 discovery. When a disk image is supplied, the Q35 profile also verifies read-only AHCI IDENTIFY, DMA sector reads and FAT mounting.
 
 Run the deterministic boot metadata, E820, ELF and FAT property-fuzz suite after changing any boot or parser boundary:
 
@@ -179,6 +180,12 @@ Exercise the complete QEMU ATA/FAT read path with the deterministic fixture:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\create-test-disk.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DiskImage .\build\test-disk.img
+```
+
+Run the same FAT fixture through Q35/ICH9 AHCI:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -SkipBuild -Q35 -RequireHpet -DiskImage .\build\test-disk.img
 ```
 
 The fixture also replays one journal record from a region outside the FAT volume; disk writes remain protected.
@@ -230,7 +237,7 @@ Snake uses `W`, `A`, `S`, `D` to move and `Q` to exit. Slot uses Space to spin a
 ```text
 boot/       BIOS stage-1 and stage-2 loaders
 cpu/        IDT, xAPIC/IOAPIC, PIC/PIT and interrupt stubs
-drivers/    VGA, keyboard, RTC, ACPI/HPET, PCI, ATA and generic block-device drivers
+drivers/    VGA, keyboard, RTC, ACPI/HPET, PCI, ATA/AHCI and generic block-device drivers
 fs/         In-memory filesystem
 games/      Snake and slot game logic
 include/    Shared headers

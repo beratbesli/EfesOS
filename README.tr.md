@@ -23,7 +23,8 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - Salt-okunur type-0 BAR ayrıştırması ve sınırlı `pci` tanılama komutuyla PCI yapılandırma alanı taraması
 - PCI BAR kayıtları sürücülere açılmadan önce çekirdek içinde tür/hizalama self-test’inden geçer
 - IRQ14 tamamlanması, doğrulanmış 4 KiB bounce-buffer parçalarıyla bus-master DMA okumaları, otomatik PIO fallback, seri hale getirilmiş istekler ve açık disk-yokluğu tanısı olan zaman aşımı kontrollü ATA primary-master erişimi
-- Sürücüden bağımsız 512 baytlık blok aygıt katmanı kapasiteyi, transfer sınırını ve isteğe bağlı yazma yeteneğini çağrıdan önce doğrular; VFS’ye salt-okunur ATA görünümü verilir
+- Q35/ICH9 SATA için bounded salt-okunur AHCI yolu: BIOS sahiplik devri, cache-disabled BAR5 eşleme, seri slot-0 IDENTIFY/READ DMA komutları ve hata halinde fail-closed bus-master iptali
+- Sürücüden bağımsız 512 baytlık blok aygıt katmanı kapasiteyi, transfer sınırını ve isteğe bağlı yazma yeteneğini çağrıdan önce doğrular; VFS’ye salt-okunur ATA veya AHCI görünümü verilir
 - ATA ham yazmaları varsayılan olarak boot’ta korumalıdır; yalnızca doğrulanmış journal penceresi transaction için açılabilir
 - Sınırlı 8.3 kök/alt-dizin dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); doğrulanmış ELF’i diskten başlatma (`run NAME`)
 - FAT volume dışında doğrulanmış journal bölgesi varsa shell `write`/`rm` işlemleri kalıcı RAMFS journal’ına transaction olarak yazılır; `pformat` yalnızca tamamen boş journal tail’ini açıkça biçimlendirir
@@ -130,7 +131,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Di
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Q35 -RequireHpet
 ```
 
-HPET profili canlı MMIO sayacıyla birlikte kalibre edilmiş local APIC scheduler timer’ını doğrular. HPET kapalı profil PIT’in IOAPIC üzerinden teslimini; ACPI ve APIC kapalı profiller ise maskeli-PIC geri dönüşünü doğrular. Q35 profili daha yeni ICH9 platform modelinde ACPI/MADT/IOAPIC/HPET ve scheduler yollarıyla birlikte bounded AHCI sınıfı ve BAR5 keşfini doğrular. EfesOS henüz AHCI veri aktarımını desteklemediğinden Q35’e eklenen SATA disk desteklenen depolama yolunun dışındadır; ATA disk testleri için varsayılan i440FX/PIIX IDE profili kullanılmalıdır.
+HPET profili canlı MMIO sayacıyla birlikte kalibre edilmiş local APIC scheduler timer’ını doğrular. HPET kapalı profil PIT’in IOAPIC üzerinden teslimini; ACPI ve APIC kapalı profiller ise maskeli-PIC geri dönüşünü doğrular. Q35 profili daha yeni ICH9 platform modelinde ACPI/MADT/IOAPIC/HPET ve scheduler yollarıyla birlikte bounded AHCI sınıfı ve BAR5 keşfini doğrular. Disk imajı verildiğinde salt-okunur AHCI IDENTIFY, DMA sektör okuması ve FAT mount yolu da sınanır.
 
 Boot veya parser sınırı değişikliklerinden sonra deterministik boot metadata, E820, ELF ve FAT property-fuzz paketini çalıştır:
 
@@ -179,6 +180,12 @@ QEMU üzerindeki ATA/FAT okuma yolunun tamamını deterministik test diskiyle s�
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\create-test-disk.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -DiskImage .\build\test-disk.img
+```
+
+Aynı FAT fixture’ını Q35/ICH9 AHCI üzerinden sınamak için:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -SkipBuild -Q35 -RequireHpet -DiskImage .\build\test-disk.img
 ```
 
 Bu fixture ayrıca FAT alanının dışındaki journal bölgesinden bir kayıt replay eder; yazma yolu yine korumalıdır.
@@ -230,7 +237,7 @@ Snake için `W`, `A`, `S`, `D` tuşlarıyla hareket edilir; çıkış `Q` tuşud
 ```text
 boot/       BIOS stage-1 ve stage-2 yükleyicileri
 cpu/        IDT, xAPIC/IOAPIC, PIC/PIT ve kesme stub'ları
-drivers/    VGA, klavye, RTC, ACPI/HPET, PCI, ATA ve genel blok aygıt sürücüleri
+drivers/    VGA, klavye, RTC, ACPI/HPET, PCI, ATA/AHCI ve genel blok aygıt sürücüleri
 fs/         Bellek içi dosya sistemi
 games/      Snake ve slot oyun mantığı
 include/    Paylaşılan başlık dosyaları
