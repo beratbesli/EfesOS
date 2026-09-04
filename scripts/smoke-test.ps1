@@ -9,7 +9,8 @@ param(
     [switch]$RequireHpet,
     [switch]$DisableHpet,
     [switch]$DisableAcpi,
-    [switch]$DisableApic
+    [switch]$DisableApic,
+    [switch]$Q35
 )
 
 $ErrorActionPreference = 'Stop'
@@ -175,13 +176,15 @@ if ($Cpu -ne '') {
 if ($RtcBase -ne '') {
     $arguments += @('-rtc', "base=$RtcBase,clock=vm")
 }
+$machineType = if ($Q35) { 'q35' } else { 'pc' }
 if ($RequireHpet) {
-    $arguments = @('-machine', 'pc,hpet=on') + $arguments
+    $arguments = @('-machine', "$machineType,hpet=on") + $arguments
 } elseif ($DisableHpet) {
-    $arguments = @('-machine', 'pc,hpet=off') + $arguments
-}
-if ($DisableAcpi) {
-    $arguments = @('-machine', 'pc,acpi=off') + $arguments
+    $arguments = @('-machine', "$machineType,hpet=off") + $arguments
+} elseif ($DisableAcpi) {
+    $arguments = @('-machine', "$machineType,acpi=off") + $arguments
+} elseif ($Q35) {
+    $arguments = @('-machine', $machineType) + $arguments
 }
 if ($DiskImage -ne '') {
     $arguments += @('-drive', "`"file=$DiskImage,format=raw,if=ide`"")
