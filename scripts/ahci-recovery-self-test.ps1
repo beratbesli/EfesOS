@@ -94,12 +94,15 @@ try {
             if (![string]::IsNullOrEmpty($output)) {
                 if ($PersistentFailure) {
                     $passed =
+                        $output.Contains('EfesOS: AHCI MSI mode enabled=0x00000001 irq-count=0x00000000 polling-fallbacks=0x00000000.') -and
                         $output.Contains('EfesOS: AHCI read failure fail-closed=0x00000001 present=0x00000000') -and
                         $output.Contains('attempts=0x00000001.') -and
                         $output.Contains('KERNEL PANIC: AHCI read-only block device self-test failed.') -and
                         !$output.Contains('EfesOS: AHCI read path self-test passed.')
                 } else {
                     $passed =
+                        $output.Contains('EfesOS: AHCI MSI mode enabled=0x00000001 irq-count=0x00000000 polling-fallbacks=0x00000000.') -and
+                        $output.Contains('EfesOS: AHCI interrupt completion self-test passed mode=0x00000001 irq-count=0x00000004 polling-fallbacks=0x00000000.') -and
                         $output.Contains('EfesOS: AHCI recovery state attempts=0x00000001 completed=0x00000001.') -and
                         $output.Contains('EfesOS: AHCI read path self-test passed.') -and
                         $output.Contains('EfesOS: AHCI FAT volume mounted=0x00000001') -and

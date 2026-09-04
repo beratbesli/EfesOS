@@ -117,6 +117,13 @@ if ($DiskImage -ne '') {
     if ($Q35) {
         $successMarkers += 'EfesOS: AHCI disk present=0x00000001'
         $successMarkers += 'EfesOS: AHCI read path self-test passed.'
+        if ($DisableApic) {
+            $successMarkers += 'EfesOS: AHCI MSI mode enabled=0x00000000 irq-count=0x00000000 polling-fallbacks=0x00000000.'
+            $successMarkers += 'EfesOS: AHCI interrupt completion self-test passed mode=0x00000000 irq-count=0x00000000 polling-fallbacks=0x00000000.'
+        } else {
+            $successMarkers += 'EfesOS: AHCI MSI mode enabled=0x00000001 irq-count=0x00000000 polling-fallbacks=0x00000000.'
+            $successMarkers += 'EfesOS: AHCI interrupt completion self-test passed mode=0x00000001 irq-count=0x00000002 polling-fallbacks=0x00000000.'
+        }
         $successMarkers += 'EfesOS: AHCI FAT volume mounted=0x00000001'
         $successMarkers += 'EfesOS: FAT directory/file read self-test passed'
     } else {

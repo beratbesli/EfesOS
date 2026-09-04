@@ -3,6 +3,8 @@
 
 #include "block_device.h"
 
+#define AHCI_MSI_VECTOR 0x33U
+
 enum ahci_error {
     AHCI_ERROR_NONE = 0,
     AHCI_ERROR_NO_CONTROLLER,
@@ -22,10 +24,16 @@ enum ahci_error {
     AHCI_ERROR_RESET_LINK,
     AHCI_ERROR_RESET_ENGINE,
     AHCI_ERROR_RESET_IDENTITY,
-    AHCI_ERROR_BLOCK_DEVICE
+    AHCI_ERROR_BLOCK_DEVICE,
+    AHCI_ERROR_INTERRUPT
 };
 
 void ahci_init(void);
+int ahci_enable_irq_mode(unsigned int apic_id);
+void ahci_irq_handler(void);
+int ahci_irq_mode_enabled(void);
+unsigned int ahci_irq_count(void);
+unsigned int ahci_irq_fallback_count(void);
 int ahci_present(void);
 unsigned int ahci_sector_count(void);
 unsigned int ahci_port_number(void);

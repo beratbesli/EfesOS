@@ -1,5 +1,6 @@
 #include "idt.h"
 #include "apic.h"
+#include "ahci.h"
 #include "ata.h"
 #include "io.h"
 #include "keyboard.h"
@@ -367,6 +368,10 @@ struct interrupt_frame *interrupt_dispatch(struct interrupt_frame *frame)
         pit_tick_handler();
         apic_acknowledge();
         return scheduler_on_timer(frame);
+    } else if (frame->vector == AHCI_MSI_VECTOR && apic_routing) {
+        ahci_irq_handler();
+        apic_acknowledge();
+        return frame;
     } else if (frame->vector == APIC_SPURIOUS_VECTOR && apic_routing) {
         return frame;
     } else if (frame->vector == 0x80U) {

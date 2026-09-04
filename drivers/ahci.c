@@ -1,4 +1,5 @@
 #include "ahci.h"
+#include "ahci_irq_state.h"
 #include "ahci_layout.h"
 #include "hpet.h"
 #include "paging.h"
@@ -47,6 +48,9 @@
 #define AHCI_TASK_FILE_DEVICE_FAULT 0x00000020U
 #define AHCI_TASK_FILE_BUSY 0x00000080U
 #define AHCI_PORT_INTERRUPT_ERROR_MASK 0x7D000000U
+#define AHCI_PORT_INTERRUPT_DHRS 0x00000001U
+#define AHCI_PORT_INTERRUPT_USED_MASK \
+    (AHCI_PORT_INTERRUPT_DHRS | AHCI_PORT_INTERRUPT_ERROR_MASK)
 #define AHCI_WAIT_LIMIT 10000000U
 #define AHCI_HANDOFF_WAIT_LIMIT 100000000U
 #define AHCI_HANDOFF_TIMEOUT_NS 2000000000ULL
@@ -81,6 +85,7 @@ static int request_active;
 static int mmio_control_safe;
 static int fail_closed_state;
 static uint16_t identify_baseline[256];
+static struct ahci_irq_state irq_state;
 
 static uint32_t read_register(volatile uint8_t *base, unsigned int offset)
 {
@@ -145,6 +150,19 @@ static void interrupt_restore(unsigned int flags)
     if ((flags & (1U << 9U)) != 0U) {
         __asm__ volatile ("sti" : : : "memory");
     }
+}
+
+static int interrupts_enabled(unsigned int flags)
+{
+    return (flags & (1U << 9U)) != 0U;
+}
+
+static void clear_pending_interrupts(void)
+{
+    uint32_t global_bit = 1U << selected_port;
+
+    write_register(port_registers, AHCI_PORT_INTERRUPT_STATUS, 0xFFFFFFFFU);
+    write_register(registers, AHCI_GLOBAL_INTERRUPT_STATUS, global_bit);
 }
 
 static int map_register_page(uint32_t physical_page, unsigned int index)
@@ -350,12 +368,21 @@ static int start_port(void)
 static int issue_slot_zero(unsigned int expected_bytes)
 {
     unsigned int attempt;
+    unsigned int entry_flags;
+    unsigned int final_flags;
+    uint32_t generation = 0U;
     uint32_t interrupt_status;
     uint32_t task_file;
+    int use_irq;
+    int observed = AHCI_IRQ_OBSERVE_NONE;
 
+    entry_flags = interrupt_save();
+    use_irq = ahci_irq_state_is_enabled(&irq_state) &&
+        interrupts_enabled(entry_flags);
     if ((read_register(port_registers, AHCI_PORT_COMMAND_ISSUE) & 1U) != 0U ||
         (read_register(port_registers, AHCI_PORT_SATA_ACTIVE) & 1U) != 0U) {
         error_code = AHCI_ERROR_COMMAND_STATUS;
+        interrupt_restore(entry_flags);
         return 0;
     }
     for (attempt = 0U; attempt < AHCI_WAIT_LIMIT; attempt++) {
@@ -368,48 +395,99 @@ static int issue_slot_zero(unsigned int expected_bytes)
     }
     if (attempt == AHCI_WAIT_LIMIT) {
         error_code = AHCI_ERROR_COMMAND_TIMEOUT;
+        interrupt_restore(entry_flags);
         return 0;
     }
 
-    write_register(port_registers, AHCI_PORT_INTERRUPT_STATUS, 0xFFFFFFFFU);
+    clear_pending_interrupts();
     write_register(port_registers, AHCI_PORT_SATA_ERROR, 0xFFFFFFFFU);
-    write_register(registers, AHCI_GLOBAL_INTERRUPT_STATUS,
-        1U << selected_port);
-    __asm__ volatile ("" : : : "memory");
-    write_register(port_registers, AHCI_PORT_COMMAND_ISSUE, 1U);
-    for (attempt = 0U; attempt < AHCI_WAIT_LIMIT; attempt++) {
-        interrupt_status = read_register(port_registers,
-            AHCI_PORT_INTERRUPT_STATUS);
-        if ((interrupt_status & AHCI_PORT_INTERRUPT_ERROR_MASK) != 0U) {
-            error_code = AHCI_ERROR_COMMAND_STATUS;
+    if (use_irq) {
+        generation = ahci_irq_state_begin(&irq_state);
+        if (generation == 0U) {
+            error_code = AHCI_ERROR_INTERRUPT;
+            interrupt_restore(entry_flags);
             return 0;
         }
-        if ((read_register(port_registers, AHCI_PORT_COMMAND_ISSUE) & 1U) == 0U) {
-            break;
+    } else if (ahci_irq_state_is_enabled(&irq_state)) {
+        ahci_irq_state_record_fallback(&irq_state);
+    }
+    __asm__ volatile ("" : : : "memory");
+    write_register(port_registers, AHCI_PORT_COMMAND_ISSUE, 1U);
+    interrupt_restore(entry_flags);
+
+    for (attempt = 0U; attempt < AHCI_WAIT_LIMIT; attempt++) {
+        if (use_irq) {
+            observed = ahci_irq_state_observe(&irq_state, generation,
+                AHCI_PORT_INTERRUPT_DHRS, AHCI_PORT_INTERRUPT_ERROR_MASK);
+            if (observed != AHCI_IRQ_OBSERVE_NONE) {
+                break;
+            }
+        } else {
+            interrupt_status = read_register(port_registers,
+                AHCI_PORT_INTERRUPT_STATUS);
+            if ((interrupt_status & AHCI_PORT_INTERRUPT_ERROR_MASK) != 0U ||
+                (read_register(port_registers,
+                    AHCI_PORT_COMMAND_ISSUE) & 1U) == 0U) {
+                break;
+            }
         }
         __asm__ volatile ("pause");
     }
-    if (attempt == AHCI_WAIT_LIMIT) {
-        error_code = AHCI_ERROR_COMMAND_TIMEOUT;
-        return 0;
-    }
+
+    final_flags = interrupt_save();
     __asm__ volatile ("" : : : "memory");
     interrupt_status = read_register(port_registers,
         AHCI_PORT_INTERRUPT_STATUS);
+    if (use_irq) {
+        uint32_t recorded_status = ahci_irq_state_status(&irq_state);
+
+        if (observed == AHCI_IRQ_OBSERVE_ERROR ||
+            (recorded_status & AHCI_PORT_INTERRUPT_ERROR_MASK) != 0U) {
+            error_code = AHCI_ERROR_COMMAND_STATUS;
+            (void)ahci_irq_state_finish(&irq_state, generation);
+            clear_pending_interrupts();
+            interrupt_restore(final_flags);
+            return 0;
+        }
+        if (observed != AHCI_IRQ_OBSERVE_COMPLETE) {
+            if ((interrupt_status & AHCI_PORT_INTERRUPT_ERROR_MASK) != 0U ||
+                (read_register(port_registers,
+                    AHCI_PORT_COMMAND_ISSUE) & 1U) != 0U) {
+                error_code =
+                    (interrupt_status & AHCI_PORT_INTERRUPT_ERROR_MASK) != 0U ?
+                    AHCI_ERROR_COMMAND_STATUS : AHCI_ERROR_COMMAND_TIMEOUT;
+                (void)ahci_irq_state_finish(&irq_state, generation);
+                clear_pending_interrupts();
+                interrupt_restore(final_flags);
+                return 0;
+            }
+            ahci_irq_state_record_fallback(&irq_state);
+        }
+        (void)ahci_irq_state_finish(&irq_state, generation);
+    } else if (attempt == AHCI_WAIT_LIMIT) {
+        error_code = AHCI_ERROR_COMMAND_TIMEOUT;
+        clear_pending_interrupts();
+        interrupt_restore(final_flags);
+        return 0;
+    }
     task_file = read_register(port_registers, AHCI_PORT_TASK_FILE_DATA);
     if ((interrupt_status & AHCI_PORT_INTERRUPT_ERROR_MASK) != 0U ||
         (task_file & (AHCI_TASK_FILE_ERROR | AHCI_TASK_FILE_DEVICE_FAULT |
-            AHCI_TASK_FILE_BUSY | AHCI_TASK_FILE_DATA_REQUEST)) != 0U) {
+            AHCI_TASK_FILE_BUSY | AHCI_TASK_FILE_DATA_REQUEST)) != 0U ||
+        (read_register(port_registers, AHCI_PORT_COMMAND_ISSUE) & 1U) != 0U) {
         error_code = AHCI_ERROR_COMMAND_STATUS;
+        clear_pending_interrupts();
+        interrupt_restore(final_flags);
         return 0;
     }
     if (command_header->prd_byte_count != expected_bytes) {
         error_code = AHCI_ERROR_TRANSFER_COUNT;
+        clear_pending_interrupts();
+        interrupt_restore(final_flags);
         return 0;
     }
-    write_register(port_registers, AHCI_PORT_INTERRUPT_STATUS, 0xFFFFFFFFU);
-    write_register(registers, AHCI_GLOBAL_INTERRUPT_STATUS,
-        1U << selected_port);
+    clear_pending_interrupts();
+    interrupt_restore(final_flags);
     return 1;
 }
 
@@ -476,8 +554,13 @@ static int reset_port_link(void)
 static int recover_and_revalidate(void)
 {
     uint16_t *identify = (uint16_t *)bounce_physical;
+    unsigned int flags;
+    int reset_ok;
 
-    if (!reset_port_link() ||
+    flags = interrupt_save();
+    reset_ok = reset_port_link();
+    interrupt_restore(flags);
+    if (!reset_ok ||
         !ahci_build_identify_command(command_header, command_table,
             command_table_physical, bounce_physical) ||
         !issue_slot_zero(AHCI_SECTOR_SIZE)) {
@@ -520,6 +603,7 @@ static void disable_driver(void)
     int bus_master_stopped = 1;
 
     block_device_reset(&block_device);
+    ahci_irq_state_disable(&irq_state);
     device_present = 0;
     sectors = 0U;
     supports_lba48 = 0;
@@ -572,19 +656,22 @@ static int ahci_block_read(void *context, unsigned int lba,
     }
     request_active = 1;
     byte_count = (unsigned int)count * AHCI_SECTOR_SIZE;
+    interrupt_restore(flags);
     if (ahci_build_read_command(command_header, command_table,
             command_table_physical, bounce_physical, lba, count,
             supports_lba48) && issue_slot_zero(byte_count)) {
-        copy_bytes(buffer, (const void *)bounce_physical, byte_count);
-        completed_reads++;
         success = 1;
     } else if (recover_and_revalidate() &&
         ahci_build_read_command(command_header, command_table,
             command_table_physical, bounce_physical, lba, count,
             supports_lba48) && issue_slot_zero(byte_count)) {
+        success = 1;
+    }
+    flags = interrupt_save();
+    if (success) {
         copy_bytes(buffer, (const void *)bounce_physical, byte_count);
         completed_reads++;
-        success = 1;
+        error_code = AHCI_ERROR_NONE;
     } else {
         disable_driver();
     }
@@ -625,6 +712,7 @@ void ahci_init(void)
     request_active = 0;
     mmio_control_safe = 0;
     fail_closed_state = 0;
+    ahci_irq_state_reset(&irq_state);
     block_device_reset(&block_device);
 
     controller = pci_ahci_device_at(0U);
@@ -768,6 +856,97 @@ void ahci_init(void)
     }
     error_code = AHCI_ERROR_NONE;
     device_present = 1;
+}
+
+int ahci_enable_irq_mode(unsigned int apic_id)
+{
+    uint32_t global_control;
+    unsigned int flags;
+    int configured = 0;
+
+    flags = interrupt_save();
+    if (!device_present || !mmio_control_safe || registers == 0 ||
+        port_registers == 0 || controller == 0) {
+        interrupt_restore(flags);
+        return 0;
+    }
+    if (ahci_irq_state_is_enabled(&irq_state)) {
+        interrupt_restore(flags);
+        return 1;
+    }
+
+    global_control = read_register(registers, AHCI_GLOBAL_CONTROL);
+    write_register(registers, AHCI_GLOBAL_CONTROL,
+        global_control & ~AHCI_GLOBAL_CONTROL_INTERRUPT_ENABLE);
+    write_register(port_registers, AHCI_PORT_INTERRUPT_ENABLE, 0U);
+    clear_pending_interrupts();
+    if (!pci_enable_ahci_msi(controller, apic_id, AHCI_MSI_VECTOR)) {
+        interrupt_restore(flags);
+        return 0;
+    }
+
+    clear_pending_interrupts();
+    ahci_irq_state_enable(&irq_state);
+    write_register(port_registers, AHCI_PORT_INTERRUPT_ENABLE,
+        AHCI_PORT_INTERRUPT_USED_MASK);
+    if ((read_register(port_registers, AHCI_PORT_INTERRUPT_ENABLE) &
+            AHCI_PORT_INTERRUPT_USED_MASK) == AHCI_PORT_INTERRUPT_USED_MASK) {
+        write_register(registers, AHCI_GLOBAL_CONTROL,
+            global_control | AHCI_GLOBAL_CONTROL_ENABLE |
+                AHCI_GLOBAL_CONTROL_INTERRUPT_ENABLE);
+        configured = (read_register(registers, AHCI_GLOBAL_CONTROL) &
+            AHCI_GLOBAL_CONTROL_INTERRUPT_ENABLE) != 0U;
+    }
+    if (!configured) {
+        write_register(port_registers, AHCI_PORT_INTERRUPT_ENABLE, 0U);
+        write_register(registers, AHCI_GLOBAL_CONTROL,
+            read_register(registers, AHCI_GLOBAL_CONTROL) &
+                ~AHCI_GLOBAL_CONTROL_INTERRUPT_ENABLE);
+        clear_pending_interrupts();
+        ahci_irq_state_disable(&irq_state);
+        (void)pci_disable_ahci_msi(controller);
+    }
+    interrupt_restore(flags);
+    return configured;
+}
+
+void ahci_irq_handler(void)
+{
+    uint32_t global_bit;
+    uint32_t global_status;
+    uint32_t port_status;
+
+    if (!mmio_control_safe || registers == 0 || port_registers == 0 ||
+        !ahci_irq_state_is_enabled(&irq_state)) {
+        return;
+    }
+    global_bit = 1U << selected_port;
+    global_status = read_register(registers, AHCI_GLOBAL_INTERRUPT_STATUS);
+    if ((global_status & global_bit) == 0U) {
+        return;
+    }
+    port_status = read_register(port_registers, AHCI_PORT_INTERRUPT_STATUS);
+    if (port_status != 0U) {
+        write_register(port_registers, AHCI_PORT_INTERRUPT_STATUS,
+            port_status);
+    }
+    write_register(registers, AHCI_GLOBAL_INTERRUPT_STATUS, global_bit);
+    ahci_irq_state_record(&irq_state, port_status);
+}
+
+int ahci_irq_mode_enabled(void)
+{
+    return ahci_irq_state_is_enabled(&irq_state);
+}
+
+unsigned int ahci_irq_count(void)
+{
+    return ahci_irq_state_interrupt_count(&irq_state);
+}
+
+unsigned int ahci_irq_fallback_count(void)
+{
+    return ahci_irq_state_fallback_count(&irq_state);
 }
 
 int ahci_present(void)

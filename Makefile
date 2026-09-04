@@ -126,7 +126,7 @@ $(AHCI_LAYOUT_OBJ): drivers/ahci_layout.c drivers/ahci_layout.h include/pci.h cp
 $(AHCI_IRQ_STATE_OBJ): drivers/ahci_irq_state.c drivers/ahci_irq_state.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Idrivers -c $< -o $@
 
-$(AHCI_OBJ): drivers/ahci.c drivers/ahci_layout.h include/ahci.h include/block_device.h include/hpet.h include/pci.h cpu/pit.h memory/paging.h memory/pmm.h | $(BUILD_DIR)
+$(AHCI_OBJ): drivers/ahci.c drivers/ahci_irq_state.h drivers/ahci_layout.h include/ahci.h include/block_device.h include/hpet.h include/pci.h cpu/pit.h memory/paging.h memory/pmm.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Idrivers -Imemory -c $< -o $@
 
 $(BLOCK_DEVICE_OBJ): drivers/block_device.c include/block_device.h | $(BUILD_DIR)
@@ -159,7 +159,7 @@ $(HPET_TIME_OBJ): drivers/hpet_time.c drivers/hpet_time.h | $(BUILD_DIR)
 $(HPET_OBJ): drivers/hpet.c drivers/hpet_time.h include/acpi.h include/hpet.h memory/paging.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Idrivers -Imemory -c $< -o $@
 
-$(IDT_OBJ): cpu/idt.c cpu/apic.h cpu/idt.h cpu/io.h cpu/pit.h include/acpi.h include/ata.h include/keyboard.h include/serial.h include/vga.h kernel/panic.h process/scheduler.h | $(BUILD_DIR)
+$(IDT_OBJ): cpu/idt.c cpu/apic.h cpu/idt.h cpu/io.h cpu/pit.h include/acpi.h include/ahci.h include/ata.h include/keyboard.h include/serial.h include/vga.h kernel/panic.h process/scheduler.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Ikernel -Iprocess -c $< -o $@
 
 $(PIT_OBJ): cpu/pit.c cpu/pit.h cpu/io.h include/hpet.h process/scheduler.h | $(BUILD_DIR)

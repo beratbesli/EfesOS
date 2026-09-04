@@ -502,6 +502,9 @@ void kernel_main(const struct boot_info *boot_info)
         serial_write("EfesOS: HPET monotonic clock unavailable; PIT fallback active.\n");
     }
     ahci_init();
+    if (ahci_present() && idt_uses_apic()) {
+        (void)ahci_enable_irq_mode(idt_apic_id());
+    }
     serial_write("EfesOS: AHCI disk present=");
     serial_write_hex((unsigned int)ahci_present());
     serial_write(" sectors=");
@@ -517,17 +520,31 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write(" attempts=");
     serial_write_hex(ahci_recovery_attempt_count());
     serial_write(" readonly=0x00000001.\n");
+    serial_write("EfesOS: AHCI MSI mode enabled=");
+    serial_write_hex((unsigned int)ahci_irq_mode_enabled());
+    serial_write(" irq-count=");
+    serial_write_hex(ahci_irq_count());
+    serial_write(" polling-fallbacks=");
+    serial_write_hex(ahci_irq_fallback_count());
+    serial_write(".\n");
     if (ahci_present()) {
         const struct block_device *ahci_device = ahci_block_device();
         unsigned char probe[BLOCK_DEVICE_SECTOR_SIZE];
         unsigned int reads_before = ahci_read_count();
+        unsigned int irq_before = ahci_irq_count();
+        int read_ok;
 
-        if (!block_device_is_ready(ahci_device) ||
-            block_device_can_write(ahci_device) ||
-            block_device_sector_count(ahci_device) != ahci_sector_count() ||
-            !block_device_read(ahci_device, 0U, 1U, probe) ||
-            !block_device_read(ahci_device, ahci_sector_count() - 1U,
-                1U, probe) ||
+        __asm__ volatile ("sti" : : : "memory");
+        read_ok = block_device_is_ready(ahci_device) &&
+            !block_device_can_write(ahci_device) &&
+            block_device_sector_count(ahci_device) == ahci_sector_count() &&
+            block_device_read(ahci_device, 0U, 1U, probe) &&
+            block_device_read(ahci_device, ahci_sector_count() - 1U,
+                1U, probe);
+        __asm__ volatile ("cli" : : : "memory");
+        if (!read_ok ||
+            (ahci_irq_mode_enabled() && ahci_irq_count() < irq_before + 2U) ||
+            (!ahci_irq_mode_enabled() && ahci_irq_count() != irq_before) ||
             ahci_read_count() != reads_before + 2U) {
             serial_write("EfesOS: AHCI read failure fail-closed=");
             serial_write_hex((unsigned int)ahci_fail_closed());
@@ -541,6 +558,13 @@ void kernel_main(const struct boot_info *boot_info)
             kernel_panic("AHCI read-only block device self-test failed.");
         }
         serial_write("EfesOS: AHCI read path self-test passed.\n");
+        serial_write("EfesOS: AHCI interrupt completion self-test passed mode=");
+        serial_write_hex((unsigned int)ahci_irq_mode_enabled());
+        serial_write(" irq-count=");
+        serial_write_hex(ahci_irq_count());
+        serial_write(" polling-fallbacks=");
+        serial_write_hex(ahci_irq_fallback_count());
+        serial_write(".\n");
         serial_write("EfesOS: AHCI recovery state attempts=");
         serial_write_hex(ahci_recovery_attempt_count());
         serial_write(" completed=");
