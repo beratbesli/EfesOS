@@ -23,7 +23,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - PCI configuration-space enumeration with read-only type-0 BAR decoding and a bounded `pci` diagnostic command
 - PCI BAR records pass an in-kernel alignment/type self-test before device drivers consume them
 - Timeout-bounded ATA primary-master I/O with IRQ14 completion, validated bus-master DMA reads in 4 KiB bounce-buffer chunks, automatic PIO fallback, serialized requests and explicit disk absence reporting
-- Bounded read-only AHCI path for Q35/ICH9 SATA: BIOS ownership handoff, cache-disabled BAR5 mapping, transactional single-message MSI completion with generation tracking and polling fallback, serialized slot-0 IDENTIFY/READ DMA commands, one COMRESET/re-identification retry and fail-closed MSI/bus-master revocation
+- Bounded read-only AHCI path for Q35/ICH9 SATA: BIOS ownership handoff, cache-disabled BAR5 mapping, transactional single-message MSI completion with generation tracking and polling fallback, serialized slot-0 IDENTIFY/READ DMA commands, one COMRESET retry followed by one controller-wide HBA-reset retry with device re-identification, and fail-closed MSI/bus-master revocation
 - Driver-independent 512-byte block-device layer validates capacity, transfer bounds and optional write capability before dispatch; VFS receives a read-only ATA or AHCI view
 - ATA raw writes remain disabled by default; only a validated journal window can be transactionally enabled
 - Read-only FAT16 VFS mount with bounded 8.3 root/subdirectory file reads (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); validated ELF launch from disk (`run NAME`)
@@ -201,6 +201,9 @@ Exercise recoverable and persistent AHCI read errors through QEMU `blkdebug`:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-recovery-self-test.ps1 -SkipBuild
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-recovery-self-test.ps1 -SkipBuild -DisableHpet
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-recovery-self-test.ps1 -SkipBuild -HbaEscalation
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-recovery-self-test.ps1 -SkipBuild -HbaEscalation -DisableHpet
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-recovery-self-test.ps1 -SkipBuild -HbaEscalation -DisableApic
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ahci-recovery-self-test.ps1 -SkipBuild -PersistentFailure
 ```
 
