@@ -118,7 +118,7 @@ $(PCI_LAYOUT_OBJ): drivers/pci_layout.c include/pci.h cpu/io.h | $(BUILD_DIR)
 $(AHCI_LAYOUT_OBJ): drivers/ahci_layout.c drivers/ahci_layout.h include/pci.h cpu/io.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Idrivers -c $< -o $@
 
-$(AHCI_OBJ): drivers/ahci.c drivers/ahci_layout.h include/ahci.h include/block_device.h include/hpet.h include/pci.h memory/paging.h memory/pmm.h | $(BUILD_DIR)
+$(AHCI_OBJ): drivers/ahci.c drivers/ahci_layout.h include/ahci.h include/block_device.h include/hpet.h include/pci.h cpu/pit.h memory/paging.h memory/pmm.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Idrivers -Imemory -c $< -o $@
 
 $(BLOCK_DEVICE_OBJ): drivers/block_device.c include/block_device.h | $(BUILD_DIR)

@@ -3,6 +3,7 @@
 #include "hpet.h"
 #include "paging.h"
 #include "pci.h"
+#include "pit.h"
 #include "pmm.h"
 
 #define AHCI_MAP_VIRTUAL 0xCEC00000U
@@ -26,6 +27,7 @@
 #define AHCI_PORT_TASK_FILE_DATA 0x020U
 #define AHCI_PORT_SIGNATURE 0x024U
 #define AHCI_PORT_SATA_STATUS 0x028U
+#define AHCI_PORT_SATA_CONTROL 0x02CU
 #define AHCI_PORT_SATA_ERROR 0x030U
 #define AHCI_PORT_SATA_ACTIVE 0x034U
 #define AHCI_PORT_COMMAND_ISSUE 0x038U
@@ -48,6 +50,10 @@
 #define AHCI_WAIT_LIMIT 10000000U
 #define AHCI_HANDOFF_WAIT_LIMIT 100000000U
 #define AHCI_HANDOFF_TIMEOUT_NS 2000000000ULL
+#define AHCI_RESET_ASSERT_MICROSECONDS 1000U
+#define AHCI_RESET_LINK_TIMEOUT_MILLISECONDS 1000U
+#define AHCI_RESET_ENGINE_TIMEOUT_MILLISECONDS 500U
+#define AHCI_NANOSECONDS_PER_MICROSECOND 1000ULL
 
 static volatile uint8_t *registers;
 static volatile uint8_t *port_registers;
@@ -67,10 +73,14 @@ static uint32_t controller_version;
 static unsigned int selected_port;
 static unsigned int error_code;
 static unsigned int completed_reads;
+static unsigned int recovery_attempts;
+static unsigned int completed_recoveries;
 static int supports_lba48;
 static int device_present;
 static int request_active;
 static int mmio_control_safe;
+static int fail_closed_state;
+static uint16_t identify_baseline[256];
 
 static uint32_t read_register(volatile uint8_t *base, unsigned int offset)
 {
@@ -110,6 +120,15 @@ static void copy_bytes(void *destination, const void *source,
 
     for (index = 0U; index < length; index++) {
         destination_bytes[index] = source_bytes[index];
+    }
+}
+
+static void copy_identify(uint16_t *destination, const uint16_t *source)
+{
+    unsigned int index;
+
+    for (index = 0U; index < 256U; index++) {
+        destination[index] = source[index];
     }
 }
 
@@ -245,17 +264,47 @@ static int acquire_bios_ownership(void)
     return 0;
 }
 
-static int wait_port_bits_clear(unsigned int mask)
+static int delay_microseconds(unsigned int microseconds)
 {
     unsigned int attempt;
 
-    for (attempt = 0U; attempt < AHCI_WAIT_LIMIT; attempt++) {
+    if (!hpet_available()) {
+        return pit_poll_delay_microseconds(microseconds);
+    }
+    {
+        unsigned long long start = hpet_nanoseconds();
+        unsigned long long duration =
+            (unsigned long long)microseconds * AHCI_NANOSECONDS_PER_MICROSECOND;
+
+        for (attempt = 0U; attempt < AHCI_HANDOFF_WAIT_LIMIT; attempt++) {
+            unsigned long long now = hpet_nanoseconds();
+
+            if (now < start) {
+                return 0;
+            }
+            if (now - start >= duration) {
+                return 1;
+            }
+            __asm__ volatile ("pause");
+        }
+    }
+    return 0;
+}
+
+static int wait_port_bits_clear(unsigned int mask)
+{
+    unsigned int elapsed;
+
+    for (elapsed = 0U; elapsed < AHCI_RESET_ENGINE_TIMEOUT_MILLISECONDS;
+         elapsed++) {
         if ((read_register(port_registers, AHCI_PORT_COMMAND) & mask) == 0U) {
             return 1;
         }
-        __asm__ volatile ("pause");
+        if (!delay_microseconds(1000U)) {
+            return 0;
+        }
     }
-    return 0;
+    return (read_register(port_registers, AHCI_PORT_COMMAND) & mask) == 0U;
 }
 
 static int stop_port(void)
@@ -277,18 +326,20 @@ static int start_port(void)
 {
     uint32_t command;
 
-    if (!wait_port_bits_clear(AHCI_PORT_COMMAND_LIST_RUNNING |
-            AHCI_PORT_COMMAND_FIS_RECEIVE_RUNNING) ||
-        (read_register(port_registers, AHCI_PORT_TASK_FILE_DATA) &
-            (AHCI_TASK_FILE_BUSY | AHCI_TASK_FILE_DATA_REQUEST)) != 0U) {
+    if (!wait_port_bits_clear(AHCI_PORT_COMMAND_LIST_RUNNING)) {
         return 0;
     }
-    command = read_register(port_registers, AHCI_PORT_COMMAND) |
-        AHCI_PORT_COMMAND_FIS_RECEIVE_ENABLE;
-    write_register(port_registers, AHCI_PORT_COMMAND, command);
-    if ((read_register(port_registers, AHCI_PORT_COMMAND) &
-            AHCI_PORT_COMMAND_FIS_RECEIVE_ENABLE) == 0U) {
-        return 0;
+    command = read_register(port_registers, AHCI_PORT_COMMAND);
+    if ((command & AHCI_PORT_COMMAND_FIS_RECEIVE_ENABLE) == 0U) {
+        if (!wait_port_bits_clear(AHCI_PORT_COMMAND_FIS_RECEIVE_RUNNING)) {
+            return 0;
+        }
+        command |= AHCI_PORT_COMMAND_FIS_RECEIVE_ENABLE;
+        write_register(port_registers, AHCI_PORT_COMMAND, command);
+        if ((read_register(port_registers, AHCI_PORT_COMMAND) &
+                AHCI_PORT_COMMAND_FIS_RECEIVE_ENABLE) == 0U) {
+            return 0;
+        }
     }
     write_register(port_registers, AHCI_PORT_COMMAND,
         command | AHCI_PORT_COMMAND_START);
@@ -362,6 +413,85 @@ static int issue_slot_zero(unsigned int expected_bytes)
     return 1;
 }
 
+static int reset_port_link(void)
+{
+    uint32_t command;
+    uint32_t sata_control;
+    unsigned int elapsed;
+
+    recovery_attempts++;
+    command = read_register(port_registers, AHCI_PORT_COMMAND);
+    write_register(port_registers, AHCI_PORT_COMMAND,
+        command & ~AHCI_PORT_COMMAND_START);
+    (void)wait_port_bits_clear(AHCI_PORT_COMMAND_LIST_RUNNING);
+
+    sata_control = read_register(port_registers, AHCI_PORT_SATA_CONTROL);
+    write_register(port_registers, AHCI_PORT_SATA_CONTROL,
+        ahci_comreset_assert_control(sata_control));
+    if ((read_register(port_registers, AHCI_PORT_SATA_CONTROL) &
+            AHCI_SCTL_DETECTION_MASK) != AHCI_SCTL_DETECTION_COMRESET ||
+        !delay_microseconds(AHCI_RESET_ASSERT_MICROSECONDS)) {
+        error_code = AHCI_ERROR_RESET_DELAY;
+        return 0;
+    }
+    write_register(port_registers, AHCI_PORT_SATA_CONTROL,
+        ahci_comreset_release_control(sata_control));
+    if ((read_register(port_registers, AHCI_PORT_SATA_CONTROL) &
+            AHCI_SCTL_DETECTION_MASK) != 0U) {
+        error_code = AHCI_ERROR_RESET_LINK;
+        return 0;
+    }
+
+    for (elapsed = 0U; elapsed < AHCI_RESET_LINK_TIMEOUT_MILLISECONDS;
+         elapsed++) {
+        if (ahci_link_is_established(
+                read_register(port_registers, AHCI_PORT_SATA_STATUS),
+                read_register(port_registers, AHCI_PORT_SIGNATURE))) {
+            break;
+        }
+        if (!delay_microseconds(1000U)) {
+            error_code = AHCI_ERROR_RESET_DELAY;
+            return 0;
+        }
+    }
+    if (elapsed == AHCI_RESET_LINK_TIMEOUT_MILLISECONDS) {
+        error_code = AHCI_ERROR_RESET_LINK;
+        return 0;
+    }
+
+    write_register(port_registers, AHCI_PORT_SATA_ERROR, 0xFFFFFFFFU);
+    write_register(port_registers, AHCI_PORT_INTERRUPT_STATUS, 0xFFFFFFFFU);
+    write_register(registers, AHCI_GLOBAL_INTERRUPT_STATUS,
+        1U << selected_port);
+    if (!wait_port_bits_clear(AHCI_PORT_COMMAND_LIST_RUNNING) ||
+        (read_register(port_registers, AHCI_PORT_COMMAND_ISSUE) & 1U) != 0U ||
+        (read_register(port_registers, AHCI_PORT_SATA_ACTIVE) & 1U) != 0U ||
+        !start_port()) {
+        error_code = AHCI_ERROR_RESET_ENGINE;
+        return 0;
+    }
+    return 1;
+}
+
+static int recover_and_revalidate(void)
+{
+    uint16_t *identify = (uint16_t *)bounce_physical;
+
+    if (!reset_port_link() ||
+        !ahci_build_identify_command(command_header, command_table,
+            command_table_physical, bounce_physical) ||
+        !issue_slot_zero(AHCI_SECTOR_SIZE)) {
+        return 0;
+    }
+    if (!ahci_identify_same_device(identify_baseline, identify)) {
+        error_code = AHCI_ERROR_RESET_IDENTITY;
+        return 0;
+    }
+    completed_recoveries++;
+    error_code = AHCI_ERROR_NONE;
+    return 1;
+}
+
 static void release_dma_pages(void)
 {
     if (bounce_physical != 0U) {
@@ -412,10 +542,11 @@ static void disable_driver(void)
         bus_master_stopped = pci_quiesce_ahci_controller(controller,
             original_pci_command);
     }
-    if (bus_master_stopped) {
+    if (bus_master_stopped && port_stopped) {
         release_dma_pages();
         unmap_register_space();
     }
+    fail_closed_state = bus_master_stopped && port_stopped;
     if (!port_stopped && error_code == AHCI_ERROR_NONE) {
         error_code = AHCI_ERROR_PORT_STOP;
     }
@@ -442,6 +573,13 @@ static int ahci_block_read(void *context, unsigned int lba,
     request_active = 1;
     byte_count = (unsigned int)count * AHCI_SECTOR_SIZE;
     if (ahci_build_read_command(command_header, command_table,
+            command_table_physical, bounce_physical, lba, count,
+            supports_lba48) && issue_slot_zero(byte_count)) {
+        copy_bytes(buffer, (const void *)bounce_physical, byte_count);
+        completed_reads++;
+        success = 1;
+    } else if (recover_and_revalidate() &&
+        ahci_build_read_command(command_header, command_table,
             command_table_physical, bounce_physical, lba, count,
             supports_lba48) && issue_slot_zero(byte_count)) {
         copy_bytes(buffer, (const void *)bounce_physical, byte_count);
@@ -480,10 +618,13 @@ void ahci_init(void)
     selected_port = 0U;
     error_code = AHCI_ERROR_NO_CONTROLLER;
     completed_reads = 0U;
+    recovery_attempts = 0U;
+    completed_recoveries = 0U;
     supports_lba48 = 0;
     device_present = 0;
     request_active = 0;
     mmio_control_safe = 0;
+    fail_closed_state = 0;
     block_device_reset(&block_device);
 
     controller = pci_ahci_device_at(0U);
@@ -618,6 +759,7 @@ void ahci_init(void)
         disable_driver();
         return;
     }
+    copy_identify(identify_baseline, identify);
     if (!block_device_configure(&block_device, sectors, AHCI_SECTOR_SIZE,
             AHCI_MAX_TRANSFER_SECTORS, ahci_block_read, 0, 0)) {
         error_code = AHCI_ERROR_BLOCK_DEVICE;
@@ -656,6 +798,21 @@ unsigned int ahci_last_error(void)
 unsigned int ahci_read_count(void)
 {
     return completed_reads;
+}
+
+unsigned int ahci_recovery_count(void)
+{
+    return completed_recoveries;
+}
+
+unsigned int ahci_recovery_attempt_count(void)
+{
+    return recovery_attempts;
+}
+
+int ahci_fail_closed(void)
+{
+    return fail_closed_state;
 }
 
 const struct block_device *ahci_block_device(void)

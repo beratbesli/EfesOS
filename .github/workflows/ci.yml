@@ -206,6 +206,15 @@ jobs:
           grep -F "EfesOS: AHCI read path self-test passed." build/ci-ahci-serial.log
           grep -F "EfesOS: repeated user restart stress passed." build/ci-ahci-serial.log
           if grep -F "KERNEL PANIC:" build/ci-ahci-serial.log; then exit 1; fi
+      - name: QEMU Q35 AHCI recovery smoke test
+        shell: pwsh
+        run: ./scripts/ahci-recovery-self-test.ps1 -SkipBuild
+      - name: QEMU Q35 AHCI PIT-timed recovery smoke test
+        shell: pwsh
+        run: ./scripts/ahci-recovery-self-test.ps1 -SkipBuild -DisableHpet
+      - name: QEMU Q35 AHCI fail-closed smoke test
+        shell: pwsh
+        run: ./scripts/ahci-recovery-self-test.ps1 -SkipBuild -PersistentFailure
       - name: QEMU ACPI absence fallback smoke test
         run: |
           timeout 20s qemu-system-i386 -machine pc,acpi=off -display none -monitor none -serial file:build/ci-no-acpi-serial.log -no-reboot -no-shutdown -m 128 -drive file=build/efesos.img,format=raw,if=floppy -boot a || true

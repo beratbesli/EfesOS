@@ -512,6 +512,10 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write_hex(ahci_version());
     serial_write(" error=");
     serial_write_hex(ahci_last_error());
+    serial_write(" recoveries=");
+    serial_write_hex(ahci_recovery_count());
+    serial_write(" attempts=");
+    serial_write_hex(ahci_recovery_attempt_count());
     serial_write(" readonly=0x00000001.\n");
     if (ahci_present()) {
         const struct block_device *ahci_device = ahci_block_device();
@@ -522,10 +526,26 @@ void kernel_main(const struct boot_info *boot_info)
             block_device_can_write(ahci_device) ||
             block_device_sector_count(ahci_device) != ahci_sector_count() ||
             !block_device_read(ahci_device, 0U, 1U, probe) ||
-            ahci_read_count() != reads_before + 1U) {
+            !block_device_read(ahci_device, ahci_sector_count() - 1U,
+                1U, probe) ||
+            ahci_read_count() != reads_before + 2U) {
+            serial_write("EfesOS: AHCI read failure fail-closed=");
+            serial_write_hex((unsigned int)ahci_fail_closed());
+            serial_write(" present=");
+            serial_write_hex((unsigned int)ahci_present());
+            serial_write(" error=");
+            serial_write_hex(ahci_last_error());
+            serial_write(" attempts=");
+            serial_write_hex(ahci_recovery_attempt_count());
+            serial_write(".\n");
             kernel_panic("AHCI read-only block device self-test failed.");
         }
         serial_write("EfesOS: AHCI read path self-test passed.\n");
+        serial_write("EfesOS: AHCI recovery state attempts=");
+        serial_write_hex(ahci_recovery_attempt_count());
+        serial_write(" completed=");
+        serial_write_hex(ahci_recovery_count());
+        serial_write(".\n");
         if (!ata_present()) {
             vfs_init(ahci_device);
             serial_write("EfesOS: AHCI FAT volume mounted=");

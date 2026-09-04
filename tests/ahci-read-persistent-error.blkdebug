@@ -1,0 +1,4 @@
+[inject-error]
+event = "read_aio"
+errno = "5"
+sector = "8191"
