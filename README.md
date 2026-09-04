@@ -105,6 +105,12 @@ Run the ATA DMA controller, PRDT, transfer-mode and completion contract test:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ata-dma-self-test.ps1
 ```
 
+Validate AHCI PCI class (`01/06/01`) and BAR5 MMIO layout handling:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\pci-ahci-self-test.ps1
+```
+
 Run the RTC BCD/binary, 12/24-hour and Gregorian calendar conversion test:
 
 ```powershell
@@ -124,7 +130,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Di
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Q35 -RequireHpet
 ```
 
-The HPET profile verifies both the live MMIO counter and the calibrated local APIC scheduler timer. The HPET-disabled profile verifies PIT delivery through the IOAPIC; the ACPI-disabled and APIC-disabled profiles verify the masked-PIC fallback. The Q35 profile verifies the ACPI/MADT/IOAPIC/HPET and scheduler paths on the newer ICH9 platform model. EfesOS does not yet include an AHCI driver, so an extra Q35 SATA disk is intentionally outside the supported storage path; use the default i440FX/PIIX IDE profile for the ATA disk tests.
+The HPET profile verifies both the live MMIO counter and the calibrated local APIC scheduler timer. The HPET-disabled profile verifies PIT delivery through the IOAPIC; the ACPI-disabled and APIC-disabled profiles verify the masked-PIC fallback. The Q35 profile verifies the ACPI/MADT/IOAPIC/HPET and scheduler paths on the newer ICH9 platform model, including bounded AHCI class and BAR5 discovery. EfesOS does not yet include AHCI data transfer support, so an extra Q35 SATA disk is intentionally outside the supported storage path; use the default i440FX/PIIX IDE profile for the ATA disk tests.
 
 Run the deterministic boot metadata, E820, ELF and FAT property-fuzz suite after changing any boot or parser boundary:
 

@@ -105,6 +105,12 @@ ATA DMA denetleyici, PRDT, aktarım modu ve tamamlanma sözleşmesini sınamak i
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\ata-dma-self-test.ps1
 ```
 
+AHCI PCI sınıfı (`01/06/01`) ve BAR5 MMIO yerleşimi doğrulamasını sınamak için:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\pci-ahci-self-test.ps1
+```
+
 RTC BCD/binary, 12/24 saat ve Gregoryen takvim dönüşümünü sınamak için:
 
 ```powershell
@@ -124,7 +130,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Di
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -Q35 -RequireHpet
 ```
 
-HPET profili canlı MMIO sayacıyla birlikte kalibre edilmiş local APIC scheduler timer’ını doğrular. HPET kapalı profil PIT’in IOAPIC üzerinden teslimini; ACPI ve APIC kapalı profiller ise maskeli-PIC geri dönüşünü doğrular. Q35 profili daha yeni ICH9 platform modelinde ACPI/MADT/IOAPIC/HPET ve scheduler yollarını doğrular. EfesOS henüz AHCI sürücüsü içermediğinden Q35’e eklenen SATA disk desteklenen depolama yolunun dışındadır; ATA disk testleri için varsayılan i440FX/PIIX IDE profili kullanılmalıdır.
+HPET profili canlı MMIO sayacıyla birlikte kalibre edilmiş local APIC scheduler timer’ını doğrular. HPET kapalı profil PIT’in IOAPIC üzerinden teslimini; ACPI ve APIC kapalı profiller ise maskeli-PIC geri dönüşünü doğrular. Q35 profili daha yeni ICH9 platform modelinde ACPI/MADT/IOAPIC/HPET ve scheduler yollarıyla birlikte bounded AHCI sınıfı ve BAR5 keşfini doğrular. EfesOS henüz AHCI veri aktarımını desteklemediğinden Q35’e eklenen SATA disk desteklenen depolama yolunun dışındadır; ATA disk testleri için varsayılan i440FX/PIIX IDE profili kullanılmalıdır.
 
 Boot veya parser sınırı değişikliklerinden sonra deterministik boot metadata, E820, ELF ve FAT property-fuzz paketini çalıştır:
 
