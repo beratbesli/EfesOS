@@ -4,9 +4,12 @@ Bu belge, projeyi daha önce hiç görmemiş bir geliştiricinin neyin çalışt
 hangi güvenlik sınırlarının bulunduğunu, nasıl derleyip test edeceğini ve sırada
 ne yapılması gerektiğini anlayabilmesi için hazırlanmıştır.
 
-Son kapsamlı gözden geçirme: **5 Eylül 2026**  
-Kod checkpoint'i: **`e22ec2c` (`ahci: support bounded multi-port devices`)**  
-Ana uzak depo: **`https://github.com/beratbesli/EfesOS.git`**  
+Son kapsamlı gözden geçirme: **5 Eylül 2026**
+
+Kod checkpoint'i: **`e22ec2c` (`ahci: support bounded multi-port devices`)**
+
+Ana uzak depo: **`https://github.com/beratbesli/EfesOS.git`**
+
 Hedef dal: **`main`**
 
 ## 1. Bir cümlede proje
