@@ -10,6 +10,7 @@ struct ahci_device_record {
     struct block_device block_device;
     uint16_t identify[256];
     uint32_t sector_count;
+    unsigned int validation_generation;
     unsigned int controller_index;
     unsigned int port;
     int lba48_supported;
@@ -24,7 +25,8 @@ struct ahci_device_table {
 void ahci_device_table_reset(struct ahci_device_table *table);
 int ahci_device_table_add(struct ahci_device_table *table,
     unsigned int controller_index, unsigned int port,
-    const uint16_t identify[256], block_device_read_fn read);
+    unsigned int validation_generation, const uint16_t identify[256],
+    block_device_read_fn read);
 unsigned int ahci_device_table_count(const struct ahci_device_table *table);
 struct ahci_device_record *ahci_device_table_record_at(
     struct ahci_device_table *table, unsigned int index);

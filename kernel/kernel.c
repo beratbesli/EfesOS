@@ -526,6 +526,8 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write_hex(ahci_controller_probe_count());
     serial_write(" failovers=");
     serial_write_hex(ahci_controller_failover_count());
+    serial_write(" devices=");
+    serial_write_hex(ahci_device_count());
     serial_write(".\n");
     serial_write("EfesOS: AHCI MSI mode enabled=");
     serial_write_hex((unsigned int)ahci_irq_mode_enabled());
@@ -571,6 +573,40 @@ void kernel_main(const struct boot_info *boot_info)
             kernel_panic("AHCI read-only block device self-test failed.");
         }
         serial_write("EfesOS: AHCI read path self-test passed.\n");
+        {
+            unsigned int device_index;
+
+            for (device_index = 1U; device_index < ahci_device_count();
+                 device_index++) {
+                const struct block_device *additional =
+                    ahci_block_device_at(device_index);
+                unsigned int additional_sectors =
+                    ahci_device_sector_count(device_index);
+                unsigned int additional_reads = ahci_read_count();
+                unsigned int additional_irqs = ahci_irq_count();
+
+                __asm__ volatile ("sti" : : : "memory");
+                read_ok = block_device_is_ready(additional) &&
+                    !block_device_can_write(additional) &&
+                    additional_sectors != 0U &&
+                    block_device_sector_count(additional) ==
+                        additional_sectors &&
+                    block_device_read(additional, 0U, 1U, probe) &&
+                    block_device_read(additional, additional_sectors - 1U,
+                        1U, probe);
+                __asm__ volatile ("cli" : : : "memory");
+                if (!read_ok || ahci_read_count() != additional_reads + 2U ||
+                    (ahci_irq_mode_enabled() &&
+                        ahci_irq_count() < additional_irqs + 2U) ||
+                    (!ahci_irq_mode_enabled() &&
+                        ahci_irq_count() != additional_irqs)) {
+                    kernel_panic("Additional AHCI block device self-test failed.");
+                }
+            }
+            serial_write("EfesOS: AHCI block devices verified=");
+            serial_write_hex(ahci_device_count());
+            serial_write(".\n");
+        }
         serial_write("EfesOS: AHCI interrupt completion self-test passed mode=");
         serial_write_hex((unsigned int)ahci_irq_mode_enabled());
         serial_write(" irq-count=");

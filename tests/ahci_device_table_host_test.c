@@ -44,27 +44,29 @@ int main(void)
     if (ahci_device_table_count(&table) != 0U ||
         ahci_device_table_record_at(&table, 0U) != 0 ||
         ahci_device_table_block_at(&table, 0U) != 0 ||
-        ahci_device_table_add(0, 0U, 0U, identify, fake_read) ||
-        ahci_device_table_add(&table, ~0U, 0U, identify, fake_read) ||
-        ahci_device_table_add(&table, 0U, 32U, identify, fake_read) ||
-        ahci_device_table_add(&table, 0U, 0U, 0, fake_read) ||
-        ahci_device_table_add(&table, 0U, 0U, identify, 0)) {
+        ahci_device_table_add(0, 0U, 0U, 1U, identify, fake_read) ||
+        ahci_device_table_add(&table, ~0U, 0U, 1U, identify, fake_read) ||
+        ahci_device_table_add(&table, 0U, 32U, 1U, identify, fake_read) ||
+        ahci_device_table_add(&table, 0U, 0U, 0U, identify, fake_read) ||
+        ahci_device_table_add(&table, 0U, 0U, 1U, 0, fake_read) ||
+        ahci_device_table_add(&table, 0U, 0U, 1U, identify, 0)) {
         return 1;
     }
 
     identify[49] = 0U;
-    if (ahci_device_table_add(&table, 0U, 0U, identify, fake_read)) {
+    if (ahci_device_table_add(&table, 0U, 0U, 1U, identify, fake_read)) {
         return 2;
     }
     make_identify(identify, 8192U);
-    if (!ahci_device_table_add(&table, 1U, 2U, identify, fake_read) ||
+    if (!ahci_device_table_add(&table, 1U, 2U, 7U, identify, fake_read) ||
         ahci_device_table_count(&table) != 1U ||
-        ahci_device_table_add(&table, 1U, 2U, identify, fake_read)) {
+        ahci_device_table_add(&table, 1U, 2U, 7U, identify, fake_read)) {
         return 3;
     }
     if (ahci_device_table_record_at(&table, 0U)->controller_index != 1U ||
         ahci_device_table_record_at(&table, 0U)->port != 2U ||
         ahci_device_table_record_at(&table, 0U)->sector_count != 8192U ||
+        ahci_device_table_record_at(&table, 0U)->validation_generation != 7U ||
         !ahci_device_table_record_at(&table, 0U)->lba48_supported ||
         !block_device_read(ahci_device_table_block_at(&table, 0U),
             8191U, 1U, sector) || sector[0] != 2U || read_calls != 1U) {
@@ -73,14 +75,14 @@ int main(void)
 
     for (index = 1U; index < AHCI_DEVICE_TABLE_MAX; index++) {
         make_identify(identify, 8192U + index);
-        if (!ahci_device_table_add(&table, 1U, index + 2U,
+        if (!ahci_device_table_add(&table, 1U, index + 2U, 7U,
                 identify, fake_read)) {
             return 5;
         }
     }
     make_identify(identify, 16384U);
     if (ahci_device_table_count(&table) != AHCI_DEVICE_TABLE_MAX ||
-        ahci_device_table_add(&table, 2U, 0U, identify, fake_read) ||
+        ahci_device_table_add(&table, 2U, 0U, 7U, identify, fake_read) ||
         ahci_device_table_block_at(&table, AHCI_DEVICE_TABLE_MAX) != 0) {
         return 6;
     }

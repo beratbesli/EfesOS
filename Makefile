@@ -134,7 +134,7 @@ $(AHCI_IRQ_STATE_OBJ): drivers/ahci_irq_state.c drivers/ahci_irq_state.h | $(BUI
 $(AHCI_RECOVERY_STATE_OBJ): drivers/ahci_recovery_state.c drivers/ahci_recovery_state.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Idrivers -c $< -o $@
 
-$(AHCI_OBJ): drivers/ahci.c drivers/ahci_irq_state.h drivers/ahci_layout.h drivers/ahci_recovery_state.h include/ahci.h include/block_device.h include/hpet.h include/pci.h cpu/pit.h memory/paging.h memory/pmm.h | $(BUILD_DIR)
+$(AHCI_OBJ): drivers/ahci.c drivers/ahci_device_table.h drivers/ahci_irq_state.h drivers/ahci_layout.h drivers/ahci_recovery_state.h include/ahci.h include/block_device.h include/hpet.h include/pci.h cpu/pit.h memory/paging.h memory/pmm.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -Iinclude -Icpu -Idrivers -Imemory -c $< -o $@
 
 $(BLOCK_DEVICE_OBJ): drivers/block_device.c include/block_device.h | $(BUILD_DIR)

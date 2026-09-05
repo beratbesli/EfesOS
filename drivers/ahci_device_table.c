@@ -11,6 +11,7 @@ static void clear_record(struct ahci_device_record *record)
         record->identify[index] = 0U;
     }
     record->sector_count = 0U;
+    record->validation_generation = 0U;
     record->controller_index = ~0U;
     record->port = ~0U;
     record->lba48_supported = 0;
@@ -38,7 +39,8 @@ void ahci_device_table_reset(struct ahci_device_table *table)
 
 int ahci_device_table_add(struct ahci_device_table *table,
     unsigned int controller_index, unsigned int port,
-    const uint16_t identify[256], block_device_read_fn read)
+    unsigned int validation_generation, const uint16_t identify[256],
+    block_device_read_fn read)
 {
     struct ahci_device_record *record;
     uint32_t sector_count;
@@ -46,7 +48,8 @@ int ahci_device_table_add(struct ahci_device_table *table,
     unsigned int index;
 
     if (!table_is_valid(table) || table->count == AHCI_DEVICE_TABLE_MAX ||
-        controller_index == ~0U || port >= 32U || identify == 0 || read == 0 ||
+        controller_index == ~0U || port >= 32U ||
+        validation_generation == 0U || identify == 0 || read == 0 ||
         !ahci_identify_capacity(identify, &sector_count, &lba48_supported)) {
         return 0;
     }
@@ -62,6 +65,7 @@ int ahci_device_table_add(struct ahci_device_table *table,
     record = &table->records[table->count];
     clear_record(record);
     record->sector_count = sector_count;
+    record->validation_generation = validation_generation;
     record->controller_index = controller_index;
     record->port = port;
     record->lba48_supported = lba48_supported;

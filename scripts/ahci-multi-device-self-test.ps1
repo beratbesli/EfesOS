@@ -2,8 +2,7 @@
 param(
     [ValidateRange(5, 120)][int]$TimeoutSeconds = 25,
     [switch]$SkipBuild,
-    [switch]$DisableApic,
-    [switch]$AllEmpty
+    [switch]$DisableApic
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,18 +10,11 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $buildDirectory = Join-Path $projectRoot 'build'
 $osImage = Join-Path $buildDirectory 'efesos.img'
-$diskImage = Join-Path $buildDirectory 'test-disk.img'
-$profileName = if ($AllEmpty) {
-    'exhaustion'
-} elseif ($DisableApic) {
-    'polling'
-} else {
-    'msi'
-}
-$serialLog = Join-Path $buildDirectory `
-    "ahci-controller-failover-$profileName-serial.log"
-$qemuErrorLog = Join-Path $buildDirectory `
-    "ahci-controller-failover-$profileName-qemu-error.log"
+$primaryDisk = Join-Path $buildDirectory 'test-disk.img'
+$secondaryDisk = Join-Path $buildDirectory 'test-disk-second.img'
+$profileName = if ($DisableApic) { 'polling' } else { 'msi' }
+$serialLog = Join-Path $buildDirectory "ahci-multi-device-$profileName-serial.log"
+$qemuErrorLog = Join-Path $buildDirectory "ahci-multi-device-$profileName-qemu-error.log"
 
 function Get-QemuPath {
     $command = Get-Command 'qemu-system-i386' -ErrorAction SilentlyContinue
@@ -43,24 +35,21 @@ function Get-QemuPath {
 if (!$SkipBuild) {
     & (Join-Path $PSScriptRoot 'build.ps1')
     if (!$?) {
-        throw 'AHCI controller failover testi oncesi derleme basarisiz oldu.'
+        throw 'AHCI coklu aygit testi oncesi derleme basarisiz oldu.'
     }
 }
-if (!$AllEmpty -and !(Test-Path -LiteralPath $diskImage)) {
+if (!(Test-Path -LiteralPath $primaryDisk)) {
     & (Join-Path $PSScriptRoot 'create-test-disk.ps1')
     if (!$?) {
-        throw 'AHCI controller failover disk fixture olusturulamadi.'
+        throw 'AHCI coklu aygit disk fixture olusturulamadi.'
     }
 }
-$requiredInputs = @($osImage)
-if (!$AllEmpty) {
-    $requiredInputs += $diskImage
-}
-foreach ($required in $requiredInputs) {
+foreach ($required in @($osImage, $primaryDisk)) {
     if (!(Test-Path -LiteralPath $required)) {
         throw "Gerekli test girdisi bulunamadi: $required"
     }
 }
+Copy-Item -LiteralPath $primaryDisk -Destination $secondaryDisk -Force
 
 Remove-Item -LiteralPath $serialLog, $qemuErrorLog -Force `
     -ErrorAction SilentlyContinue
@@ -74,11 +63,9 @@ $arguments = @(
     '-m', '128',
     '-drive', "`"file=$osImage,format=raw,if=floppy`"",
     '-boot', 'a',
-    '-device', 'ich9-ahci,id=empty'
+    '-drive', "`"file=$primaryDisk,format=raw,if=ide,index=0`"",
+    '-drive', "`"file=$secondaryDisk,format=raw,if=ide,index=1`""
 )
-if (!$AllEmpty) {
-    $arguments += @('-drive', "`"file=$diskImage,format=raw,if=ide`"")
-}
 if ($DisableApic) {
     $arguments = @('-cpu', 'qemu32,apic=off') + $arguments
 }
@@ -103,29 +90,20 @@ try {
             $output = Get-Content -LiteralPath $serialLog -Raw `
                 -ErrorAction SilentlyContinue
             if (![string]::IsNullOrEmpty($output)) {
-                if ($AllEmpty) {
-                    $passed =
-                        $output.Contains('EfesOS: AHCI controllers discovered=0x00000002 usable-mmio=0x00000002.') -and
-                        $output.Contains('EfesOS: AHCI disk present=0x00000000') -and
-                        $output.Contains('EfesOS: AHCI selection controller=0xFFFFFFFF probes=0x00000002 failovers=0x00000001 devices=0x00000000.') -and
-                        $output.Contains('EfesOS: repeated user restart stress passed.') -and
-                        !$output.Contains('EfesOS: AHCI read path self-test passed.') -and
-                        !$output.Contains('KERNEL PANIC:')
+                $completedInterruptState = if ($DisableApic) {
+                    'EfesOS: AHCI interrupt completion self-test passed mode=0x00000000 irq-count=0x00000000 polling-fallbacks=0x00000000.'
                 } else {
-                    $interruptMarker = if ($DisableApic) {
-                        'EfesOS: AHCI MSI mode enabled=0x00000000'
-                    } else {
-                        'EfesOS: AHCI MSI mode enabled=0x00000001'
-                    }
-                    $passed =
-                        $output.Contains('EfesOS: AHCI controllers discovered=0x00000002 usable-mmio=0x00000002.') -and
-                        $output.Contains('EfesOS: AHCI disk present=0x00000001 sectors=0x00002000 port=0x00000000') -and
-                        $output.Contains('EfesOS: AHCI selection controller=0x00000001 probes=0x00000002 failovers=0x00000001 devices=0x00000001.') -and
-                        $output.Contains($interruptMarker) -and
-                        $output.Contains('EfesOS: AHCI read path self-test passed.') -and
-                        $output.Contains('EfesOS: AHCI FAT volume mounted=0x00000001') -and
-                        !$output.Contains('KERNEL PANIC:')
+                    'EfesOS: AHCI interrupt completion self-test passed mode=0x00000001 irq-count=0x00000004 polling-fallbacks=0x00000000.'
                 }
+                $passed =
+                    $output.Contains('EfesOS: AHCI controllers discovered=0x00000001 usable-mmio=0x00000001.') -and
+                    $output.Contains('EfesOS: AHCI selection controller=0x00000000 probes=0x00000001 failovers=0x00000000 devices=0x00000002.') -and
+                    $output.Contains('EfesOS: AHCI disk present=0x00000001 sectors=0x00002000 port=0x00000000') -and
+                    $output.Contains('EfesOS: AHCI block devices verified=0x00000002.') -and
+                    $output.Contains($completedInterruptState) -and
+                    $output.Contains('EfesOS: AHCI FAT volume mounted=0x00000001') -and
+                    $output.Contains('EfesOS: repeated user restart stress passed.') -and
+                    !$output.Contains('KERNEL PANIC:')
                 if ($passed) {
                     break
                 }
@@ -151,14 +129,8 @@ if (!$passed) {
     $qemuError = if (Test-Path -LiteralPath $qemuErrorLog) {
         Get-Content -LiteralPath $qemuErrorLog -Raw
     } else { '<no qemu error output>' }
-    throw "AHCI controller failover QEMU testi basarisiz oldu.`nSerial:`n$serialOutput`nQEMU:`n$qemuError"
+    throw "AHCI coklu aygit QEMU testi basarisiz oldu.`nSerial:`n$serialOutput`nQEMU:`n$qemuError"
 }
 
-$mode = if ($AllEmpty) {
-    'bounded exhaustion'
-} elseif ($DisableApic) {
-    'polling'
-} else {
-    'MSI'
-}
-Write-Host "AHCI controller failover QEMU test passed ($mode): candidates quiesced safely."
+$mode = if ($DisableApic) { 'polling' } else { 'MSI' }
+Write-Host "AHCI multi-device QEMU test passed ($mode): two ports verified."
