@@ -119,7 +119,7 @@ try {
                     }
                     $passed =
                         $output.Contains('EfesOS: AHCI controllers discovered=0x00000002 usable-mmio=0x00000002.') -and
-                        $output.Contains('EfesOS: AHCI disk present=0x00000001 sectors=0x00002000 port=0x00000000') -and
+                        $output.Contains('EfesOS: AHCI disk present=0x00000001 sectors=0x0000000000002000 port=0x00000000') -and
                         $output.Contains('EfesOS: AHCI selection controller=0x00000001 probes=0x00000002 failovers=0x00000001 devices=0x00000001.') -and
                         $output.Contains($interruptMarker) -and
                         $output.Contains('EfesOS: AHCI read path self-test passed.') -and

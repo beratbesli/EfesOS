@@ -9,7 +9,7 @@ static unsigned int write_count;
 static unsigned int fail_write_number;
 static unsigned int overflow_read_calls;
 
-static int read_any(unsigned int lba, unsigned char count, void *buffer)
+static int read_any(uint64_t lba, unsigned char count, void *buffer)
 {
     (void)lba;
     (void)count;
@@ -18,7 +18,7 @@ static int read_any(unsigned int lba, unsigned char count, void *buffer)
     return 1;
 }
 
-static int read_disk(unsigned int lba, unsigned char count, void *buffer)
+static int read_disk(uint64_t lba, unsigned char count, void *buffer)
 {
     if (count == 0U || lba >= JOURNAL_MAX_DATA_SECTORS + 1U ||
         count > JOURNAL_MAX_DATA_SECTORS + 1U - lba) {
@@ -28,7 +28,7 @@ static int read_disk(unsigned int lba, unsigned char count, void *buffer)
     return 1;
 }
 
-static int write_disk(unsigned int lba, unsigned char count, const void *buffer)
+static int write_disk(uint64_t lba, unsigned char count, const void *buffer)
 {
     if (count == 0U || lba >= JOURNAL_MAX_DATA_SECTORS + 1U ||
         count > JOURNAL_MAX_DATA_SECTORS + 1U - lba) {
@@ -155,12 +155,17 @@ int main(void)
         }
     }
     overflow_read_calls = 0U;
-    if (journal_replay(read_any, 0xFFFFFFFFU, 2U, apply_entry, 0) ||
+    if (journal_replay(read_any, UINT32_MAX, 2U, apply_entry, 0) ||
+        overflow_read_calls != 1U) {
+        return 18;
+    }
+    overflow_read_calls = 0U;
+    if (journal_replay(read_any, UINT64_MAX, 2U, apply_entry, 0) ||
         overflow_read_calls != 0U ||
-        journal_append(read_any, write_disk, 0xFFFFFFFFU, 2U,
+        journal_append(read_any, write_disk, UINT64_MAX, 2U,
             JOURNAL_OPERATION_WRITE, 1U, "A", "one", 3U) ||
         overflow_read_calls != 0U) {
-        return 18;
+        return 19;
     }
     puts("Journal host self-test passed.");
     return 0;
