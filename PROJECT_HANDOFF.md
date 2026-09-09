@@ -4,9 +4,10 @@ Bu belge, projeyi daha önce hiç görmemiş bir geliştiricinin neyin çalışt
 hangi güvenlik sınırlarının bulunduğunu, nasıl derleyip test edeceğini ve sırada
 ne yapılması gerektiğini anlayabilmesi için hazırlanmıştır.
 
-Son kapsamlı gözden geçirme: **5 Eylül 2026**
+Son kapsamlı gözden geçirme: **9 Eylül 2026**
 
-Kod checkpoint'i: **`e22ec2c` (`ahci: support bounded multi-port devices`)**
+Temel upstream kod checkpoint'i: **`e22ec2c` (`ahci: support bounded multi-port devices`)**;
+bu belgedeki 64-bit LBA takip checkpoint'i bölüm 13'te açıklanır.
 
 Ana uzak depo: **`https://github.com/beratbesli/EfesOS.git`**
 
@@ -138,12 +139,13 @@ yeniden tasarlanmasını gerektirir.
 
 ### Depolama sürücüleri
 
-- Sürücüden bağımsız, kapasite/transfer/yazma yeteneği doğrulayan 512 baytlık
+- Sürücüden bağımsız, 64-bit LBA/kapasite ve 32-bit aktarım sayacı kullanan;
+  kapasite, transfer ve yazma yeteneğini callback'ten önce doğrulayan 512 baytlık
   blok aygıt sözleşmesi.
 - Legacy primary-master ATA: PIO, IRQ14, uygun PCI IDE'de 4 KiB bounce-buffer
   bus-master DMA okuması ve bounded PIO fallback.
-- ATA48 komutları vardır; public blok API 32-bit LBA kullandığı için daha büyük
-  kapasite şimdilik fail-closed reddedilir.
+- ATA48 komutları ve 48-bit IDENTIFY kapasitesi desteklenir; wire-formatın
+  adresleyemediği kapasite/istekler fail-closed reddedilir.
 - Q35/ICH9 AHCI: PCI sınıfı/BAR5, BIOS handoff, cache-disabled MMIO, MSI vektör
   51 ve polling fallback.
 - Kullanılabilir AHCI denetleyicileri arasında bounded başlangıç failover'ı.
@@ -199,7 +201,8 @@ Bu kurallar değiştirilirken pozitif test kadar mutlaka negatif fixture eklenme
 
 ### P1 - Sıradaki çekirdek/depolama çalışmaları
 
-- Public blok API'yi 64-bit LBA ve daha geniş transfer sayaçlarına geçirmek.
+- 64-bit LBA/kapasite ve 32-bit aktarım sayacı geçişi tamamlandı; ATA/AHCI'nin
+  48-bit wire limiti ile FAT16/MBR'nin kendi biçim limitleri ayrıca korunuyor.
 - AHCI NCQ, çoklu komut slotu, hot-plug, ATAPI ve güvenli write/flush yolu.
 - Journal/WAL sözleşmesini AHCI ve genel VFS yazma modeline genişletmek.
 - Tam VFS namespace, inode/handle yaşam döngüsü, mount ve permission modeli.
@@ -321,7 +324,24 @@ Alt sistem değiştirildiğinde ilgili `scripts/*-self-test.ps1` betiği de
 
 ## 10. Güncel doğrulama kanıtı
 
-5 Eylül 2026'da çoklu AHCI checkpoint'i için yerelde şunlar başarıyla çalıştı:
+5 Eylül 2026'da çoklu AHCI temel checkpoint'i için yerelde şunlar başarıyla çalıştı.
+9 Eylül 2026'da bunun üstündeki 64-bit LBA checkpoint'i için yerelde şunlar
+yeniden doğrulandı:
+
+- LLVM `i686-none-elf` build: 209 kernel sektörü.
+- Blok host testi: `UINT32_MAX` çevresi, 64-bit aygıt sonu ve `UINT64_MAX`
+  taşma reddi; callback yalnız geçerli isteklerde çağrıldı.
+- AHCI layout/device-table host testleri: 48-bit IDENTIFY kapasitesi ve FIS'in
+  üst üç LBA baytı; ASan/UBSan altında blok, AHCI layout/table, FAT, journal ve
+  persistent RAMFS testleri.
+- Varsayılan QEMU smoke, IDE diskli QEMU, Q35/AHCI MSI ve APIC'siz polling;
+  iki-port çoklu disk ve iki-denetleyici failover profilleri.
+- Tüm transient/persistent AHCI recovery profilleri; diskten ring-3 ELF ve
+  gerçek journal `write`/`pformat` akışları.
+- Reproducible build SHA-256:
+  `17DA97881A5D4321944B429F4B4B6DDE2E0883FA6E389ECBA8089F4C6745DA2A`.
+
+Temel checkpoint için 5 Eylül'de ek olarak şunlar başarıyla çalışmıştı:
 
 - LLVM `i686-none-elf` build: 209 kernel sektörü.
 - İki port/iki disk QEMU: MSI modunda dört okuma/dört IRQ.
@@ -395,17 +415,23 @@ git push origin HEAD:main
     sayma.
 12. Güvenlik iddiasını testin gerçekten kanıtladığından daha geniş yazma.
 
-## 13. Önerilen sıradaki somut iş
+## 13. Son tamamlanan checkpoint ve önerilen sıradaki somut iş
 
-En güvenli devam noktası, yeni yazma veya paralellik açmadan önce blok katmanını
-64-bit LBA'ya taşımaktır:
+64-bit LBA checkpoint'i tamamlandı:
 
-1. `block_device` kapasite ve read callback LBA tipini `uint64_t` yap.
-2. Toplama/son-sektör kontrollerini taşmasız helper'larda merkezileştir.
-3. ATA/AHCI ve VFS adaptörlerini kademeli geçir.
-4. `UINT32_MAX` çevresi, aygıt sonu ve aşırı count için host testleri yaz.
-5. QEMU küçük disk davranışının hiç değişmediğini doğrula.
-6. Ancak bundan sonra NCQ ve yeni AHCI yazma/journaling tasarımına geç.
+1. `block_device` kapasitesi ve callback LBA'sı `uint64_t`, aktarım sayacı
+   `uint32_t` oldu; son-sektör kontrolü çıkarma temelli ve taşmasızdır.
+2. ATA PIO/DMA ve AHCI READ DMA EXT yolları IDENTIFY'nin tüm 48-bit kapasitesini
+   tüketir; FIS/task-file üst LBA baytları artık korunur.
+3. VFS/FAT16, persistent journal ve test adaptörleri 64-bit mutlak LBA'ları
+   taşır; FAT16/MBR on-disk alanları bilinçli olarak 32-bit kalır.
+4. Host testleri `UINT32_MAX` çevresi, 64-bit aygıt sonu, taşan count ve
+   48-bit AHCI FIS/IDENTIFY değerlerini kapsar; varsayılan, diskli Q35 MSI ve
+   polling ile çoklu-disk QEMU profilleri doğrulandı.
 
-Bu sıra, mevcut sağlam salt-okunur yolu korurken gelecekteki disk kapasitesi ve
-yazma özellikleri için doğru temel oluşturur.
+Sıradaki güvenli kapsam NCQ veya yazma yolunu hemen açmak değildir. Önce tek
+slotlu AHCI durum makinesinin yerine geçecek bounded çoklu-slot sözleşmesi,
+slot başına DMA sahipliği, timeout/abort rollback'i ve hata kurtarma modelini
+tasarla; sonra yalnız okuma NCQ için negatif host fixture'ları ve QEMU profilleri
+ekle. Genel AHCI yazma, flush ve FAT metadata yazımı bu tasarım ile kalıcı
+journal/WAL bütünlük kanıtı olmadan kapalı kalmalıdır.

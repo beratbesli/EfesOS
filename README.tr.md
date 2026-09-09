@@ -24,7 +24,7 @@ EfesOS bir öğrenme projesidir; üretim ortamı işletim sistemi değildir. Tem
 - PCI BAR kayıtları sürücülere açılmadan önce çekirdek içinde tür/hizalama self-test’inden geçer
 - IRQ14 tamamlanması, doğrulanmış 4 KiB bounce-buffer parçalarıyla bus-master DMA okumaları, otomatik PIO fallback, seri hale getirilmiş istekler ve açık disk-yokluğu tanısı olan zaman aşımı kontrollü ATA primary-master erişimi
 - Q35/ICH9 SATA için bounded salt-okunur AHCI yolu: kullanılabilir denetleyiciler arasında sıralı failover, seçilen denetleyicide sekize kadar doğrulanmış disk, paylaşılan DMA sayfaları üzerinde güvenli biçimde durdurulan port geçişi, BIOS sahiplik devri, cache-disabled BAR5 eşleme, nesil takipli ve polling fallback’li transaction MSI tamamlanması, seri slot-0 IDENTIFY/READ DMA komutları, tek COMRESET retry’ı ardından aygıt nesliyle yeniden kimlik doğrulamalı tek denetleyici-geneli HBA-reset retry’ı ve hata halinde fail-closed MSI/bus-master iptali
-- Sürücüden bağımsız 512 baytlık blok aygıt katmanı kapasiteyi, transfer sınırını ve isteğe bağlı yazma yeteneğini çağrıdan önce doğrular; VFS’ye salt-okunur ATA veya AHCI görünümü verilir
+- Sürücüden bağımsız 512 baytlık blok aygıt katmanı 64-bit LBA/kapasiteyi ve 32-bit aktarım sayacını taşmasız doğrular; ATA/AHCI'nin 48-bit wire limiti korunur ve VFS’ye salt-okunur görünüm verilir
 - ATA ham yazmaları varsayılan olarak boot’ta korumalıdır; yalnızca doğrulanmış journal penceresi transaction için açılabilir
 - Sınırlı 8.3 kök/alt-dizin dosya okuması yapan salt-okunur FAT16 VFS (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); doğrulanmış ELF’i diskten başlatma (`run NAME`)
 - FAT volume dışında doğrulanmış journal bölgesi varsa shell `write`/`rm` işlemleri kalıcı RAMFS journal’ına transaction olarak yazılır; `pformat` yalnızca tamamen boş journal tail’ini açıkça biçimlendirir
@@ -93,6 +93,9 @@ Depolama sürücüsü değişikliklerinde bağımsız blok aygıt sınır/yetene
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\block-device-self-test.ps1
 ```
+
+Bu test `UINT32_MAX` çevresindeki LBA'ları, aygıt sonu ve `UINT64_MAX`
+taşma sınırlarını callback çağrılmadan reddetme davranışını da kapsar.
 
 ATA veya PIC değişikliklerinden sonra ATA IRQ tamamlanma durum-makinesi testini çalıştır:
 
