@@ -7,7 +7,7 @@ static const struct block_device *storage_device;
 
 #define ATA_READ_RETRIES 3U
 
-static int read_with_retry(fat_u32_t lba, fat_u8_t count, void *buffer)
+static int read_with_retry(fat_lba_t lba, uint32_t count, void *buffer)
 {
     unsigned int attempt;
 
@@ -21,7 +21,7 @@ static int read_with_retry(fat_u32_t lba, fat_u8_t count, void *buffer)
 
 static int mounted_volume_fits_device(void)
 {
-    unsigned int device_sectors = block_device_sector_count(storage_device);
+    uint64_t device_sectors = block_device_sector_count(storage_device);
 
     return volume.mounted && volume.start_lba < device_sectors &&
         volume.total_sectors != 0U && volume.total_sectors <=
@@ -39,7 +39,7 @@ void vfs_init(const struct block_device *device)
     volume.mounted = 0;
     storage_device = 0;
     if (block_device_is_ready(device)) {
-        unsigned int device_sectors = block_device_sector_count(device);
+        uint64_t device_sectors = block_device_sector_count(device);
 
         storage_device = device;
         if (fat_mount(&volume, read_with_retry, 0) && mounted_volume_fits_device()) {
@@ -56,7 +56,7 @@ void vfs_init(const struct block_device *device)
             for (index = 0; index < 4U; index++) {
                 const fat_u8_t *partition = mbr + 446U + (index * 16U);
                 fat_u8_t type = partition[4];
-                fat_u32_t start = read_u32(partition, 8);
+                fat_lba_t start = read_u32(partition, 8);
                 fat_u32_t length = read_u32(partition, 12);
 
                 if ((type == 0x04U || type == 0x06U || type == 0x0EU) && length != 0U &&
@@ -90,13 +90,12 @@ int vfs_read_file(const char *name, void *buffer, unsigned int capacity, unsigne
     return fat_read_file(&volume, name, buffer, capacity, size);
 }
 
-int vfs_journal_region_available(unsigned int start_lba, unsigned int sector_count)
+int vfs_journal_region_available(uint64_t start_lba, uint64_t sector_count)
 {
-    unsigned int device_sectors = block_device_sector_count(storage_device);
-    unsigned int region_end;
+    uint64_t device_sectors = block_device_sector_count(storage_device);
+    uint64_t region_end;
 
     if (sector_count == 0U || device_sectors == 0U || start_lba >= device_sectors ||
-        (sector_count - 1U) > 0xFFFFFFFFU - start_lba ||
         sector_count > device_sectors - start_lba) {
         return 0;
     }

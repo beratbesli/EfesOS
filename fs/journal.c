@@ -272,14 +272,15 @@ static int sequence_is_newer(unsigned int sequence, unsigned int previous)
     return sequence != 0U && sequence > previous;
 }
 
-static int region_fits(unsigned int start_lba, unsigned int sector_count)
+static int region_fits(uint64_t start_lba, unsigned int sector_count)
 {
-    /* The callbacks receive absolute 32-bit LBAs. Reject a region whose
+    /* The callbacks receive absolute 64-bit LBAs. Reject a region whose
        final sector would wrap before doing any I/O. */
-    return sector_count != 0U && start_lba <= 0xFFFFFFFFU - (sector_count - 1U);
+    return sector_count != 0U && start_lba <=
+        UINT64_MAX - ((uint64_t)sector_count - 1U);
 }
 
-static int scan_log(journal_read_fn read, unsigned int start_lba,
+static int scan_log(journal_read_fn read, uint64_t start_lba,
     unsigned int data_sectors, unsigned int *record_count,
     unsigned int *last_sequence)
 {
@@ -328,7 +329,7 @@ static int scan_log(journal_read_fn read, unsigned int start_lba,
     return 1;
 }
 
-int journal_replay(journal_read_fn read, unsigned int start_lba,
+int journal_replay(journal_read_fn read, uint64_t start_lba,
     unsigned int sector_count, journal_apply_fn apply, unsigned int *applied)
 {
     unsigned char sector[JOURNAL_SECTOR_SIZE];
@@ -365,7 +366,7 @@ int journal_replay(journal_read_fn read, unsigned int start_lba,
     return 1;
 }
 
-int journal_next_sequence(journal_read_fn read, unsigned int start_lba,
+int journal_next_sequence(journal_read_fn read, uint64_t start_lba,
     unsigned int sector_count, unsigned int *sequence)
 {
     unsigned char superblock[JOURNAL_SECTOR_SIZE];
@@ -387,7 +388,7 @@ int journal_next_sequence(journal_read_fn read, unsigned int start_lba,
 }
 
 int journal_append(journal_read_fn read, journal_write_fn write,
-    unsigned int start_lba, unsigned int sector_count, unsigned int operation,
+    uint64_t start_lba, unsigned int sector_count, unsigned int operation,
     unsigned int sequence, const char *name, const void *content,
     unsigned int content_length)
 {
@@ -396,7 +397,7 @@ int journal_append(journal_read_fn read, journal_write_fn write,
     unsigned int data_sectors;
     unsigned int record_count;
     unsigned int last_sequence;
-    unsigned int target_lba;
+    uint64_t target_lba;
     struct journal_entry entry;
 
     if (read == 0 || write == 0 || sector_count < 2U ||

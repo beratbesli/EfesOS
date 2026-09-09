@@ -9,7 +9,7 @@
 struct ahci_device_record {
     struct block_device block_device;
     uint16_t identify[256];
-    uint32_t sector_count;
+    uint64_t sector_count;
     unsigned int validation_generation;
     unsigned int controller_index;
     unsigned int port;

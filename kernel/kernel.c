@@ -327,7 +327,7 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("EfesOS: ATA primary-master present=");
     serial_write_hex(ata_present());
     serial_write(" sectors=");
-    serial_write_hex(ata_sector_count());
+    serial_write_hex64(ata_sector_count());
         serial_write(" status=");
         serial_write_hex(ata_last_status());
         serial_write(" type=");
@@ -508,7 +508,7 @@ void kernel_main(const struct boot_info *boot_info)
     serial_write("EfesOS: AHCI disk present=");
     serial_write_hex((unsigned int)ahci_present());
     serial_write(" sectors=");
-    serial_write_hex(ahci_sector_count());
+    serial_write_hex64(ahci_sector_count());
     serial_write(" port=");
     serial_write_hex(ahci_port_number());
     serial_write(" version=");
@@ -580,7 +580,7 @@ void kernel_main(const struct boot_info *boot_info)
                  device_index++) {
                 const struct block_device *additional =
                     ahci_block_device_at(device_index);
-                unsigned int additional_sectors =
+                uint64_t additional_sectors =
                     ahci_device_sector_count(device_index);
                 unsigned int additional_reads = ahci_read_count();
                 unsigned int additional_irqs = ahci_irq_count();

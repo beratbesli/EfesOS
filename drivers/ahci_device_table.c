@@ -43,7 +43,7 @@ int ahci_device_table_add(struct ahci_device_table *table,
     block_device_read_fn read)
 {
     struct ahci_device_record *record;
-    uint32_t sector_count;
+    uint64_t sector_count;
     int lba48_supported;
     unsigned int index;
 

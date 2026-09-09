@@ -7,6 +7,7 @@
 #define AHCI_ATA_CMD_READ_DMA 0xC8U
 #define AHCI_ATA_CMD_READ_DMA_EXT 0x25U
 #define AHCI_LBA28_LIMIT 0x10000000U
+#define AHCI_LBA48_SECTOR_COUNT_MAX 0x0001000000000000ULL
 
 _Static_assert(sizeof(struct ahci_command_header) == 32U,
     "AHCI command header must be 32 bytes");
@@ -92,10 +93,10 @@ int ahci_link_is_established(uint32_t sata_status, uint32_t signature)
     return ahci_link_is_active(sata_status) && signature == AHCI_ATA_SIGNATURE;
 }
 
-int ahci_identify_capacity(const uint16_t *identify, uint32_t *sector_count,
+int ahci_identify_capacity(const uint16_t *identify, uint64_t *sector_count,
     int *lba48_supported)
 {
-    uint32_t count;
+    uint64_t count;
     int supports_lba48;
 
     if (identify == 0 || sector_count == 0 || lba48_supported == 0 ||
@@ -105,10 +106,13 @@ int ahci_identify_capacity(const uint16_t *identify, uint32_t *sector_count,
 
     supports_lba48 = (identify[83] & 0x0400U) != 0U;
     if (supports_lba48) {
-        if (identify[103] != 0U || identify[102] != 0U) {
+        count = (uint64_t)identify[100] |
+            ((uint64_t)identify[101] << 16U) |
+            ((uint64_t)identify[102] << 32U) |
+            ((uint64_t)identify[103] << 48U);
+        if (count > AHCI_LBA48_SECTOR_COUNT_MAX) {
             return 0;
         }
-        count = ((uint32_t)identify[101] << 16U) | identify[100];
     } else {
         count = ((uint32_t)identify[61] << 16U) | identify[60];
         if (count > AHCI_LBA28_LIMIT) {
@@ -127,8 +131,8 @@ int ahci_identify_capacity(const uint16_t *identify, uint32_t *sector_count,
 int ahci_identify_same_device(const uint16_t *baseline,
     const uint16_t *candidate)
 {
-    uint32_t baseline_sectors;
-    uint32_t candidate_sectors;
+    uint64_t baseline_sectors;
+    uint64_t candidate_sectors;
     int baseline_lba48;
     int candidate_lba48;
 
@@ -161,15 +165,17 @@ int ahci_build_identify_command(struct ahci_command_header *header,
 
 int ahci_build_read_command(struct ahci_command_header *header,
     struct ahci_command_table *table, uint32_t table_physical,
-    uint32_t data_physical, uint32_t lba, uint8_t count,
+    uint32_t data_physical, uint64_t lba, uint8_t count,
     int lba48_supported)
 {
     uint8_t *fis;
 
     if (count == 0U || count > AHCI_MAX_TRANSFER_SECTORS ||
+        (lba48_supported && (lba >= AHCI_LBA48_SECTOR_COUNT_MAX ||
+            (uint64_t)count > AHCI_LBA48_SECTOR_COUNT_MAX - lba)) ||
         (!lba48_supported &&
             (lba >= AHCI_LBA28_LIMIT ||
-             (uint32_t)count > AHCI_LBA28_LIMIT - lba)) ||
+             (uint64_t)count > AHCI_LBA28_LIMIT - lba)) ||
         !prepare_data_command(header, table, table_physical, data_physical,
             (unsigned int)count * AHCI_SECTOR_SIZE)) {
         return 0;
@@ -184,6 +190,8 @@ int ahci_build_read_command(struct ahci_command_header *header,
         (uint8_t)(0xE0U | ((lba >> 24U) & 0x0FU));
     if (lba48_supported) {
         fis[8] = (uint8_t)(lba >> 24U);
+        fis[9] = (uint8_t)(lba >> 32U);
+        fis[10] = (uint8_t)(lba >> 40U);
         fis[12] = count;
         fis[13] = 0U;
     } else {

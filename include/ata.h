@@ -1,6 +1,8 @@
 #ifndef EFESOS_ATA_H
 #define EFESOS_ATA_H
 
+#include <stdint.h>
+
 #include "../cpu/io.h"
 #include "block_device.h"
 
@@ -18,10 +20,10 @@ unsigned int ata_dma_transfer_mode(void);
 unsigned int ata_dma_transfer_count(void);
 unsigned int ata_dma_fallback_count(void);
 int ata_present(void);
-unsigned int ata_sector_count(void);
-int ata_read_sectors(uint32_t lba, uint8_t count, void *buffer);
-int ata_write_sectors(uint32_t lba, uint8_t count, const void *buffer);
-int ata_enable_transactional_writes(uint32_t start_lba, uint32_t sector_count);
+uint64_t ata_sector_count(void);
+int ata_read_sectors(uint64_t lba, uint8_t count, void *buffer);
+int ata_write_sectors(uint64_t lba, uint8_t count, const void *buffer);
+int ata_enable_transactional_writes(uint64_t start_lba, uint64_t sector_count);
 void ata_disable_transactional_writes(void);
 int ata_write_protected(void);
 uint8_t ata_last_status(void);

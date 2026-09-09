@@ -142,3 +142,21 @@ void serial_write_hex(unsigned int value)
     }
     serial_irq_restore(flags);
 }
+
+void serial_write_hex64(uint64_t value)
+{
+    static const char digits[] = "0123456789ABCDEF";
+    int shift;
+    unsigned int flags = serial_irq_save();
+
+    serial_write_unlocked("0x");
+    for (shift = 60; shift >= 0; shift -= 4) {
+        if (ready != 0 && wait_for_transmit()) {
+            outb(COM1_PORT, (unsigned char)digits[(value >> (unsigned int)shift) & 0x0FU]);
+        } else {
+            ready = 0;
+            break;
+        }
+    }
+    serial_irq_restore(flags);
+}

@@ -9,7 +9,7 @@
 
 static unsigned int last_error;
 
-static int read_sector(const struct fat_volume *volume, fat_u32_t lba, fat_u8_t *buffer)
+static int read_sector(const struct fat_volume *volume, fat_lba_t lba, fat_u8_t *buffer)
 {
     if (volume == 0 || !volume->mounted || lba < volume->start_lba ||
         lba - volume->start_lba >= volume->total_sectors) {
@@ -160,7 +160,7 @@ static int find_entry_in_directory(const struct fat_volume *volume,
             sector_count = volume->sectors_per_cluster;
         }
         for (sector_index = 0U; sector_index < sector_count; sector_index++) {
-            fat_u32_t lba = directory->root ?
+            fat_lba_t lba = directory->root ?
                 volume->root_start + sector_index :
                 volume->data_start + ((cluster - 2U) * volume->sectors_per_cluster) +
                     sector_index;
@@ -279,7 +279,7 @@ static void entry_to_text(const fat_u8_t *entry, char *name, unsigned int capaci
     name[output] = '\0';
 }
 
-int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
+int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_lba_t start_lba)
 {
     fat_u8_t boot[FAT_SECTOR_SIZE];
     fat_u8_t fat_header[FAT_SECTOR_SIZE];
@@ -345,7 +345,7 @@ int fat_mount(struct fat_volume *volume, fat_read_fn read, fat_u32_t start_lba)
         last_error = 6;
         return 0;
     }
-    if (start_lba > 0xFFFFFFFFU - total_sectors) {
+    if (start_lba > UINT64_MAX - ((fat_lba_t)total_sectors - 1U)) {
         last_error = 7;
         return 0;
     }
