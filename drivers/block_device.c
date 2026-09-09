@@ -16,8 +16,8 @@ void block_device_reset(struct block_device *device)
     device->context = 0;
 }
 
-int block_device_configure(struct block_device *device, unsigned int sector_count,
-    unsigned short sector_size, unsigned char max_transfer_sectors,
+int block_device_configure(struct block_device *device, uint64_t sector_count,
+    unsigned short sector_size, uint32_t max_transfer_sectors,
     block_device_read_fn read, block_device_write_fn write, void *context)
 {
     if (device == 0) {
@@ -54,21 +54,21 @@ int block_device_can_write(const struct block_device *device)
     return block_device_is_ready(device) && device->write != 0;
 }
 
-unsigned int block_device_sector_count(const struct block_device *device)
+uint64_t block_device_sector_count(const struct block_device *device)
 {
-    return block_device_is_ready(device) ? device->sector_count : 0U;
+    return block_device_is_ready(device) ? device->sector_count : 0ULL;
 }
 
-static int request_is_valid(const struct block_device *device, unsigned int lba,
-    unsigned char count, const void *buffer)
+static int request_is_valid(const struct block_device *device, uint64_t lba,
+    uint32_t count, const void *buffer)
 {
     return block_device_is_ready(device) && buffer != 0 && count != 0U &&
         count <= device->max_transfer_sectors && lba < device->sector_count &&
-        (unsigned int)count <= device->sector_count - lba;
+        (uint64_t)count <= device->sector_count - lba;
 }
 
-int block_device_read(const struct block_device *device, unsigned int lba,
-    unsigned char count, void *buffer)
+int block_device_read(const struct block_device *device, uint64_t lba,
+    uint32_t count, void *buffer)
 {
     if (!request_is_valid(device, lba, count, buffer)) {
         return 0;
@@ -76,8 +76,8 @@ int block_device_read(const struct block_device *device, unsigned int lba,
     return device->read(device->context, lba, count, buffer);
 }
 
-int block_device_write(const struct block_device *device, unsigned int lba,
-    unsigned char count, const void *buffer)
+int block_device_write(const struct block_device *device, uint64_t lba,
+    uint32_t count, const void *buffer)
 {
     if (!request_is_valid(device, lba, count, buffer) || device->write == 0) {
         return 0;

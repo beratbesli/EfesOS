@@ -78,7 +78,7 @@ static struct ahci_command_header *command_header;
 static struct ahci_command_table *command_table;
 static struct ahci_device_table device_table;
 static struct ahci_device_record *active_device;
-static uint32_t sectors;
+static uint64_t sectors;
 static uint32_t controller_version;
 static unsigned int selected_controller_index;
 static unsigned int controller_probe_count;
@@ -1023,8 +1023,8 @@ static struct ahci_device_record *device_from_context(void *context)
     return 0;
 }
 
-static int ahci_block_read(void *context, unsigned int lba,
-    unsigned char count, void *buffer)
+static int ahci_block_read(void *context, uint64_t lba,
+    uint32_t count, void *buffer)
 {
     enum ahci_recovery_action action;
     unsigned int flags;
@@ -1034,7 +1034,7 @@ static int ahci_block_read(void *context, unsigned int lba,
 
     if (!device_present || device == 0 || buffer == 0 || count == 0U ||
         count > AHCI_MAX_TRANSFER_SECTORS || lba >= device->sector_count ||
-        (unsigned int)count > device->sector_count - lba) {
+        (uint64_t)count > device->sector_count - lba) {
         return 0;
     }
     flags = interrupt_save();
@@ -1048,7 +1048,7 @@ static int ahci_block_read(void *context, unsigned int lba,
     if (!activate_port(device->port, device)) {
         success = 0;
     } else if (ahci_build_read_command(command_header, command_table,
-            command_table_physical, bounce_physical, lba, count,
+            command_table_physical, bounce_physical, lba, (uint8_t)count,
             supports_lba48) && issue_slot_zero(byte_count)) {
         success = 1;
     } else {
@@ -1059,7 +1059,7 @@ static int ahci_block_read(void *context, unsigned int lba,
                 port_reset_and_revalidate() : hba_reset_and_revalidate();
             int retry_ok = reset_ok &&
                 ahci_build_read_command(command_header, command_table,
-                    command_table_physical, bounce_physical, lba, count,
+                    command_table_physical, bounce_physical, lba, (uint8_t)count,
                     supports_lba48) && issue_slot_zero(byte_count);
 
             action = ahci_recovery_advance(&recovery_state, action,
@@ -1327,7 +1327,7 @@ unsigned int ahci_device_count(void)
     return device_present ? ahci_device_table_count(&device_table) : 0U;
 }
 
-unsigned int ahci_sector_count(void)
+uint64_t ahci_sector_count(void)
 {
     return ahci_device_sector_count(0U);
 }
@@ -1414,7 +1414,7 @@ const struct block_device *ahci_block_device_at(unsigned int index)
         0;
 }
 
-unsigned int ahci_device_sector_count(unsigned int index)
+uint64_t ahci_device_sector_count(unsigned int index)
 {
     const struct ahci_device_record *device = device_present ?
         ahci_device_table_record_at_const(&device_table, index) : 0;

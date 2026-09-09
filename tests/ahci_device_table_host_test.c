@@ -4,8 +4,8 @@
 
 static unsigned int read_calls;
 
-static int fake_read(void *context, unsigned int lba,
-    unsigned char count, void *buffer)
+static int fake_read(void *context, uint64_t lba,
+    uint32_t count, void *buffer)
 {
     const struct ahci_device_record *record =
         (const struct ahci_device_record *)context;
@@ -19,7 +19,7 @@ static int fake_read(void *context, unsigned int lba,
     return 1;
 }
 
-static void make_identify(uint16_t identify[256], uint32_t sectors)
+static void make_identify(uint16_t identify[256], uint64_t sectors)
 {
     unsigned int index;
 
@@ -30,6 +30,8 @@ static void make_identify(uint16_t identify[256], uint32_t sectors)
     identify[83] = 0x0400U;
     identify[100] = (uint16_t)sectors;
     identify[101] = (uint16_t)(sectors >> 16U);
+    identify[102] = (uint16_t)(sectors >> 32U);
+    identify[103] = (uint16_t)(sectors >> 48U);
 }
 
 int main(void)
@@ -73,24 +75,36 @@ int main(void)
         return 4;
     }
 
+    ahci_device_table_reset(&table);
+    make_identify(identify, 0x0000ABCD12345678ULL);
+    if (!ahci_device_table_add(&table, 1U, 2U, 7U, identify, fake_read) ||
+        ahci_device_table_record_at(&table, 0U)->sector_count !=
+            0x0000ABCD12345678ULL ||
+        !block_device_read(ahci_device_table_block_at(&table, 0U),
+            0x0000ABCD12345677ULL, 1U, sector) ||
+        block_device_read(ahci_device_table_block_at(&table, 0U),
+            0x0000ABCD12345678ULL, 1U, sector)) {
+        return 5;
+    }
+
     for (index = 1U; index < AHCI_DEVICE_TABLE_MAX; index++) {
         make_identify(identify, 8192U + index);
         if (!ahci_device_table_add(&table, 1U, index + 2U, 7U,
                 identify, fake_read)) {
-            return 5;
+            return 6;
         }
     }
     make_identify(identify, 16384U);
     if (ahci_device_table_count(&table) != AHCI_DEVICE_TABLE_MAX ||
         ahci_device_table_add(&table, 2U, 0U, 7U, identify, fake_read) ||
         ahci_device_table_block_at(&table, AHCI_DEVICE_TABLE_MAX) != 0) {
-        return 6;
+        return 7;
     }
 
     ahci_device_table_reset(&table);
     if (ahci_device_table_count(&table) != 0U ||
         ahci_device_table_record_at_const(&table, 0U) != 0) {
-        return 7;
+        return 8;
     }
     puts("AHCI device table host tests passed.");
     return 0;

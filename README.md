@@ -24,7 +24,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - PCI BAR records pass an in-kernel alignment/type self-test before device drivers consume them
 - Timeout-bounded ATA primary-master I/O with IRQ14 completion, validated bus-master DMA reads in 4 KiB bounce-buffer chunks, automatic PIO fallback, serialized requests and explicit disk absence reporting
 - Bounded read-only AHCI path for Q35/ICH9 SATA: ordered failover across usable controllers, up to eight validated disks on the selected controller, safely quiesced port switching over shared DMA pages, BIOS ownership handoff, cache-disabled BAR5 mapping, transactional single-message MSI completion with generation tracking and polling fallback, serialized slot-0 IDENTIFY/READ DMA commands, one COMRESET retry followed by one controller-wide HBA-reset retry with per-device generation revalidation, and fail-closed MSI/bus-master revocation
-- Driver-independent 512-byte block-device layer validates capacity, transfer bounds and optional write capability before dispatch; VFS receives a read-only ATA or AHCI view
+- Driver-independent 512-byte block-device layer validates 64-bit LBA/capacity, 32-bit transfer counts and optional write capability before dispatch; ATA/AHCI retain their 48-bit wire limit and VFS receives a read-only view
 - ATA raw writes remain disabled by default; only a validated journal window can be transactionally enabled
 - Read-only FAT16 VFS mount with bounded 8.3 root/subdirectory file reads (`diskls`, `diskcat NAME`, `diskcat DIR/NAME`); validated ELF launch from disk (`run NAME`)
 - When a validated journal region exists outside the FAT volume, shell `write`/`rm` operations are committed transactionally to persistent RAMFS; `pformat` explicitly formats an entirely empty journal tail
@@ -93,6 +93,9 @@ Run the standalone block-device boundary and capability test when changing stora
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\block-device-self-test.ps1
 ```
+
+The test covers `UINT32_MAX`-adjacent LBAs, end-of-device handling and
+`UINT64_MAX` overflow rejection before a driver callback is invoked.
 
 Run the ATA IRQ completion state-machine test when changing ATA or PIC code:
 

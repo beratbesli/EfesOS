@@ -34,7 +34,7 @@ static void copy_sector(unsigned int destination, unsigned int source)
     }
 }
 
-static int read_fixture(unsigned int lba, unsigned char count, void *buffer)
+static int read_fixture(fat_lba_t lba, uint32_t count, void *buffer)
 {
     unsigned int index;
     unsigned int bytes = (unsigned int)count * SECTOR_SIZE;
@@ -49,7 +49,7 @@ static int read_fixture(unsigned int lba, unsigned char count, void *buffer)
     return 1;
 }
 
-static int read_fixed_boot(unsigned int lba, unsigned char count, void *buffer)
+static int read_fixed_boot(fat_lba_t lba, uint32_t count, void *buffer)
 {
     unsigned int index;
 
@@ -244,7 +244,8 @@ int main(void)
         return 1;
     }
     build_fixture();
-    if (fat_mount(&volume, read_fixed_boot, 0xFFFFFFF0U) || fat_last_error() != 7U) {
+    if (fat_mount(&volume, read_fixed_boot, UINT64_MAX - 100U) ||
+        fat_last_error() != 7U) {
         return 1;
     }
     build_fixture();

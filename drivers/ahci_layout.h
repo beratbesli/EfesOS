@@ -1,6 +1,8 @@
 #ifndef EFESOS_AHCI_LAYOUT_H
 #define EFESOS_AHCI_LAYOUT_H
 
+#include <stdint.h>
+
 #include "pci.h"
 
 #define AHCI_SECTOR_SIZE 512U
@@ -38,7 +40,7 @@ uint32_t ahci_comreset_assert_control(uint32_t sata_control);
 uint32_t ahci_comreset_release_control(uint32_t sata_control);
 int ahci_link_is_active(uint32_t sata_status);
 int ahci_link_is_established(uint32_t sata_status, uint32_t signature);
-int ahci_identify_capacity(const uint16_t *identify, uint32_t *sector_count,
+int ahci_identify_capacity(const uint16_t *identify, uint64_t *sector_count,
     int *lba48_supported);
 int ahci_identify_same_device(const uint16_t *baseline,
     const uint16_t *candidate);
@@ -47,7 +49,7 @@ int ahci_build_identify_command(struct ahci_command_header *header,
     uint32_t data_physical);
 int ahci_build_read_command(struct ahci_command_header *header,
     struct ahci_command_table *table, uint32_t table_physical,
-    uint32_t data_physical, uint32_t lba, uint8_t count,
+    uint32_t data_physical, uint64_t lba, uint8_t count,
     int lba48_supported);
 
 #endif

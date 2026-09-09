@@ -41,7 +41,7 @@ unsigned int ahci_irq_count(void);
 unsigned int ahci_irq_fallback_count(void);
 int ahci_present(void);
 unsigned int ahci_device_count(void);
-unsigned int ahci_sector_count(void);
+uint64_t ahci_sector_count(void);
 unsigned int ahci_controller_index(void);
 unsigned int ahci_controller_probe_count(void);
 unsigned int ahci_controller_failover_count(void);
@@ -57,7 +57,7 @@ unsigned int ahci_hba_reset_count(void);
 int ahci_fail_closed(void);
 const struct block_device *ahci_block_device(void);
 const struct block_device *ahci_block_device_at(unsigned int index);
-unsigned int ahci_device_sector_count(unsigned int index);
+uint64_t ahci_device_sector_count(unsigned int index);
 unsigned int ahci_device_port(unsigned int index);
 
 #endif

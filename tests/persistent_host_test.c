@@ -10,8 +10,8 @@
 #define JOURNAL_START (DISK_SECTORS - 65U)
 
 static unsigned char disk[DISK_SECTORS * JOURNAL_SECTOR_SIZE];
-static unsigned int enabled_start;
-static unsigned int enabled_count;
+static uint64_t enabled_start;
+static uint64_t enabled_count;
 
 static void clear_disk(void)
 {
@@ -27,12 +27,12 @@ int ata_present(void)
     return 1;
 }
 
-unsigned int ata_sector_count(void)
+uint64_t ata_sector_count(void)
 {
     return DISK_SECTORS;
 }
 
-int ata_read_sectors(unsigned int lba, unsigned char count, void *buffer)
+int ata_read_sectors(uint64_t lba, uint8_t count, void *buffer)
 {
     if (count == 0U || lba >= DISK_SECTORS || count > DISK_SECTORS - lba) {
         return 0;
@@ -43,11 +43,11 @@ int ata_read_sectors(unsigned int lba, unsigned char count, void *buffer)
     return 1;
 }
 
-int ata_write_sectors(unsigned int lba, unsigned char count, const void *buffer)
+int ata_write_sectors(uint64_t lba, uint8_t count, const void *buffer)
 {
     if (count == 0U || lba < enabled_start ||
         lba - enabled_start >= enabled_count ||
-        (unsigned int)count > enabled_count - (lba - enabled_start) ||
+        (uint64_t)count > enabled_count - (lba - enabled_start) ||
         lba >= DISK_SECTORS || count > DISK_SECTORS - lba) {
         return 0;
     }
@@ -57,7 +57,7 @@ int ata_write_sectors(unsigned int lba, unsigned char count, const void *buffer)
     return 1;
 }
 
-int ata_enable_transactional_writes(unsigned int start_lba, unsigned int sector_count)
+int ata_enable_transactional_writes(uint64_t start_lba, uint64_t sector_count)
 {
     enabled_start = start_lba;
     enabled_count = sector_count;
@@ -106,7 +106,7 @@ void kfree(void *pointer)
     free(pointer);
 }
 
-int vfs_journal_region_available(unsigned int start_lba, unsigned int sector_count)
+int vfs_journal_region_available(uint64_t start_lba, uint64_t sector_count)
 {
     return start_lba == JOURNAL_START && sector_count == 65U;
 }

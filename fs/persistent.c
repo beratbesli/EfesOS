@@ -10,7 +10,7 @@
 #define PERSISTENT_JOURNAL_REGION_SECTORS 65U
 
 static int persistent_enabled;
-static unsigned int persistent_region_start;
+static uint64_t persistent_region_start;
 static unsigned int persistent_next_sequence;
 static unsigned int persistent_replay_records;
 

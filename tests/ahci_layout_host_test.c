@@ -62,7 +62,7 @@ static int test_identity(void)
 static int test_identify(void)
 {
     uint16_t identify[256] = {0};
-    uint32_t sectors = 0U;
+    uint64_t sectors = 0U;
     int lba48 = 0;
 
     identify[49] = 0x0200U;
@@ -79,11 +79,25 @@ static int test_identify(void)
         sectors != 0x12345678U || !lba48) {
         return 0;
     }
-    identify[102] = 1U;
+    identify[102] = 0xABCDU;
+    identify[103] = 0x0000U;
+    if (!ahci_identify_capacity(identify, &sectors, &lba48) ||
+        sectors != 0x0000ABCD12345678ULL || !lba48) {
+        return 0;
+    }
+    identify[100] = 0U;
+    identify[101] = 0U;
+    identify[102] = 0U;
+    identify[103] = 1U;
+    if (!ahci_identify_capacity(identify, &sectors, &lba48) ||
+        sectors != 0x0001000000000000ULL) {
+        return 0;
+    }
+    identify[103] = 2U;
     if (ahci_identify_capacity(identify, &sectors, &lba48)) {
         return 0;
     }
-    identify[102] = 0U;
+    identify[103] = 0U;
     identify[49] = 0U;
     return !ahci_identify_capacity(identify, &sectors, &lba48) &&
         !ahci_identify_capacity(0, &sectors, &lba48) &&
@@ -116,6 +130,14 @@ static int test_commands(void)
         return 0;
     }
     if (!ahci_build_read_command(&header, &table, 0x00101000U,
+            0x00102000U, 0x0000ABCD12345678ULL, 1U, 1) ||
+        table.command_fis[4] != 0x78U || table.command_fis[5] != 0x56U ||
+        table.command_fis[6] != 0x34U || table.command_fis[7] != 0x40U ||
+        table.command_fis[8] != 0x12U || table.command_fis[9] != 0xCDU ||
+        table.command_fis[10] != 0xABU) {
+        return 0;
+    }
+    if (!ahci_build_read_command(&header, &table, 0x00101000U,
             0x00102000U, 0x01234567U, 1U, 0) ||
         table.command_fis[2] != 0xC8U || table.command_fis[7] != 0xE1U) {
         return 0;
@@ -129,7 +151,9 @@ static int test_commands(void)
         !ahci_build_read_command(&header, &table, 0x00101000U,
             0x00102000U, 0U, 9U, 1) &&
         !ahci_build_read_command(&header, &table, 0x00101000U,
-            0x00102000U, 0x0FFFFFFFU, 2U, 0);
+            0x00102000U, 0x0FFFFFFFU, 2U, 0) &&
+        !ahci_build_read_command(&header, &table, 0x00101000U,
+            0x00102000U, 0x0001000000000000ULL, 1U, 1);
 }
 
 int main(void)
