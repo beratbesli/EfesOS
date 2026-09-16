@@ -53,7 +53,7 @@ EfesOS is a learning project, not a production operating system. It now has a sm
 - NASM
 - Either `i686-elf-gcc`, `i686-elf-ld`, and `i686-elf-objcopy`, or LLVM (`clang`, `ld.lld`, and `llvm-objcopy`)
 - QEMU (`qemu-system-i386`)
-- Python 3 (Linux `make` build’inde kernel SHA-256 kelimelerini üretmek için)
+- Python 3 (to generate the kernel SHA-256 words during Linux `make` builds)
 
 The Windows build script prefers the GNU cross-toolchain when it is available and otherwise uses Clang with the `i686-none-elf` target. Use tools obtained from trusted sources and verify their checksums before installing them. EfesOS does not download or vendor compiler binaries.
 
